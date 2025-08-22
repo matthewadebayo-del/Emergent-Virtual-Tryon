@@ -296,15 +296,19 @@ def main():
     if not tester.test_tryon_history():
         print("❌ Try-on history failed")
 
-    # Test 8: Test new login with same credentials
+    # Test 8: Extract Measurements (New Feature)
+    if not tester.test_extract_measurements():
+        print("❌ Extract measurements failed")
+
+    # Test 9: Test new login with same credentials
     if not tester.test_login(test_email, test_password):
         print("❌ Login with registered credentials failed")
 
-    # Test 9: Invalid Login
+    # Test 10: Invalid Login
     if not tester.test_invalid_login():
         print("❌ Invalid login test failed")
 
-    # Test 10: Unauthorized Access
+    # Test 11: Unauthorized Access
     if not tester.test_unauthorized_access():
         print("❌ Unauthorized access test failed")
 
