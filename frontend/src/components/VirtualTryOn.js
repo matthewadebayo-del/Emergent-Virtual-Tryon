@@ -585,11 +585,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     {products.map((product) => (
                       <div
                         key={product.id}
+                        data-product-id={product.id}
                         onClick={() => handleProductSelect(product)}
                         className={`card-dark cursor-pointer transition-all ${
                           selectedProduct?.id === product.id 
-                            ? 'ring-2 ring-purple-500 shadow-purple' 
-                            : ''
+                            ? 'ring-4 ring-purple-500 ring-opacity-75 shadow-lg shadow-purple-500/50 transform scale-102' 
+                            : 'hover:ring-2 hover:ring-purple-400'
                         }`}
                       >
                         <img
@@ -600,6 +601,13 @@ const VirtualTryOn = ({ user, onLogout }) => {
                         <h4 className="text-white font-semibold mb-2">{product.name}</h4>
                         <p className="text-white/70 text-sm mb-2">{product.description}</p>
                         <p className="text-purple-400 font-semibold">${product.price}</p>
+                        {selectedProduct?.id === product.id && (
+                          <div className="mt-2 text-center">
+                            <span className="inline-block bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                              Selected
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
