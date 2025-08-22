@@ -275,27 +275,33 @@ async def extract_measurements(
 
 # Virtual Try-on Routes
 @api_router.post("/tryon")
-async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_current_user)):
+async def virtual_tryon(
+    user_image_base64: str = Form(...),
+    product_id: Optional[str] = Form(None),
+    clothing_image_base64: Optional[str] = Form(None),
+    use_stored_measurements: bool = Form(False),
+    current_user: User = Depends(get_current_user)
+):
     try:
         print(f"Try-on request from user {current_user.email}")
-        print(f"Product ID: {request.product_id}")
-        print(f"Has user image: {bool(request.user_image_base64)}")
-        print(f"Has clothing image: {bool(request.clothing_image_base64)}")
+        print(f"Product ID: {product_id}")
+        print(f"Has user image: {bool(user_image_base64)}")
+        print(f"Has clothing image: {bool(clothing_image_base64)}")
         
         if not image_gen:
             raise HTTPException(status_code=500, detail="Image generation service not available")
         
         # Validate inputs
-        if not request.user_image_base64:
+        if not user_image_base64:
             raise HTTPException(status_code=422, detail="User image is required")
             
-        if not request.product_id and not request.clothing_image_base64:
+        if not product_id and not clothing_image_base64:
             raise HTTPException(status_code=422, detail="Either product_id or clothing_image_base64 is required")
         
         # Get clothing information
         clothing_description = ""
-        if request.product_id:
-            product = await db.products.find_one({"id": request.product_id})
+        if product_id:
+            product = await db.products.find_one({"id": product_id})
             if not product:
                 raise HTTPException(status_code=404, detail="Product not found")
             clothing_description = f"{product['name']} - {product['description']}"
@@ -306,7 +312,7 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
         
         # Use stored measurements or extract from image
         measurements = None
-        if request.use_stored_measurements and current_user.measurements:
+        if use_stored_measurements and current_user.measurements:
             measurements = current_user.measurements
             print(f"Using stored measurements: {measurements}")
         else:
@@ -331,7 +337,7 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
         
         # Decode the user's image (we have this for future use)
         try:
-            user_image_bytes = base64.b64decode(request.user_image_base64)
+            user_image_bytes = base64.b64decode(user_image_base64)
             print(f"Successfully decoded user image, size: {len(user_image_bytes)} bytes")
         except Exception as e:
             print(f"Error decoding user image: {str(e)}")
@@ -354,7 +360,7 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
         result_image_base64 = base64.b64encode(images[0]).decode('utf-8')
         
         # Determine size recommendation based on measurements
-        size_recommendation = determine_size_recommendation(measurements, request.product_id if request.product_id else None)
+        size_recommendation = determine_size_recommendation(measurements, product_id if product_id else None)
         
         # Save try-on result
         tryon_result = TryonResult(
