@@ -235,16 +235,20 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
       setLoadingStep('Generating virtual try-on with personalized avatar...');
 
-      const requestData = {
-        user_image_base64: userImageBase64,
-        product_id: selectedProduct?.id || null,
-        clothing_image_base64: clothingImageBase64,
-        use_stored_measurements: useStoredMeasurements && (user.measurements || measurements)
-      };
+      // Create FormData for the request
+      const formData = new FormData();
+      formData.append('user_image_base64', userImageBase64);
+      formData.append('product_id', selectedProduct?.id || '');
+      formData.append('clothing_image_base64', clothingImageBase64 || '');
+      formData.append('use_stored_measurements', String(useStoredMeasurements && (user.measurements || measurements)));
 
-      console.log('Sending try-on request:', { ...requestData, user_image_base64: '[BASE64_DATA]', clothing_image_base64: clothingImageBase64 ? '[BASE64_DATA]' : null });
+      console.log('Sending try-on FormData with product_id:', selectedProduct?.id);
 
-      const response = await axios.post('/tryon', requestData);
+      const response = await axios.post('/tryon', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       
       console.log('Try-on response:', response.data);
       setTryonResult(response.data);
