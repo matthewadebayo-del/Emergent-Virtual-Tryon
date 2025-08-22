@@ -87,14 +87,14 @@ const RegisterPage = ({ onLogin }) => {
               <label className="block text-white/80 text-sm font-medium mb-2">
                 Full Name
               </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/50" />
+              <div className="input-field-container">
+                <User className="input-icon w-5 h-5" />
                 <input
                   type="text"
                   name="full_name"
                   value={formData.full_name}
                   onChange={handleChange}
-                  className="input-field pl-10"
+                  className="input-field"
                   placeholder="Enter your full name"
                   required
                 />
@@ -105,14 +105,14 @@ const RegisterPage = ({ onLogin }) => {
               <label className="block text-white/80 text-sm font-medium mb-2">
                 Email Address
               </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/50" />
+              <div className="input-field-container">
+                <Mail className="input-icon w-5 h-5" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="input-field pl-10"
+                  className="input-field"
                   placeholder="Enter your email"
                   required
                 />
@@ -123,14 +123,14 @@ const RegisterPage = ({ onLogin }) => {
               <label className="block text-white/80 text-sm font-medium mb-2">
                 Password
               </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/50" />
+              <div className="input-field-container">
+                <Lock className="input-icon w-5 h-5" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="input-field pl-10 pr-10"
+                  className="input-field pr-12"
                   placeholder="Create a password"
                   required
                 />
@@ -148,14 +148,14 @@ const RegisterPage = ({ onLogin }) => {
               <label className="block text-white/80 text-sm font-medium mb-2">
                 Confirm Password
               </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/50" />
+              <div className="input-field-container">
+                <Lock className="input-icon w-5 h-5" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="input-field pl-10 pr-10"
+                  className="input-field pr-12"
                   placeholder="Confirm your password"
                   required
                 />
