@@ -307,8 +307,18 @@ def determine_size_recommendation(measurements: dict, product_id: str = None) ->
 # Try-on History
 @api_router.get("/tryon-history")
 async def get_tryon_history(current_user: User = Depends(get_current_user)):
-    results = await db.tryon_results.find({"user_id": current_user.id}).to_list(100)
-    return results
+    try:
+        results = await db.tryon_results.find({"user_id": current_user.id}).to_list(100)
+        # Convert ObjectIds to strings and ensure all fields are serializable
+        formatted_results = []
+        for result in results:
+            if '_id' in result:
+                del result['_id']  # Remove MongoDB ObjectId
+            formatted_results.append(result)
+        return formatted_results
+    except Exception as e:
+        print(f"Error in get_tryon_history: {str(e)}")
+        return []
 
 # Health check
 @api_router.get("/")
