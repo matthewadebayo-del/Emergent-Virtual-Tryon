@@ -273,7 +273,7 @@ class VirtualTryOnAPITester:
             "Unauthorized Access Test",
             "GET",
             "profile",
-            401
+            403  # Changed from 401 to 403 as FastAPI returns 403 for missing auth
         )
         
         self.token = original_token
