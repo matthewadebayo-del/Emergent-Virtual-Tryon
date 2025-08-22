@@ -62,10 +62,24 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const fetchProducts = async () => {
     try {
+      console.log('Fetching products...');
       const response = await axios.get('/products');
+      console.log('Products response:', response.data);
       setProducts(response.data);
     } catch (error) {
       console.error('Failed to fetch products:', error);
+      // Set some default products if API fails
+      setProducts([
+        {
+          id: 'fallback-1',
+          name: 'Classic White T-Shirt',
+          category: 'shirts',
+          sizes: ['XS', 'S', 'M', 'L', 'XL'],
+          image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400',
+          description: 'Comfortable cotton white t-shirt',
+          price: 29.99
+        }
+      ]);
     }
   };
 
