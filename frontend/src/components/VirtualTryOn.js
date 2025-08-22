@@ -659,12 +659,22 @@ const VirtualTryOn = ({ user, onLogout }) => {
               <div className="text-center">
                 <button
                   onClick={startTryOn}
-                  disabled={!selectedProduct && !clothingImage}
+                  disabled={(!selectedProduct && !clothingImage) || loading}
                   className="btn-primary text-lg px-8 py-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-5 h-5 mr-2" />
                   Start Virtual Try-On
+                  {selectedProduct && (
+                    <span className="ml-2 text-sm">
+                      with {selectedProduct.name}
+                    </span>
+                  )}
                 </button>
+                {!selectedProduct && !clothingImage && (
+                  <p className="text-white/60 text-sm mt-2">
+                    Please select a product or upload clothing image to continue
+                  </p>
+                )}
               </div>
             </div>
           </div>
