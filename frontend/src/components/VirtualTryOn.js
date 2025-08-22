@@ -100,29 +100,47 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
 
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    const context = canvas.getContext('2d');
+    // Start countdown
+    setIsCountingDown(true);
+    setCountdown(3);
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0);
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          // Take the photo after countdown
+          setTimeout(() => {
+            const canvas = canvasRef.current;
+            const video = videoRef.current;
+            const context = canvas.getContext('2d');
 
-    canvas.toBlob((blob) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target.result;
-        setUserImage(base64);
-        setUserImagePreview(base64);
-        stopCamera();
-        
-        // Auto-extract measurements (simulated)
-        extractMeasurementsFromImage();
-        
-        setStep(2); // Skip to input mode selection
-      };
-      reader.readAsDataURL(blob);
-    }, 'image/jpeg', 0.8);
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+
+            canvas.toBlob((blob) => {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const base64 = e.target.result;
+                setUserImage(base64);
+                setUserImagePreview(base64);
+                stopCamera();
+                
+                // Auto-extract measurements (simulated)
+                extractMeasurementsFromImage();
+                
+                setStep(2); // Skip to input mode selection
+                setIsCountingDown(false);
+                setCountdown(null);
+              };
+              reader.readAsDataURL(blob);
+            }, 'image/jpeg', 0.8);
+          }, 500);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const extractMeasurementsFromImage = () => {
