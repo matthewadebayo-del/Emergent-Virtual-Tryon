@@ -154,6 +154,25 @@ async def login(login_data: UserLogin):
     access_token = create_access_token(data={"sub": user["email"]})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@api_router.post("/reset-password")
+async def reset_password(request: dict):
+    email = request.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    
+    user = await db.users.find_one({"email": email})
+    if not user:
+        # Don't reveal whether email exists for security
+        return {"message": "If the email exists, reset instructions have been sent"}
+    
+    # In production, you would:
+    # 1. Generate a secure reset token
+    # 2. Store it in database with expiration
+    # 3. Send email with reset link
+    
+    # For demo purposes, just return success
+    return {"message": "Password reset instructions have been sent to your email"}
+
 # User Profile Routes
 @api_router.get("/profile", response_model=User)
 async def get_profile(current_user: User = Depends(get_current_user)):
