@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   User, 
   LogOut, 
@@ -10,7 +10,8 @@ import {
   TrendingUp,
   Zap,
   Target,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -19,6 +20,8 @@ const Dashboard = ({ user, onLogout }) => {
   const [tryonHistory, setTryonHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showMeasurements, setShowMeasurements] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardData();
@@ -31,6 +34,9 @@ const Dashboard = ({ user, onLogout }) => {
       
       if (user.measurements) {
         setMeasurements(user.measurements);
+      } else {
+        // First time user - no measurements stored
+        setIsFirstTime(true);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -55,11 +61,16 @@ const Dashboard = ({ user, onLogout }) => {
       await axios.post('/measurements', measurementData);
       setMeasurements(measurementData);
       setShowMeasurements(false);
+      setIsFirstTime(false);
       alert('Measurements saved successfully!');
     } catch (error) {
       console.error('Failed to save measurements:', error);
       alert('Failed to save measurements. Please try again.');
     }
+  };
+
+  const startCameraCapture = () => {
+    navigate('/tryon?mode=camera-first');
   };
 
   if (loading) {
@@ -97,20 +108,77 @@ const Dashboard = ({ user, onLogout }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Dashboard</h1>
-          <p className="text-white/80">Welcome back! Ready to try on some clothes?</p>
+          <h1 className="text-4xl font-bold text-white mb-2">
+            {isFirstTime ? "Welcome to VirtualFit!" : "Dashboard"}
+          </h1>
+          <p className="text-white/80">
+            {isFirstTime 
+              ? "Let's get you started with your first virtual try-on experience!"
+              : "Ready to try on some clothes?"
+            }
+          </p>
         </div>
+
+        {/* First Time User Onboarding */}
+        {isFirstTime && (
+          <div className="mb-8">
+            <div className="card bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-2 border-purple-400/30">
+              <div className="flex items-start space-x-4">
+                <AlertCircle className="w-6 h-6 text-purple-400 mt-1" />
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-white mb-2">Get Started with Camera Capture</h3>
+                  <p className="text-white/80 mb-6">
+                    For the best virtual try-on experience, we'll help you take a full-body photo using your camera. 
+                    This allows us to capture your measurements accurately and create an avatar that looks like you.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <button
+                      onClick={startCameraCapture}
+                      className="btn-primary flex items-center justify-center"
+                    >
+                      <Camera className="w-5 h-5 mr-2" />
+                      Start Camera Capture
+                    </button>
+                    <button
+                      onClick={() => setShowMeasurements(true)}
+                      className="btn-secondary flex items-center justify-center"
+                    >
+                      <Target className="w-5 h-5 mr-2" />
+                      Enter Measurements Manually
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Link to="/tryon" className="card hover-lift">
+          <button
+            onClick={startCameraCapture}
+            className="card hover-lift text-left"
+          >
             <div className="flex items-center space-x-4">
               <div className="p-3 rounded-full bg-gradient-to-r from-purple-500 to-blue-500">
                 <Camera className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-white">Start Virtual Try-On</h3>
-                <p className="text-white/70">Try on clothes virtually</p>
+                <h3 className="text-xl font-semibold text-white">Camera Try-On</h3>
+                <p className="text-white/70">Capture photo with camera</p>
+              </div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
+          </button>
+
+          <Link to="/tryon" className="card hover-lift">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 rounded-full bg-gradient-to-r from-green-500 to-teal-500">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-white">Upload & Try-On</h3>
+                <p className="text-white/70">Upload existing photo</p>
               </div>
             </div>
             <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
@@ -121,7 +189,7 @@ const Dashboard = ({ user, onLogout }) => {
             className="card hover-lift cursor-pointer text-left"
           >
             <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-full bg-gradient-to-r from-green-500 to-teal-500">
+              <div className="p-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500">
                 <Target className="w-8 h-8 text-white" />
               </div>
               <div>
@@ -135,18 +203,6 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
             <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
           </button>
-
-          <div className="card">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500">
-                <TrendingUp className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-white">Try-On History</h3>
-                <p className="text-white/70">{tryonHistory.length} sessions</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Stats Cards */}

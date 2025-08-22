@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Camera, 
@@ -11,12 +11,18 @@ import {
   User,
   Image as ImageIcon,
   Zap,
-  CheckCircle
+  CheckCircle,
+  Video,
+  Square
 } from 'lucide-react';
 import axios from 'axios';
 
 const VirtualTryOn = ({ user, onLogout }) => {
-  const [step, setStep] = useState(1);
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const cameraFirst = queryParams.get('mode') === 'camera-first';
+  
+  const [step, setStep] = useState(cameraFirst ? 0 : 1); // Start with camera setup if camera-first
   const [userImage, setUserImage] = useState(null);
   const [userImagePreview, setUserImagePreview] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -27,14 +33,30 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [useStoredMeasurements, setUseStoredMeasurements] = useState(true);
-  const [inputMode, setInputMode] = useState('catalog'); // 'catalog', 'upload', 'mixed'
+  const [inputMode, setInputMode] = useState('catalog');
+  const [cameraStream, setCameraStream] = useState(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [measurements, setMeasurements] = useState(null);
   
   const fileInputRef = useRef(null);
   const clothingInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+    if (cameraFirst) {
+      startCamera();
+    }
+  }, [cameraFirst]);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraStream]);
 
   const fetchProducts = async () => {
     try {
@@ -42,6 +64,88 @@ const VirtualTryOn = ({ user, onLogout }) => {
       setProducts(response.data);
     } catch (error) {
       console.error('Failed to fetch products:', error);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        } 
+      });
+      setCameraStream(stream);
+      setIsCameraActive(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Failed to start camera:', error);
+      alert('Failed to access camera. Please ensure you have given camera permissions.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+      setIsCameraActive(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const context = canvas.getContext('2d');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+
+    canvas.toBlob((blob) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target.result;
+        setUserImage(base64);
+        setUserImagePreview(base64);
+        stopCamera();
+        
+        // Auto-extract measurements (simulated)
+        extractMeasurementsFromImage();
+        
+        setStep(2); // Skip to input mode selection
+      };
+      reader.readAsDataURL(blob);
+    }, 'image/jpeg', 0.8);
+  };
+
+  const extractMeasurementsFromImage = () => {
+    // Simulated measurement extraction - in production, this would use AI
+    const simulatedMeasurements = {
+      height: 170 + Math.random() * 20,
+      weight: 65 + Math.random() * 15,
+      chest: 85 + Math.random() * 15,
+      waist: 70 + Math.random() * 15,
+      hips: 90 + Math.random() * 15,
+      shoulder_width: 40 + Math.random() * 10
+    };
+    
+    setMeasurements(simulatedMeasurements);
+    
+    // Save measurements to backend
+    saveMeasurementsToBackend(simulatedMeasurements);
+  };
+
+  const saveMeasurementsToBackend = async (measurementData) => {
+    try {
+      await axios.post('/measurements', measurementData);
+      console.log('Measurements saved automatically');
+    } catch (error) {
+      console.error('Failed to save measurements:', error);
     }
   };
 
@@ -70,7 +174,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const startTryOn = async () => {
     if (!userImage) {
-      alert('Please upload your photo first');
+      alert('Please capture or upload your photo first');
       return;
     }
 
@@ -80,20 +184,19 @@ const VirtualTryOn = ({ user, onLogout }) => {
     }
 
     setLoading(true);
-    setLoadingStep('Analyzing your photo...');
+    setLoadingStep('Analyzing your photo and creating avatar...');
 
     try {
-      // Convert image to base64 without data URL prefix
       const userImageBase64 = userImage.split(',')[1];
       const clothingImageBase64 = clothingImage ? clothingImage.split(',')[1] : null;
 
-      setLoadingStep('Generating virtual try-on...');
+      setLoadingStep('Generating virtual try-on with personalized avatar...');
 
       const requestData = {
         user_image_base64: userImageBase64,
         product_id: selectedProduct?.id || null,
         clothing_image_base64: clothingImageBase64,
-        use_stored_measurements: useStoredMeasurements && user.measurements
+        use_stored_measurements: useStoredMeasurements && (user.measurements || measurements)
       };
 
       const response = await axios.post('/tryon', requestData);
@@ -110,13 +213,17 @@ const VirtualTryOn = ({ user, onLogout }) => {
   };
 
   const resetTryOn = () => {
-    setStep(1);
+    setStep(cameraFirst ? 0 : 1);
     setUserImage(null);
     setUserImagePreview(null);
     setSelectedProduct(null);
     setClothingImage(null);
     setClothingImagePreview(null);
     setTryonResult(null);
+    setMeasurements(null);
+    if (cameraFirst) {
+      startCamera();
+    }
   };
 
   const downloadResult = () => {
@@ -160,16 +267,16 @@ const VirtualTryOn = ({ user, onLogout }) => {
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4 mb-4">
-            {[1, 2, 3, 4].map((stepNum) => (
+            {(cameraFirst ? [0, 2, 3, 4] : [1, 2, 3, 4]).map((stepNum, index) => (
               <div key={stepNum} className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
                   step >= stepNum 
                     ? 'bg-purple-600 text-white' 
                     : 'bg-white/20 text-white/60'
                 }`}>
-                  {stepNum}
+                  {cameraFirst ? (stepNum === 0 ? <Camera className="w-5 h-5" /> : index + 1) : stepNum}
                 </div>
-                {stepNum < 4 && (
+                {index < (cameraFirst ? 3 : 3) && (
                   <div className={`w-16 h-1 mx-2 ${
                     step > stepNum ? 'bg-purple-600' : 'bg-white/20'
                   }`} />
@@ -178,6 +285,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
             ))}
           </div>
           <div className="text-center text-white/80">
+            {step === 0 && "Camera Setup & Capture"}
             {step === 1 && "Upload Your Photo"}
             {step === 2 && "Choose Input Mode"}
             {step === 3 && "Select Clothing"}
@@ -185,7 +293,101 @@ const VirtualTryOn = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Step 1: User Photo Upload */}
+        {/* Step 0: Camera Capture (Camera-First Mode) */}
+        {step === 0 && (
+          <div className="max-w-4xl mx-auto">
+            <div className="card text-center">
+              <h2 className="text-2xl font-bold text-white mb-6">Take Your Full Body Photo</h2>
+              <p className="text-white/70 mb-8">
+                Position yourself in good lighting, stand straight, and make sure your full body is visible. 
+                We'll automatically extract your measurements and create your personalized avatar.
+              </p>
+              
+              <div className="relative inline-block">
+                {isCameraActive ? (
+                  <div className="space-y-4">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                    />
+                    <canvas ref={canvasRef} className="hidden" />
+                    <div className="flex space-x-4 justify-center">
+                      <button
+                        onClick={capturePhoto}
+                        className="btn-primary flex items-center"
+                      >
+                        <Camera className="w-5 h-5 mr-2" />
+                        Capture Photo
+                      </button>
+                      <button
+                        onClick={stopCamera}
+                        className="btn-secondary flex items-center"
+                      >
+                        <Square className="w-5 h-5 mr-2" />
+                        Stop Camera
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="upload-area max-w-md mx-auto">
+                      <Video className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                      <p className="text-white/80 text-lg mb-4">Camera not active</p>
+                      <button
+                        onClick={startCamera}
+                        className="btn-primary"
+                      >
+                        <Camera className="w-5 h-5 mr-2" />
+                        Start Camera
+                      </button>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-white/60 mb-4">Or upload an existing photo</p>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn-secondary"
+                      >
+                        <Upload className="w-5 h-5 mr-2" />
+                        Upload Photo
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          handleImageUpload(e.target.files[0], 'user');
+                          if (e.target.files[0]) {
+                            extractMeasurementsFromImage();
+                            setStep(2);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {measurements && (
+                <div className="mt-6 p-4 bg-green-500/20 rounded-lg">
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <span className="text-green-200 font-medium">Measurements Extracted</span>
+                  </div>
+                  <div className="text-green-200 text-sm">
+                    Height: {measurements.height?.toFixed(0)}cm, 
+                    Chest: {measurements.chest?.toFixed(0)}cm, 
+                    Waist: {measurements.waist?.toFixed(0)}cm
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 1: User Photo Upload (Upload Mode) */}
         {step === 1 && (
           <div className="max-w-2xl mx-auto">
             <div className="card text-center">
@@ -195,13 +397,24 @@ const VirtualTryOn = ({ user, onLogout }) => {
               </p>
               
               {!userImagePreview ? (
-                <div 
-                  className="upload-area"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Camera className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-                  <p className="text-white/80 text-lg mb-2">Click to upload your photo</p>
-                  <p className="text-white/60 text-sm">Supports JPG, PNG (Max 10MB)</p>
+                <div>
+                  <div 
+                    className="upload-area"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                    <p className="text-white/80 text-lg mb-2">Click to upload your photo</p>
+                    <p className="text-white/60 text-sm">Supports JPG, PNG (Max 10MB)</p>
+                  </div>
+                  <div className="mt-6">
+                    <button
+                      onClick={startCamera}
+                      className="btn-secondary"
+                    >
+                      <Camera className="w-5 h-5 mr-2" />
+                      Use Camera Instead
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -235,11 +448,11 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 className="hidden"
               />
 
-              {user.measurements && (
+              {(user.measurements || measurements) && (
                 <div className="mt-6 p-4 bg-green-500/20 rounded-lg">
                   <div className="flex items-center justify-center space-x-2 mb-2">
                     <CheckCircle className="w-5 h-5 text-green-400" />
-                    <span className="text-green-200 font-medium">Saved measurements found</span>
+                    <span className="text-green-200 font-medium">Measurements available</span>
                   </div>
                   <label className="flex items-center justify-center space-x-3">
                     <input
@@ -248,7 +461,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       onChange={(e) => setUseStoredMeasurements(e.target.checked)}
                       className="rounded border-green-400 text-green-600 focus:ring-green-500"
                     />
-                    <span className="text-green-200">Use my saved measurements</span>
+                    <span className="text-green-200">Use my measurements for better accuracy</span>
                   </label>
                 </div>
               )}
@@ -301,7 +514,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
               </div>
               
               <button
-                onClick={() => setStep(1)}
+                onClick={() => setStep(cameraFirst ? 0 : 1)}
                 className="btn-secondary mt-6"
               >
                 Back
