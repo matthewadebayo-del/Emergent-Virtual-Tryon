@@ -595,36 +595,46 @@ const VirtualTryOn = ({ user, onLogout }) => {
               {(inputMode === 'catalog' || inputMode === 'mixed') && (
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold text-white mb-4">Product Catalog</h3>
-                  <div className="product-grid">
-                    {products.map((product) => (
-                      <div
-                        key={product.id}
-                        data-product-id={product.id}
-                        onClick={() => handleProductSelect(product)}
-                        className={`card-dark cursor-pointer transition-all ${
-                          selectedProduct?.id === product.id 
-                            ? 'ring-4 ring-purple-500 ring-opacity-75 shadow-lg shadow-purple-500/50 transform scale-102' 
-                            : 'hover:ring-2 hover:ring-purple-400'
-                        }`}
-                      >
-                        <img
-                          src={product.image_url}
-                          alt={product.name}
-                          className="w-full h-48 object-cover rounded-lg mb-4"
-                        />
-                        <h4 className="text-white font-semibold mb-2">{product.name}</h4>
-                        <p className="text-white/70 text-sm mb-2">{product.description}</p>
-                        <p className="text-purple-400 font-semibold">${product.price}</p>
-                        {selectedProduct?.id === product.id && (
-                          <div className="mt-2 text-center">
-                            <span className="inline-block bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
-                              Selected
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                  {products.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-white/60">Loading products...</p>
+                      <div className="spinner mx-auto mt-4"></div>
+                    </div>
+                  ) : (
+                    <div className="product-grid">
+                      {products.map((product) => (
+                        <div
+                          key={product.id}
+                          data-product-id={product.id}
+                          onClick={() => handleProductSelect(product)}
+                          className={`card-dark cursor-pointer transition-all ${
+                            selectedProduct?.id === product.id 
+                              ? 'ring-4 ring-purple-500 ring-opacity-75 shadow-lg shadow-purple-500/50 transform scale-102' 
+                              : 'hover:ring-2 hover:ring-purple-400'
+                          }`}
+                        >
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-full h-48 object-cover rounded-lg mb-4"
+                            onError={(e) => {
+                              e.target.src = 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400';
+                            }}
+                          />
+                          <h4 className="text-white font-semibold mb-2">{product.name}</h4>
+                          <p className="text-white/70 text-sm mb-2">{product.description}</p>
+                          <p className="text-purple-400 font-semibold">${product.price}</p>
+                          {selectedProduct?.id === product.id && (
+                            <div className="mt-2 text-center">
+                              <span className="inline-block bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                                Selected
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
