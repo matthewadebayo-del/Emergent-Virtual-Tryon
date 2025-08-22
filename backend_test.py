@@ -182,6 +182,46 @@ class VirtualTryOnAPITester:
         )
         return success
 
+    def test_extract_measurements(self):
+        """Test extract measurements from image"""
+        # Create a simple base64 encoded test image (1x1 pixel PNG)
+        test_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+        
+        # Use form data for this endpoint
+        headers = {'Authorization': f'Bearer {self.token}'}
+        url = f"{self.base_url}/extract-measurements"
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing Extract Measurements...")
+        print(f"   URL: {url}")
+        
+        try:
+            # Send as form data
+            form_data = {'user_image_base64': test_image_base64}
+            response = requests.post(url, data=form_data, headers=headers)
+            
+            success = response.status_code == 200
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    response_data = response.json()
+                    print(f"   Response: {json.dumps(response_data, indent=2)[:200]}...")
+                    return True, response_data
+                except:
+                    return True, {}
+            else:
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                try:
+                    error_data = response.json()
+                    print(f"   Error: {error_data}")
+                except:
+                    print(f"   Error: {response.text}")
+                return False, {}
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            return False, {}
+
     def test_invalid_login(self):
         """Test login with invalid credentials"""
         success, response = self.run_test(
