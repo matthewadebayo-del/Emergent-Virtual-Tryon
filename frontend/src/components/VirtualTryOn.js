@@ -187,9 +187,16 @@ const VirtualTryOn = ({ user, onLogout }) => {
   };
 
   const handleProductSelect = (product) => {
+    console.log('Selected product:', product);
     setSelectedProduct(product);
     setClothingImage(null);
     setClothingImagePreview(null);
+    
+    // Visual feedback for selection
+    const productElement = document.querySelector(`[data-product-id="${product.id}"]`);
+    if (productElement) {
+      productElement.classList.add('product-selected');
+    }
   };
 
   const startTryOn = async () => {
