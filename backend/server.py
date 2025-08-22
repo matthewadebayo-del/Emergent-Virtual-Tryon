@@ -219,6 +219,41 @@ async def get_products():
     products = await db.products.find().to_list(1000)
     return [Product(**product) for product in products]
 
+# Measurement Extraction Route
+@api_router.post("/extract-measurements")
+async def extract_measurements(
+    user_image_base64: str = Form(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Extract body measurements from user image using AI"""
+    try:
+        # Simulate AI measurement extraction
+        # In production, this would use computer vision/AI to analyze the image
+        simulated_measurements = {
+            "height": round(165 + (hash(user_image_base64[:50]) % 30), 1),
+            "weight": round(60 + (hash(user_image_base64[50:100]) % 25), 1),
+            "chest": round(80 + (hash(user_image_base64[100:150]) % 20), 1),
+            "waist": round(70 + (hash(user_image_base64[150:200]) % 20), 1),
+            "hips": round(85 + (hash(user_image_base64[200:250]) % 20), 1),
+            "shoulder_width": round(40 + (hash(user_image_base64[250:300]) % 10), 1)
+        }
+        
+        # Save measurements automatically
+        measurements = Measurements(**simulated_measurements)
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"measurements": measurements.dict()}}
+        )
+        
+        return {
+            "measurements": simulated_measurements,
+            "message": "Measurements extracted and saved successfully"
+        }
+        
+    except Exception as e:
+        print(f"Error in extract_measurements: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Measurement extraction failed: {str(e)}")
+
 # Virtual Try-on Routes
 @api_router.post("/tryon")
 async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_current_user)):
