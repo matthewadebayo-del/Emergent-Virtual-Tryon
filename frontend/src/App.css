@@ -57,6 +57,21 @@
     }
 }
 
+@keyframes countdown {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 .animate-fade-in-up {
     animation: fadeInUp 0.6s ease-out;
 }
@@ -67,6 +82,10 @@
 
 .animate-float {
     animation: float 3s ease-in-out infinite;
+}
+
+.animate-countdown {
+    animation: countdown 1s ease-in-out;
 }
 
 /* Glass morphism effect */
@@ -102,11 +121,30 @@
 /* Input styles */
 .input-field {
     @apply w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:border-purple-400 focus:bg-white/15 transition-all duration-300;
+    padding-left: 40px; /* Ensure proper left padding for icons */
+}
+
+/* Fix input field icon positioning */
+.input-field-container {
+    position: relative;
+}
+
+.input-field-container .input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.input-field-container input {
+    padding-left: 44px !important;
 }
 
 /* Card styles */
 .card {
-    @apply glass rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105;
+    @apply glass rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300;
 }
 
 .card-dark {
@@ -128,6 +166,26 @@
     100% { transform: rotate(360deg); }
 }
 
+/* Countdown display */
+.countdown-display {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: bold;
+    color: white;
+    border: 4px solid #a855f7;
+}
+
 /* Image upload area */
 .upload-area {
     @apply border-2 border-dashed border-purple-400 rounded-lg p-8 text-center cursor-pointer transition-all duration-300 hover:border-purple-300 hover:bg-white/5;
@@ -142,6 +200,12 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
+}
+
+/* Product selection styling */
+.product-selected {
+    @apply ring-4 ring-purple-500 ring-opacity-75 shadow-lg shadow-purple-500/50;
+    transform: scale(1.02);
 }
 
 /* Responsive design */

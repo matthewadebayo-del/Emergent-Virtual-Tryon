@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Shirt, Zap, Users, Star, ChevronRight, Play, CheckCircle } from 'lucide-react';
+import { Camera, Shirt, Zap, Users, Star, ChevronRight, Play, CheckCircle, X } from 'lucide-react';
 
 const LandingPage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [showDemoModal, setShowDemoModal] = useState(false);
   
   const heroImages = [
     'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop',
@@ -59,6 +60,14 @@ const LandingPage = () => {
     return () => clearInterval(timer);
   }, [heroImages.length]);
 
+  const openDemoModal = () => {
+    setShowDemoModal(true);
+  };
+
+  const closeDemoModal = () => {
+    setShowDemoModal(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
@@ -103,7 +112,7 @@ const LandingPage = () => {
                   Start Virtual Try-On
                   <ChevronRight className="w-5 h-5 ml-2 inline" />
                 </Link>
-                <button className="btn-secondary flex items-center justify-center">
+                <button onClick={openDemoModal} className="btn-secondary flex items-center justify-center">
                   <Play className="w-5 h-5 mr-2" />
                   Watch Demo
                 </button>
@@ -192,9 +201,9 @@ const LandingPage = () => {
               <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white text-2xl font-bold">
                 1
               </div>
-              <h3 className="text-2xl font-semibold text-white mb-4">Upload Your Photo</h3>
+              <h3 className="text-2xl font-semibold text-white mb-4">Capture or Upload Your Photo</h3>
               <p className="text-white/70">
-                Take or upload a full-body photo. Our AI will automatically extract your body measurements with incredible precision.
+                Use your camera to capture a full-body photo or upload an existing one. Our AI will automatically extract your body measurements with incredible precision.
               </p>
             </div>
             
@@ -308,6 +317,57 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Demo Modal */}
+      {showDemoModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden relative">
+            <button
+              onClick={closeDemoModal}
+              className="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/40 rounded-full p-2 transition-colors"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            
+            <div className="aspect-video bg-gray-900 flex items-center justify-center">
+              <video
+                className="w-full h-full object-cover"
+                controls
+                autoPlay
+                poster="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=450&fit=crop"
+              >
+                <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4" />
+                <div className="text-white text-center">
+                  <h3 className="text-2xl font-bold mb-4">Virtual Try-On Demo</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center space-x-4">
+                      <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">1</div>
+                      <span className="text-lg">Take or upload your full-body photo</span>
+                    </div>
+                    <div className="flex items-center justify-center space-x-4">
+                      <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">2</div>
+                      <span className="text-lg">Select clothing from our catalog</span>
+                    </div>
+                    <div className="flex items-center justify-center space-x-4">
+                      <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">3</div>
+                      <span className="text-lg">Get instant virtual try-on results</span>
+                    </div>
+                  </div>
+                  <div className="mt-8">
+                    <Link 
+                      to="/register" 
+                      onClick={closeDemoModal}
+                      className="btn-primary inline-block"
+                    >
+                      Try It Now
+                    </Link>
+                  </div>
+                </div>
+              </video>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
