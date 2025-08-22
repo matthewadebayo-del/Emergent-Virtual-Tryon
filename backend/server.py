@@ -277,20 +277,38 @@ async def extract_measurements(
 @api_router.post("/tryon")
 async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_current_user)):
     try:
+        print(f"Try-on request from user {current_user.email}")
+        print(f"Product ID: {request.product_id}")
+        print(f"Has user image: {bool(request.user_image_base64)}")
+        print(f"Has clothing image: {bool(request.clothing_image_base64)}")
+        
         if not image_gen:
             raise HTTPException(status_code=500, detail="Image generation service not available")
+        
+        # Validate inputs
+        if not request.user_image_base64:
+            raise HTTPException(status_code=422, detail="User image is required")
+            
+        if not request.product_id and not request.clothing_image_base64:
+            raise HTTPException(status_code=422, detail="Either product_id or clothing_image_base64 is required")
         
         # Get clothing information
         clothing_description = ""
         if request.product_id:
             product = await db.products.find_one({"id": request.product_id})
-            if product:
-                clothing_description = f"{product['name']} - {product['description']}"
+            if not product:
+                raise HTTPException(status_code=404, detail="Product not found")
+            clothing_description = f"{product['name']} - {product['description']}"
+            print(f"Using product: {clothing_description}")
+        else:
+            clothing_description = "uploaded clothing item"
+            print("Using uploaded clothing image")
         
         # Use stored measurements or extract from image
         measurements = None
         if request.use_stored_measurements and current_user.measurements:
             measurements = current_user.measurements
+            print(f"Using stored measurements: {measurements}")
         else:
             # For now, use default measurements - in production, you'd use AI to extract from image
             measurements = {
@@ -301,6 +319,7 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
                 "hips": 95,
                 "shoulder_width": 45
             }
+            print(f"Using default measurements: {measurements}")
         
         # Generate try-on image using AI with personalized avatar
         if clothing_description:
@@ -308,10 +327,17 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
         else:
             prompt = f"Create a photorealistic full-body portrait of a person with natural proportions. Height: {measurements.get('height', 170)}cm, chest: {measurements.get('chest', 90)}cm, waist: {measurements.get('waist', 75)}cm, hips: {measurements.get('hips', 95)}cm. The person should look natural and realistic with professional lighting and clear details. Style: photorealistic portrait, full body, natural pose, high quality."
         
-        # Decode the user's image
-        user_image_bytes = base64.b64decode(request.user_image_base64)
+        print(f"Generating image with prompt: {prompt[:100]}...")
         
-        # For now, we'll generate a new image. In production, you'd use image editing
+        # Decode the user's image (we have this for future use)
+        try:
+            user_image_bytes = base64.b64decode(request.user_image_base64)
+            print(f"Successfully decoded user image, size: {len(user_image_bytes)} bytes")
+        except Exception as e:
+            print(f"Error decoding user image: {str(e)}")
+            raise HTTPException(status_code=422, detail="Invalid user image format")
+        
+        # Generate image using AI
         images = await image_gen.generate_images(
             prompt=prompt,
             model="gpt-image-1",
@@ -319,7 +345,10 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
         )
         
         if not images or len(images) == 0:
+            print("No images generated")
             raise HTTPException(status_code=500, detail="Failed to generate try-on image")
+        
+        print(f"Successfully generated {len(images)} image(s)")
         
         # Convert to base64
         result_image_base64 = base64.b64encode(images[0]).decode('utf-8')
@@ -336,6 +365,7 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
         )
         
         await db.tryon_results.insert_one(tryon_result.dict())
+        print(f"Saved try-on result with size recommendation: {size_recommendation}")
         
         return {
             "result_image_base64": result_image_base64,
@@ -343,8 +373,13 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
             "measurements_used": measurements
         }
         
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        print(f"Error in virtual try-on: {str(e)}")
+        print(f"Unexpected error in virtual try-on: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Virtual try-on failed: {str(e)}")
 
 def determine_size_recommendation(measurements: dict, product_id: str = None) -> str:
