@@ -1,38 +1,209 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
 .App {
-    text-align: center;
-}
-
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
-}
-
-.App-header {
-    background-color: #0f0f10;
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #3730a3 50%, #1e40af 75%, #1e3a8a 100%);
 }
 
-.App-link {
-    color: #61dafb;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
 }
 
-@keyframes App-logo-spin {
+::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.5);
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
     from {
-        transform: rotate(0deg);
+        opacity: 0;
+        transform: translateY(30px);
     }
     to {
-        transform: rotate(360deg);
+        opacity: 1;
+        transform: translateY(0);
     }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-slide-in-right {
+    animation: slideInRight 0.6s ease-out;
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Glass morphism effect */
+.glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #a855f7, #3b82f6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Custom buttons */
+.btn-primary {
+    @apply bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl;
+}
+
+.btn-secondary {
+    @apply bg-transparent border-2 border-purple-400 text-purple-300 hover:bg-purple-400 hover:text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105;
+}
+
+/* Input styles */
+.input-field {
+    @apply w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:border-purple-400 focus:bg-white/15 transition-all duration-300;
+}
+
+/* Card styles */
+.card {
+    @apply glass rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105;
+}
+
+.card-dark {
+    @apply glass-dark rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105;
+}
+
+/* Loading spinner */
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid #a855f7;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Image upload area */
+.upload-area {
+    @apply border-2 border-dashed border-purple-400 rounded-lg p-8 text-center cursor-pointer transition-all duration-300 hover:border-purple-300 hover:bg-white/5;
+}
+
+.upload-area.dragover {
+    @apply border-purple-300 bg-purple-500/10;
+}
+
+/* Product grid */
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+    }
+}
+
+/* Carousel styles */
+.carousel-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+}
+
+.carousel-slide {
+    transition: transform 0.5s ease-in-out;
+}
+
+/* Feature icons */
+.feature-icon {
+    @apply w-16 h-16 mx-auto mb-4 p-3 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white;
+}
+
+/* Status indicators */
+.status-online {
+    @apply inline-block w-3 h-3 bg-green-400 rounded-full animate-pulse;
+}
+
+.status-processing {
+    @apply inline-block w-3 h-3 bg-yellow-400 rounded-full animate-pulse;
+}
+
+.status-offline {
+    @apply inline-block w-3 h-3 bg-red-400 rounded-full;
+}
+
+/* Custom shadows */
+.shadow-purple {
+    box-shadow: 0 10px 25px rgba(139, 92, 246, 0.2);
+}
+
+.shadow-blue {
+    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+}
+
+/* Hover effects */
+.hover-lift {
+    transition: transform 0.3s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-5px);
+}
+
+/* Progress bars */
+.progress-bar {
+    @apply w-full bg-gray-700 rounded-full h-2;
+}
+
+.progress-fill {
+    @apply h-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-300;
 }
