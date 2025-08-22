@@ -283,8 +283,11 @@ async def virtual_tryon(request: TryonRequest, current_user: User = Depends(get_
                 "shoulder_width": 45
             }
         
-        # Generate try-on image using AI
-        prompt = f"Create a realistic virtual try-on showing a person wearing {clothing_description}. The person should have a height of {measurements.get('height', 170)}cm and proportional body measurements. Show the clothing item fitting naturally on the person's body. Use photorealistic style with good lighting and clear details."
+        # Generate try-on image using AI with personalized avatar
+        if clothing_description:
+            prompt = f"Create a photorealistic virtual try-on image showing a person who looks natural and proportional wearing {clothing_description}. The person should have a height of {measurements.get('height', 170)}cm, chest measurement of {measurements.get('chest', 90)}cm, waist of {measurements.get('waist', 75)}cm, and hips of {measurements.get('hips', 95)}cm. Show the clothing item fitting naturally and realistically on the person's body with proper proportions. The avatar should look like a real person with natural lighting, clear details, and realistic fabric draping. Style: photorealistic portrait, full body, professional lighting, high quality."
+        else:
+            prompt = f"Create a photorealistic full-body portrait of a person with natural proportions. Height: {measurements.get('height', 170)}cm, chest: {measurements.get('chest', 90)}cm, waist: {measurements.get('waist', 75)}cm, hips: {measurements.get('hips', 95)}cm. The person should look natural and realistic with professional lighting and clear details. Style: photorealistic portrait, full body, natural pose, high quality."
         
         # Decode the user's image
         user_image_bytes = base64.b64decode(request.user_image_base64)
