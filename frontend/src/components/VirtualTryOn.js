@@ -37,6 +37,8 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const [cameraStream, setCameraStream] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [measurements, setMeasurements] = useState(null);
+  const [countdown, setCountdown] = useState(null);
+  const [isCountingDown, setIsCountingDown] = useState(false);
   
   const fileInputRef = useRef(null);
   const clothingInputRef = useRef(null);
