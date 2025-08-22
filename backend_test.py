@@ -317,8 +317,12 @@ def main():
 
     # Test 6: Virtual Try-On (with first product if available)
     product_id = products[0]['id'] if products else None
-    if not tester.test_virtual_tryon(product_id):
-        print("❌ Virtual try-on failed")
+    success, tryon_response = tester.test_virtual_tryon(product_id)
+    if not success:
+        print("❌ Virtual try-on failed - THIS IS THE CRITICAL TEST FOR 422 ERROR FIX")
+        return 1
+    else:
+        print("✅ Virtual try-on succeeded - 422 error appears to be fixed!")
 
     # Test 7: Get Try-On History
     if not tester.test_tryon_history():
