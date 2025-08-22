@@ -200,6 +200,8 @@ const VirtualTryOn = ({ user, onLogout }) => {
   };
 
   const startTryOn = async () => {
+    console.log('Starting try-on with:', { selectedProduct, userImage: !!userImage, clothingImage: !!clothingImage });
+    
     if (!userImage) {
       alert('Please capture or upload your photo first');
       return;
@@ -226,13 +228,25 @@ const VirtualTryOn = ({ user, onLogout }) => {
         use_stored_measurements: useStoredMeasurements && (user.measurements || measurements)
       };
 
+      console.log('Sending try-on request:', { ...requestData, user_image_base64: '[BASE64_DATA]', clothing_image_base64: clothingImageBase64 ? '[BASE64_DATA]' : null });
+
       const response = await axios.post('/tryon', requestData);
       
+      console.log('Try-on response:', response.data);
       setTryonResult(response.data);
       setStep(4);
     } catch (error) {
       console.error('Virtual try-on failed:', error);
-      alert('Virtual try-on failed. Please try again.');
+      console.error('Error details:', error.response?.data);
+      
+      let errorMessage = 'Virtual try-on failed. Please try again.';
+      if (error.response?.status === 422) {
+        errorMessage = 'Invalid data provided. Please check your inputs and try again.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
       setLoadingStep('');
