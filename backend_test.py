@@ -151,26 +151,54 @@ class VirtualTryOnAPITester:
         return False, []
 
     def test_virtual_tryon(self, product_id=None):
-        """Test virtual try-on functionality"""
+        """Test virtual try-on functionality using FormData (FIXED VERSION)"""
         # Create a simple base64 encoded test image (1x1 pixel PNG)
         test_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
         
-        tryon_data = {
-            "user_image_base64": test_image_base64,
-            "use_stored_measurements": True
-        }
+        # Use form data instead of JSON (THIS IS THE CRITICAL FIX)
+        headers = {'Authorization': f'Bearer {self.token}'}
+        url = f"{self.base_url}/tryon"
         
-        if product_id:
-            tryon_data["product_id"] = product_id
+        self.tests_run += 1
+        print(f"\n🔍 Testing Virtual Try-On (FormData)...")
+        print(f"   URL: {url}")
         
-        success, response = self.run_test(
-            "Virtual Try-On",
-            "POST",
-            "tryon",
-            200,
-            data=tryon_data
-        )
-        return success
+        try:
+            # Send as form data (not JSON)
+            form_data = {
+                'user_image_base64': test_image_base64,
+                'use_stored_measurements': 'true'
+            }
+            
+            if product_id:
+                form_data["product_id"] = product_id
+                print(f"   Using product ID: {product_id}")
+            
+            response = requests.post(url, data=form_data, headers=headers)
+            
+            success = response.status_code == 200
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    response_data = response.json()
+                    print(f"   Response keys: {list(response_data.keys())}")
+                    if 'size_recommendation' in response_data:
+                        print(f"   Size recommendation: {response_data['size_recommendation']}")
+                    return True, response_data
+                except:
+                    return True, {}
+            else:
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                try:
+                    error_data = response.json()
+                    print(f"   Error: {error_data}")
+                except:
+                    print(f"   Error: {response.text}")
+                return False, {}
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            return False, {}
 
     def test_tryon_history(self):
         """Test get try-on history"""
