@@ -745,6 +745,13 @@ const VirtualTryOn = ({ user, onLogout }) => {
             </div>
           </div>
         )}
+
+        {/* Countdown Overlay */}
+        {isCountingDown && countdown !== null && (
+          <div className="countdown-display animate-countdown">
+            {countdown > 0 ? countdown : 'SMILE!'}
+          </div>
+        )}
       </div>
     </div>
   );
