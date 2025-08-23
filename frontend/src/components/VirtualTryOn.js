@@ -771,11 +771,28 @@ const VirtualTryOn = () => {
                       onClick={() => selectProduct(product)}
                       className="bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
                     >
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-48 object-cover"
-                      />
+                      <div className="w-full h-48 bg-gray-600 flex items-center justify-center relative">
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div 
+                          className="absolute inset-0 bg-gray-600 items-center justify-center text-white text-sm text-center p-4 hidden"
+                          style={{display: 'none'}}
+                        >
+                          <div>
+                            <div className="w-16 h-16 bg-gray-500 rounded-lg mx-auto mb-2 flex items-center justify-center">
+                              👕
+                            </div>
+                            <div className="font-semibold">{product.category}</div>
+                          </div>
+                        </div>
+                      </div>
                       <div className="p-4">
                         <h3 className="font-semibold text-white mb-1">{product.name}</h3>
                         <p className="text-gray-400 text-sm mb-2">{product.brand}</p>
