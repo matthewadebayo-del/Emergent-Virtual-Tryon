@@ -2,7 +2,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from typing import List, Optional, Dict, Any
 import os
 from datetime import datetime
-from .models import User, Product, TryOnResult
+from models import User, Product, TryOnResult
 
 class Database:
     def __init__(self):
