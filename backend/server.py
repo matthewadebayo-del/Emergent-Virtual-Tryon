@@ -352,35 +352,57 @@ async def virtual_tryon(
             print(f"ERROR decoding user image: {str(e)}")
             raise HTTPException(status_code=422, detail="Invalid user image format")
         
-        # Create a highly detailed prompt that incorporates the user's image context
+        # Analyze user image for personalization
+        print("🔍 Analyzing user image for personalization...")
+        image_analysis = analyze_user_image(user_image_bytes)
+        print(f"Image analysis: {image_analysis}")
+        
+        # Create highly detailed personalized prompt
         if clothing_description:
-            personalized_prompt = f"""Create a photorealistic virtual try-on image showing a person wearing {clothing_description}. 
-            REQUIREMENTS:
-            - Use the uploaded user photo as reference for face, body shape, skin tone, hair, and overall appearance
-            - The person should maintain their natural proportions: height {measurements.get('height', 170)}cm, chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm, hips {measurements.get('hips', 95)}cm
-            - Show them wearing the {clothing_description} with realistic fit and draping
-            - Preserve their facial features, expression, and body posture from the original photo
-            - Maintain the same lighting style and photo quality as the reference
-            - The clothing should fit naturally on their specific body type
-            - Keep background similar to original or use neutral background
-            - Style: photorealistic, professional quality, natural appearance
-            - The result should look like the same person from the reference photo but wearing new clothing"""
+            # Include user image characteristics in the prompt
+            characteristics = ", ".join(image_analysis.get("characteristics", []))
+            keywords = ", ".join(image_analysis.get("description_keywords", []))
+            
+            personalized_prompt = f"""Create a photorealistic virtual try-on showing a person wearing {clothing_description}.
+
+CRITICAL PERSONALIZATION REQUIREMENTS:
+- Base the person's appearance on the reference photo provided
+- Maintain the person's natural body proportions and measurements: height {measurements.get('height', 170)}cm, chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
+- Keep the same general appearance style: {characteristics}
+- Apply these visual qualities: {keywords}
+- The person should look authentic and realistic as if this is their actual photo wearing the new clothing
+- Show the {clothing_description} fitting naturally on their specific body type
+- Use proper fabric draping and realistic clothing physics
+- Maintain professional photo quality with natural lighting
+- Background should be neutral and clean
+
+CLOTHING DETAILS:
+- Item: {clothing_description}
+- Fit: Properly sized for the person's measurements
+- Style: Realistic and natural appearance
+- Quality: High-resolution, professional photography look
+
+OUTPUT REQUIREMENTS:
+- Photorealistic quality
+- Natural appearance that matches the reference person
+- Professional lighting and composition
+- Full body view showing the complete outfit
+- Clean, neutral background"""
+
         else:
-            personalized_prompt = f"""Create a photorealistic virtual try-on image showing a person wearing the uploaded clothing item.
-            REQUIREMENTS:
-            - Use the uploaded user photo as reference for face, body shape, skin tone, hair, and overall appearance  
-            - The person should maintain their natural proportions and body measurements
-            - Show them wearing the clothing with realistic fit and styling
-            - Preserve their facial features, expression, and body posture from the original photo
-            - Maintain the same lighting style and photo quality as the reference
-            - Keep background similar to original or use neutral background
-            - Style: photorealistic, professional quality, natural appearance
-            - The result should look like the same person but in different clothing"""
+            personalized_prompt = f"""Create a photorealistic virtual try-on showing a person wearing the provided clothing item.
+            
+PERSONALIZATION:
+- Use the reference photo to maintain the person's natural appearance and body type
+- Keep authentic proportions based on measurements: height {measurements.get('height', 170)}cm
+- Show realistic clothing fit for their specific body shape
+- Maintain natural, professional photo quality
+- Use neutral background with good lighting"""
         
-        print(f"Using personalized prompt (length: {len(personalized_prompt)} characters)")
+        print(f"Enhanced personalized prompt created (length: {len(personalized_prompt)} characters)")
         
-        # Generate personalized try-on image
-        print("Calling AI for personalized image generation...")
+        # Add size and quality parameters for better results
+        print("🎨 Generating personalized virtual try-on image...")
         images = await image_gen.generate_images(
             prompt=personalized_prompt,
             model="gpt-image-1",
