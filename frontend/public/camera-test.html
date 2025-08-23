@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1f2937;
+            color: white;
+        }
+        video {
+            border: 2px solid #6b7280;
+            border-radius: 8px;
+            background: #374151;
+        }
+        button {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 10px 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #7c3aed;
+        }
+        .info {
+            background: #374151;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Camera Test Page</h1>
+    <p>This page tests camera functionality outside of React to isolate any issues.</p>
+    
+    <div>
+        <button onclick="startCamera()">Start Camera</button>
+        <button onclick="stopCamera()">Stop Camera</button>
+        <button onclick="logVideoInfo()">Log Video Info</button>
+    </div>
+    
+    <div class="info">
+        <p><strong>Status:</strong> <span id="status">Not started</span></p>
+        <p><strong>Stream:</strong> <span id="stream-info">None</span></p>
+        <p><strong>Video Dimensions:</strong> <span id="video-dims">N/A</span></p>
+    </div>
+    
+    <video id="video" width="640" height="480" autoplay playsinline muted></video>
+    
+    <div class="info">
+        <h3>Console Output:</h3>
+        <div id="console-output" style="font-family: monospace; font-size: 12px;"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const statusEl = document.getElementById('status');
+        const streamInfoEl = document.getElementById('stream-info');
+        const videoDimsEl = document.getElementById('video-dims');
+        const consoleEl = document.getElementById('console-output');
+        
+        let currentStream = null;
+        
+        function log(message) {
+            console.log(message);
+            consoleEl.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        
+        async function startCamera() {
+            try {
+                statusEl.textContent = 'Starting...';
+                log('Requesting camera access...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+                
+                log('Camera stream obtained');
+                currentStream = stream;
+                
+                video.srcObject = stream;
+                streamInfoEl.textContent = `Tracks: ${stream.getTracks().length}`;
+                
+                video.onloadedmetadata = () => {
+                    log('Video metadata loaded');
+                    videoDimsEl.textContent = `${video.videoWidth}x${video.videoHeight}`;
+                    
+                    video.play().then(() => {
+                        log('Video playback started successfully');
+                        statusEl.textContent = 'Camera active';
+                    }).catch(error => {
+                        log('Error playing video: ' + error.message);
+                        statusEl.textContent = 'Playback error';
+                    });
+                };
+                
+                video.onerror = (error) => {
+                    log('Video element error: ' + error);
+                    statusEl.textContent = 'Video error';
+                };
+                
+            } catch (error) {
+                log('Error accessing camera: ' + error.message);
+                statusEl.textContent = 'Camera error';
+            }
+        }
+        
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                currentStream = null;
+                statusEl.textContent = 'Stopped';
+                streamInfoEl.textContent = 'None';
+                videoDimsEl.textContent = 'N/A';
+                log('Camera stopped');
+            }
+        }
+        
+        function logVideoInfo() {
+            log('=== VIDEO DEBUG INFO ===');
+            log('Video element: ' + (video ? 'Present' : 'Missing'));
+            log('Video srcObject: ' + (video.srcObject ? 'Set' : 'Not set'));
+            log('Video readyState: ' + video.readyState);
+            log('Video paused: ' + video.paused);
+            log('Video muted: ' + video.muted);
+            log('Video autoplay: ' + video.autoplay);
+            log('Video playsInline: ' + video.playsInline);
+            log('Video videoWidth: ' + video.videoWidth);
+            log('Video videoHeight: ' + video.videoHeight);
+            log('========================');
+        }
+        
+        // Test browser support
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            log('Camera API supported');
+        } else {
+            log('Camera API NOT supported');
+        }
+    </script>
+</body>
+</html>
