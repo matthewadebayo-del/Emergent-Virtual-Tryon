@@ -66,9 +66,14 @@ const VirtualTryOn = () => {
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
+      console.log('File uploaded:', file.name, file.size);
+      
+      // Set photo and preview immediately
       setUserPhoto(file);
       const previewUrl = URL.createObjectURL(file);
       setUserPhotoPreview(previewUrl);
+      
+      console.log('Photo and preview set, starting measurement extraction...');
       
       // Extract measurements after photo upload
       await extractMeasurements(file);
