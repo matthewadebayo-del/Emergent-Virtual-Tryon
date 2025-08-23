@@ -758,6 +758,20 @@ const VirtualTryOn = () => {
                 </div>
               )}
 
+              {editableMeasurements && (
+                <div className="bg-green-900 border border-green-600 rounded-lg p-4 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Check className="w-5 h-5 text-green-400" />
+                    <span className="text-green-200 font-semibold">Measurements Saved Successfully!</span>
+                  </div>
+                  <div className="text-green-100 text-sm">
+                    Recommended sizes: Tops: <strong>{editableMeasurements.recommended_sizes?.top}</strong>, 
+                    Bottoms: <strong>{editableMeasurements.recommended_sizes?.bottom}</strong>, 
+                    Dresses: <strong>{editableMeasurements.recommended_sizes?.dress}</strong>
+                  </div>
+                </div>
+              )}
+
               {loadingProducts ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
