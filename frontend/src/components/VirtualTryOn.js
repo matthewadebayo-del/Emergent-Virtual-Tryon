@@ -63,13 +63,45 @@ const VirtualTryOn = () => {
     }
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
       setUserPhoto(file);
       const previewUrl = URL.createObjectURL(file);
       setUserPhotoPreview(previewUrl);
-      setStep(2);
+      
+      // Extract measurements after photo upload
+      await extractMeasurements(file);
+    }
+  };
+
+  const extractMeasurements = async (imageFile) => {
+    try {
+      setExtractingMeasurements(true);
+      setError('');
+      
+      const formData = new FormData();
+      formData.append('user_photo', imageFile);
+      
+      const response = await axios.post(`${API}/extract-measurements`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success) {
+        const measurements = response.data.data;
+        setExtractedMeasurements(measurements);
+        setEditableMeasurements({ ...measurements });
+        setStep(2); // Move to measurement editing step
+      } else {
+        setError('Failed to extract measurements. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error extracting measurements:', error);
+      setError('Error extracting measurements. Please try again.');
+    } finally {
+      setExtractingMeasurements(false);
     }
   };
 
