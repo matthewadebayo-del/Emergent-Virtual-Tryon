@@ -333,11 +333,24 @@ const VirtualTryOn = () => {
   };
 
   const processTryOn = async () => {
-    if (!userPhoto || !selectedProduct) return;
+    console.log('processTryOn function called');
+    console.log('userPhoto:', userPhoto);
+    console.log('selectedProduct:', selectedProduct);
+    
+    if (!userPhoto || !selectedProduct) {
+      console.error('Missing userPhoto or selectedProduct');
+      setError('Missing photo or product selection');
+      return;
+    }
 
     try {
       setIsProcessing(true);
       setError('');
+      
+      console.log('Starting try-on processing...');
+      console.log('Service type:', serviceType);
+      console.log('Selected size:', selectedSize);
+      console.log('Selected color:', selectedColor);
 
       const formData = new FormData();
       formData.append('user_photo', userPhoto);
@@ -345,6 +358,8 @@ const VirtualTryOn = () => {
       formData.append('service_type', serviceType);
       formData.append('size', selectedSize);
       formData.append('color', selectedColor);
+      
+      console.log('FormData prepared, making API call...');
 
       const response = await axios.post(`${API}/tryon`, formData, {
         headers: {
@@ -352,16 +367,22 @@ const VirtualTryOn = () => {
         }
       });
 
+      console.log('Try-on API response:', response.data);
+
       if (response.data.success) {
+        console.log('Try-on successful, moving to results...');
         setResult(response.data.data);
         setStep(5);
       } else {
+        console.error('Try-on failed:', response.data);
         setError('Try-on processing failed. Please try again.');
       }
     } catch (error) {
-      console.error('Error processing try-on:', error);
+      console.error('Try-on processing error:', error);
+      console.error('Error response:', error.response?.data);
       setError(error.response?.data?.detail || 'Try-on processing failed. Please try again.');
     } finally {
+      console.log('Setting isProcessing to false');
       setIsProcessing(false);
     }
   };
