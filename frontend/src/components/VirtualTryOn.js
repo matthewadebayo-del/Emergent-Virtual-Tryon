@@ -869,20 +869,60 @@ const VirtualTryOn = () => {
                   <div>
                     <label className="block text-gray-300 mb-3 font-semibold">Size</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {selectedProduct.sizes.map((size) => (
-                        <button
-                          key={size}
-                          onClick={() => setSelectedSize(size)}
-                          className={`py-2 px-4 rounded-lg border-2 transition-all ${
-                            selectedSize === size
-                              ? 'border-purple-400 bg-purple-900 bg-opacity-50 text-purple-200'
-                              : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
-                          }`}
-                        >
-                          {size}
-                        </button>
-                      ))}
+                      {selectedProduct.sizes.map((size) => {
+                        const isRecommended = editableMeasurements?.recommended_sizes && 
+                          (selectedProduct.category.toLowerCase().includes('top') || 
+                           selectedProduct.category.toLowerCase().includes('shirt') || 
+                           selectedProduct.category.toLowerCase().includes('sweater')) 
+                          ? size === editableMeasurements.recommended_sizes.top
+                          : selectedProduct.category.toLowerCase().includes('bottom') || 
+                            selectedProduct.category.toLowerCase().includes('pant')
+                          ? size === editableMeasurements.recommended_sizes.bottom
+                          : selectedProduct.category.toLowerCase().includes('dress')
+                          ? size === editableMeasurements.recommended_sizes.dress
+                          : false;
+                        
+                        return (
+                          <button
+                            key={size}
+                            onClick={() => setSelectedSize(size)}
+                            className={`py-2 px-4 rounded-lg border-2 transition-all relative ${
+                              selectedSize === size
+                                ? 'border-purple-400 bg-purple-900 bg-opacity-50 text-purple-200'
+                                : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                            }`}
+                          >
+                            {size}
+                            {isRecommended && (
+                              <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                                ✓
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {editableMeasurements?.recommended_sizes && (
+                      <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
+                        <span>✓</span>
+                        <span>
+                          Recommended size based on your measurements: {
+                            selectedProduct.category.toLowerCase().includes('top') || 
+                            selectedProduct.category.toLowerCase().includes('shirt') || 
+                            selectedProduct.category.toLowerCase().includes('sweater') || 
+                            selectedProduct.category.toLowerCase().includes('blouse')
+                              ? editableMeasurements.recommended_sizes.top
+                              : selectedProduct.category.toLowerCase().includes('bottom') || 
+                                selectedProduct.category.toLowerCase().includes('pant') ||
+                                selectedProduct.category.toLowerCase().includes('jean')
+                              ? editableMeasurements.recommended_sizes.bottom
+                              : selectedProduct.category.toLowerCase().includes('dress')
+                              ? editableMeasurements.recommended_sizes.dress
+                              : editableMeasurements.recommended_sizes.top
+                          }
+                        </span>
+                      </p>
+                    )}
                   </div>
 
                   <div>
