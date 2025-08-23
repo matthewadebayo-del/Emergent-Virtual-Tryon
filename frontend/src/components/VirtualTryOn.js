@@ -498,8 +498,205 @@ const VirtualTryOn = () => {
             </div>
           )}
 
-          {/* Step 2: Select Product */}
+          {/* Step 2: Edit Measurements */}
           {step === 2 && (
+            <div className="bg-gray-800 rounded-lg p-8">
+              <h2 className="text-2xl font-bold mb-6 text-center">Review & Adjust Your Measurements</h2>
+              
+              {userPhotoPreview && (
+                <div className="flex justify-center mb-6">
+                  <img
+                    src={userPhotoPreview}
+                    alt="Your photo"
+                    className="w-32 h-32 object-cover rounded-lg border-2 border-purple-400"
+                  />
+                </div>
+              )}
+
+              {extractingMeasurements ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                  <p className="text-gray-300 text-lg">Extracting measurements using AI...</p>
+                  <p className="text-gray-400 text-sm mt-2">This may take a few seconds</p>
+                </div>
+              ) : editableMeasurements ? (
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Measurements Form */}
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-purple-400 mb-4">Body Measurements</h3>
+                    
+                    <div>
+                      <label className="block text-gray-300 mb-2 font-semibold">Height (inches)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editableMeasurements.height || ''}
+                        onChange={(e) => handleMeasurementChange('height', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g., 68.5"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2 font-semibold">Weight (pounds)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editableMeasurements.weight || ''}
+                        onChange={(e) => handleMeasurementChange('weight', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g., 150.0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2 font-semibold">Chest (inches)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editableMeasurements.chest || ''}
+                        onChange={(e) => handleMeasurementChange('chest', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g., 36.0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2 font-semibold">Waist (inches)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editableMeasurements.waist || ''}
+                        onChange={(e) => handleMeasurementChange('waist', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g., 30.0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2 font-semibold">Hips (inches)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editableMeasurements.hips || ''}
+                        onChange={(e) => handleMeasurementChange('hips', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g., 38.0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2 font-semibold">Shoulder Width (inches)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editableMeasurements.shoulder_width || ''}
+                        onChange={(e) => handleMeasurementChange('shoulder_width', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g., 16.5"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2 font-semibold">Arm Length (inches)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editableMeasurements.arm_length || ''}
+                        onChange={(e) => handleMeasurementChange('arm_length', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-purple-500"
+                        placeholder="e.g., 24.0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Recommended Sizes */}
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-purple-400 mb-4">Recommended Sizes</h3>
+                    
+                    <div className="bg-gray-700 rounded-lg p-6 space-y-4">
+                      {editableMeasurements.recommended_sizes ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-300 font-medium">Tops (Shirts, Sweaters):</span>
+                            <span className="text-white font-bold text-lg bg-purple-600 px-3 py-1 rounded">
+                              {editableMeasurements.recommended_sizes.top}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-300 font-medium">Bottoms (Pants, Jeans):</span>
+                            <span className="text-white font-bold text-lg bg-purple-600 px-3 py-1 rounded">
+                              {editableMeasurements.recommended_sizes.bottom}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-300 font-medium">Dresses:</span>
+                            <span className="text-white font-bold text-lg bg-purple-600 px-3 py-1 rounded">
+                              {editableMeasurements.recommended_sizes.dress}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-gray-400">Sizes will be calculated when you adjust measurements</p>
+                      )}
+                      
+                      <div className="mt-6 pt-4 border-t border-gray-600">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-gray-300">Confidence Score:</span>
+                          <span className="text-green-400 font-semibold">
+                            {Math.round((editableMeasurements.confidence_score || 0) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-600 rounded-full h-2">
+                          <div 
+                            className="bg-green-500 h-2 rounded-full transition-all"
+                            style={{ width: `${(editableMeasurements.confidence_score || 0) * 100}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-gray-400 text-sm mt-2">
+                          Adjust measurements above for more accurate size recommendations
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-900 border border-blue-600 rounded-lg p-4">
+                      <h4 className="text-blue-200 font-semibold mb-2">💡 Measurement Tips</h4>
+                      <ul className="text-blue-100 text-sm space-y-1">
+                        <li>• Chest: Measure around the fullest part</li>
+                        <li>• Waist: Measure at the narrowest point</li>
+                        <li>• Hips: Measure around the widest part</li>
+                        <li>• Take measurements over thin clothing</li>
+                      </ul>
+                    </div>
+
+                    <button
+                      onClick={confirmMeasurements}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-3"
+                    >
+                      <Check className="w-5 h-5" />
+                      Save Measurements & Continue to Products
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="bg-red-900 border border-red-600 rounded-lg p-4 max-w-md mx-auto">
+                    <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                    <p className="text-red-200">Failed to extract measurements</p>
+                    <button
+                      onClick={() => setStep(1)}
+                      className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Select Product */}
+          {step === 3 && (
             <div className="bg-gray-800 rounded-lg p-8">
               <h2 className="text-2xl font-bold mb-6 text-center">Select a Product</h2>
               
