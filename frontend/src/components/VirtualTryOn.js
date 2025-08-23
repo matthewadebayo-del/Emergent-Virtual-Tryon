@@ -365,7 +365,7 @@ const VirtualTryOn = () => {
 
   const StepIndicator = () => (
     <div className="flex items-center justify-center mb-8">
-      {[1, 2, 3, 4].map((stepNum) => (
+      {[1, 2, 3, 4, 5].map((stepNum) => (
         <React.Fragment key={stepNum}>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
             step >= stepNum 
@@ -374,7 +374,7 @@ const VirtualTryOn = () => {
           }`}>
             {step > stepNum ? <Check className="w-5 h-5" /> : stepNum}
           </div>
-          {stepNum < 4 && (
+          {stepNum < 5 && (
             <div className={`w-12 h-1 mx-2 ${
               step > stepNum ? 'bg-purple-600' : 'bg-gray-600'
             }`} />
