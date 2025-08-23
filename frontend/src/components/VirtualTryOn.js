@@ -195,11 +195,14 @@ const VirtualTryOn = () => {
   };
 
   const startCountdown = () => {
+    console.log('startCountdown called');
     setCountdown(3);
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
+        console.log('Countdown:', prev);
         if (prev <= 1) {
           clearInterval(countdownInterval);
+          console.log('Countdown finished, capturing photo...');
           capturePhoto();
           return 0;
         }
