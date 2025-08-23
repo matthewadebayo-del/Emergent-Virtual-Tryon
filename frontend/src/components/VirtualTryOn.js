@@ -262,10 +262,15 @@ const VirtualTryOn = () => {
   };
 
   const handleMeasurementChange = (field, value) => {
-    setEditableMeasurements(prev => ({
-      ...prev,
+    const updatedMeasurements = {
+      ...editableMeasurements,
       [field]: parseFloat(value) || 0
-    }));
+    };
+    
+    // Recalculate recommended sizes automatically when measurements change
+    updatedMeasurements.recommended_sizes = calculateRecommendedSizes(updatedMeasurements);
+    
+    setEditableMeasurements(updatedMeasurements);
   };
 
   const processTryOn = async () => {
