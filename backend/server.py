@@ -279,30 +279,41 @@ async def virtual_tryon(
     user_image_base64: str = Form(...),
     product_id: Optional[str] = Form(None),
     clothing_image_base64: Optional[str] = Form(None),
-    use_stored_measurements: bool = Form(False),
+    use_stored_measurements: str = Form("false"),  # Changed to str to avoid bool parsing issues
     current_user: User = Depends(get_current_user)
 ):
     try:
-        print(f"Try-on request from user {current_user.email}")
+        print(f"=== Try-on request DEBUG ===")
+        print(f"User: {current_user.email}")
         print(f"Product ID: {product_id}")
-        print(f"Has user image: {bool(user_image_base64)}")
-        print(f"Has clothing image: {bool(clothing_image_base64)}")
+        print(f"User image length: {len(user_image_base64) if user_image_base64 else 0}")
+        print(f"Clothing image: {clothing_image_base64 is not None}")
+        print(f"Use stored measurements (raw): {use_stored_measurements}")
+        
+        # Convert string to boolean
+        use_measurements = use_stored_measurements.lower() in ['true', '1', 'yes']
+        print(f"Use stored measurements (parsed): {use_measurements}")
         
         if not image_gen:
+            print("ERROR: Image generation service not available")
             raise HTTPException(status_code=500, detail="Image generation service not available")
         
         # Validate inputs
         if not user_image_base64:
+            print("ERROR: User image is missing")
             raise HTTPException(status_code=422, detail="User image is required")
             
         if not product_id and not clothing_image_base64:
+            print("ERROR: Neither product_id nor clothing_image_base64 provided")
             raise HTTPException(status_code=422, detail="Either product_id or clothing_image_base64 is required")
         
         # Get clothing information
         clothing_description = ""
         if product_id:
+            print(f"Looking up product: {product_id}")
             product = await db.products.find_one({"id": product_id})
             if not product:
+                print(f"ERROR: Product not found: {product_id}")
                 raise HTTPException(status_code=404, detail="Product not found")
             clothing_description = f"{product['name']} - {product['description']}"
             print(f"Using product: {clothing_description}")
@@ -312,7 +323,7 @@ async def virtual_tryon(
         
         # Use stored measurements or extract from image
         measurements = None
-        if use_stored_measurements and current_user.measurements:
+        if use_measurements and current_user.measurements:
             measurements = current_user.measurements
             print(f"Using stored measurements: {measurements}")
         else:
@@ -333,17 +344,18 @@ async def virtual_tryon(
         else:
             prompt = f"Create a photorealistic full-body portrait of a person with natural proportions. Height: {measurements.get('height', 170)}cm, chest: {measurements.get('chest', 90)}cm, waist: {measurements.get('waist', 75)}cm, hips: {measurements.get('hips', 95)}cm. The person should look natural and realistic with professional lighting and clear details. Style: photorealistic portrait, full body, natural pose, high quality."
         
-        print(f"Generating image with prompt: {prompt[:100]}...")
+        print(f"Generating image with prompt length: {len(prompt)} characters")
         
         # Decode the user's image (we have this for future use)
         try:
             user_image_bytes = base64.b64decode(user_image_base64)
             print(f"Successfully decoded user image, size: {len(user_image_bytes)} bytes")
         except Exception as e:
-            print(f"Error decoding user image: {str(e)}")
+            print(f"ERROR decoding user image: {str(e)}")
             raise HTTPException(status_code=422, detail="Invalid user image format")
         
         # Generate image using AI
+        print("Calling AI image generation...")
         images = await image_gen.generate_images(
             prompt=prompt,
             model="gpt-image-1",
@@ -351,16 +363,17 @@ async def virtual_tryon(
         )
         
         if not images or len(images) == 0:
-            print("No images generated")
+            print("ERROR: No images generated")
             raise HTTPException(status_code=500, detail="Failed to generate try-on image")
         
-        print(f"Successfully generated {len(images)} image(s)")
+        print(f"Successfully generated {len(images)} image(s), first image size: {len(images[0])} bytes")
         
         # Convert to base64
         result_image_base64 = base64.b64encode(images[0]).decode('utf-8')
         
         # Determine size recommendation based on measurements
         size_recommendation = determine_size_recommendation(measurements, product_id if product_id else None)
+        print(f"Size recommendation: {size_recommendation}")
         
         # Save try-on result
         tryon_result = TryonResult(
@@ -371,7 +384,7 @@ async def virtual_tryon(
         )
         
         await db.tryon_results.insert_one(tryon_result.dict())
-        print(f"Saved try-on result with size recommendation: {size_recommendation}")
+        print(f"✅ Try-on completed successfully for user {current_user.email}")
         
         return {
             "result_image_base64": result_image_base64,
@@ -383,7 +396,7 @@ async def virtual_tryon(
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        print(f"Unexpected error in virtual try-on: {str(e)}")
+        print(f"❌ Unexpected error in virtual try-on: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Virtual try-on failed: {str(e)}")
