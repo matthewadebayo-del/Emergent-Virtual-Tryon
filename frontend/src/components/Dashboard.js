@@ -69,10 +69,20 @@ const Dashboard = () => {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' } 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } 
       });
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play().catch(error => {
+            console.error('Error playing video:', error);
+          });
+        };
       }
       setShowCamera(true);
     } catch (error) {
