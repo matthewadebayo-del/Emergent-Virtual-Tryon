@@ -818,6 +818,22 @@ const VirtualTryOn = () => {
                 </div>
               )}
 
+              {/* Photo validation warning */}
+              {!userPhoto && (
+                <div className="bg-yellow-900 border border-yellow-600 rounded-lg p-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-yellow-400" />
+                    <span className="text-yellow-200">Warning: Your photo is missing. You may need to recapture it.</span>
+                  </div>
+                  <button
+                    onClick={() => setStep(1)}
+                    className="mt-3 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm transition-colors"
+                  >
+                    Retake Photo
+                  </button>
+                </div>
+              )}
+
               {editableMeasurements && (
                 <div className="bg-green-900 border border-green-600 rounded-lg p-4 mb-6">
                   <div className="flex items-center gap-2 mb-2">
