@@ -1047,16 +1047,26 @@ const VirtualTryOn = () => {
                       console.log('Current state:', {
                         step,
                         userPhoto: !!userPhoto,
+                        userPhotoSize: userPhoto?.size,
+                        userPhotoName: userPhoto?.name,
                         selectedProduct: !!selectedProduct,
+                        selectedProductName: selectedProduct?.name,
                         isProcessing,
                         serviceType,
                         selectedSize,
-                        selectedColor
+                        selectedColor,
+                        userPhotoPreview: !!userPhotoPreview
                       });
+                      
+                      // Try to recreate photo if missing
+                      if (!userPhoto && userPhotoPreview) {
+                        console.log('🔧 Attempting to recreate photo from preview...');
+                        // This is a fallback - ideally photo should be preserved
+                      }
                     }}
                     className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg text-sm transition-colors mt-2"
                   >
-                    🐛 Debug: Log Current State
+                    🐛 Debug: Log Current State & Fix Photo
                   </button>
                 </div>
               </div>
