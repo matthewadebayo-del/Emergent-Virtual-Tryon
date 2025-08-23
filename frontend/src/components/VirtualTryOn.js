@@ -483,6 +483,19 @@ const VirtualTryOn = () => {
                     <Upload className="w-6 h-6" />
                     Upload from Device
                   </button>
+                  
+                  {/* Debug Button - Remove in production */}
+                  <button
+                    onClick={() => {
+                      console.log('Debug: Simulating photo capture...');
+                      // Create a dummy file for testing
+                      const dummyFile = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
+                      extractMeasurements(dummyFile);
+                    }}
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-semibold transition-colors text-sm"
+                  >
+                    🐛 Debug: Skip to Measurements (Test)
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4 max-w-md mx-auto">
