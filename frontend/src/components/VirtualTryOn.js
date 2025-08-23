@@ -37,6 +37,7 @@ const VirtualTryOn = () => {
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [showCamera, setShowCamera] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [userPhotoDataURL, setUserPhotoDataURL] = useState(null); // New state for persistent photo URL
 
   const videoRef = useRef(null);
