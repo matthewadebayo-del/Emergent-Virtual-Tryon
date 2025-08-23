@@ -260,11 +260,23 @@ async def extract_measurements(
             "shoulder_width": round(40 + (hash(user_image_base64[250:300]) % 10), 1)
         }
         
-        # Save measurements automatically
-        measurements = Measurements(**simulated_measurements)
+        # Save measurements automatically with conversion to inches
+        measurements_cm = Measurements(**simulated_measurements)
+        
+        # Convert measurements to inches for US users
+        measurements_inches = {
+            "height": round(simulated_measurements["height"] / 2.54, 1),  # cm to inches
+            "weight": round(simulated_measurements["weight"] * 2.205, 1),  # kg to pounds
+            "chest": round(simulated_measurements["chest"] / 2.54, 1),
+            "waist": round(simulated_measurements["waist"] / 2.54, 1), 
+            "hips": round(simulated_measurements["hips"] / 2.54, 1),
+            "shoulder_width": round(simulated_measurements["shoulder_width"] / 2.54, 1)
+        }
+        
+        # Save measurements to backend (store in cm for consistency)
         await db.users.update_one(
             {"id": current_user.id},
-            {"$set": {"measurements": measurements.dict()}}
+            {"$set": {"measurements": measurements_cm.dict()}}
         )
         
         return {
