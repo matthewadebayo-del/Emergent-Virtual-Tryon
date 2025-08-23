@@ -1008,6 +1008,25 @@ const VirtualTryOn = () => {
                       </>
                     )}
                   </button>
+                  
+                  {/* Debug button - remove in production */}
+                  <button
+                    onClick={() => {
+                      console.log('🐛 Debug button clicked');
+                      console.log('Current state:', {
+                        step,
+                        userPhoto: !!userPhoto,
+                        selectedProduct: !!selectedProduct,
+                        isProcessing,
+                        serviceType,
+                        selectedSize,
+                        selectedColor
+                      });
+                    }}
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg text-sm transition-colors mt-2"
+                  >
+                    🐛 Debug: Log Current State
+                  </button>
                 </div>
               </div>
             </div>
