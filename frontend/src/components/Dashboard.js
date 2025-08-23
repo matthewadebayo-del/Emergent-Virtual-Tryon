@@ -221,12 +221,8 @@ const Dashboard = () => {
         setMeasurements(response.data.data);
         setActiveTab('measurements');
         
-        // Show success message and suggest moving to try-on
-        setTimeout(() => {
-          if (window.confirm('Measurements extracted successfully! Would you like to start a virtual try-on now?')) {
-            navigate('/tryon');
-          }
-        }, 2000);
+        // Remove the automatic dialog - let user manually navigate
+        console.log('Measurements extracted successfully');
       } else {
         alert('Failed to extract measurements. Please try again.');
       }
