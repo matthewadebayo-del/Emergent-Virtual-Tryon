@@ -1128,13 +1128,13 @@ const VirtualTryOn = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Your Photo</h3>
                   <div className="relative bg-gray-700 rounded-lg overflow-hidden">
-                    {userPhotoPreview ? (
+                    {(userPhotoDataURL || userPhotoPreview) ? (
                       <img
-                        src={userPhotoPreview}
+                        src={userPhotoDataURL || userPhotoPreview}
                         alt="Original photo"
                         className="w-full h-64 object-cover"
                         onError={(e) => {
-                          console.error('Original photo failed to load:', userPhotoPreview);
+                          console.error('Original photo failed to load:', userPhotoDataURL || userPhotoPreview);
                           e.target.style.display = 'none';
                           e.target.nextSibling.style.display = 'flex';
                         }}
@@ -1144,12 +1144,12 @@ const VirtualTryOn = () => {
                       />
                     ) : null}
                     <div 
-                      className={`w-full h-64 bg-gray-600 flex items-center justify-center text-gray-300 ${userPhotoPreview ? 'hidden' : 'flex'}`}
-                      style={{display: userPhotoPreview ? 'none' : 'flex'}}
+                      className={`w-full h-64 bg-gray-600 flex items-center justify-center text-gray-300 ${(userPhotoDataURL || userPhotoPreview) ? 'hidden' : 'flex'}`}
+                      style={{display: (userPhotoDataURL || userPhotoPreview) ? 'none' : 'flex'}}
                     >
                       <div className="text-center">
                         <div className="text-4xl mb-2">📷</div>
-                        <div>Original photo</div>
+                        <div>Your photo will appear here</div>
                       </div>
                     </div>
                   </div>
