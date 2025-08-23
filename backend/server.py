@@ -18,6 +18,9 @@ import asyncio
 from PIL import Image
 import io
 import numpy as np
+import tempfile
+import aiofiles
+import fal_client
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
