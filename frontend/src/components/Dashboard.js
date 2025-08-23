@@ -68,6 +68,7 @@ const Dashboard = () => {
 
   const startCamera = async () => {
     try {
+      console.log('Starting camera...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -76,18 +77,41 @@ const Dashboard = () => {
         } 
       });
       
+      console.log('Camera stream obtained:', stream);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // Add multiple event listeners for debugging
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play().catch(error => {
-            console.error('Error playing video:', error);
-          });
+          console.log('Video metadata loaded, starting playback...');
+          videoRef.current.play()
+            .then(() => {
+              console.log('Video playback started successfully');
+              setShowCamera(true);
+            })
+            .catch(error => {
+              console.error('Error playing video:', error);
+              alert('Failed to start video playback. Please refresh and try again.');
+            });
         };
+        
+        videoRef.current.onerror = (error) => {
+          console.error('Video element error:', error);
+          alert('Video error occurred. Please refresh and try again.');
+        };
+        
+        // Fallback: set showCamera after a delay if metadata doesn't load
+        setTimeout(() => {
+          if (videoRef.current && videoRef.current.srcObject && !showCamera) {
+            console.log('Fallback: setting showCamera to true');
+            setShowCamera(true);
+          }
+        }, 1000);
       }
-      setShowCamera(true);
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Camera access denied. Please use file upload instead.');
+      alert(`Camera access failed: ${error.message}. Please check browser permissions and try again.`);
     }
   };
 
