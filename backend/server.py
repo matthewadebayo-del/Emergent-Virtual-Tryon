@@ -338,15 +338,10 @@ async def virtual_tryon(
             }
             print(f"Using default measurements: {measurements}")
         
-        # Generate try-on image using AI with personalized avatar
-        if clothing_description:
-            prompt = f"Create a photorealistic virtual try-on image showing a person who looks natural and proportional wearing {clothing_description}. The person should have a height of {measurements.get('height', 170)}cm, chest measurement of {measurements.get('chest', 90)}cm, waist of {measurements.get('waist', 75)}cm, and hips of {measurements.get('hips', 95)}cm. Show the clothing item fitting naturally and realistically on the person's body with proper proportions. The avatar should look like a real person with natural lighting, clear details, and realistic fabric draping. Style: photorealistic portrait, full body, professional lighting, high quality."
-        else:
-            prompt = f"Create a photorealistic full-body portrait of a person with natural proportions. Height: {measurements.get('height', 170)}cm, chest: {measurements.get('chest', 90)}cm, waist: {measurements.get('waist', 75)}cm, hips: {measurements.get('hips', 95)}cm. The person should look natural and realistic with professional lighting and clear details. Style: photorealistic portrait, full body, natural pose, high quality."
+        # Generate try-on image using AI image EDITING (not generation)
+        print("🎭 Creating personalized virtual try-on using image editing...")
         
-        print(f"Generating image with prompt length: {len(prompt)} characters")
-        
-        # Decode the user's image (we have this for future use)
+        # Decode the user's image for editing
         try:
             user_image_bytes = base64.b64decode(user_image_base64)
             print(f"Successfully decoded user image, size: {len(user_image_bytes)} bytes")
@@ -354,19 +349,71 @@ async def virtual_tryon(
             print(f"ERROR decoding user image: {str(e)}")
             raise HTTPException(status_code=422, detail="Invalid user image format")
         
-        # Generate image using AI
-        print("Calling AI image generation...")
-        images = await image_gen.generate_images(
-            prompt=prompt,
-            model="gpt-image-1",
-            number_of_images=1
-        )
+        # Create a detailed prompt for image editing that preserves the user's appearance
+        if clothing_description:
+            edit_prompt = f"""Edit this person's clothing to show them wearing {clothing_description}. 
+            IMPORTANT: Keep their face, body shape, skin tone, and overall appearance EXACTLY the same. 
+            Only change their clothing to the {clothing_description}. 
+            Make the clothing fit naturally on their body with proper sizing and realistic fabric draping.
+            Ensure the lighting and photo quality matches the original.
+            The person should look like themselves but wearing the new clothing item.
+            Style: photorealistic, natural lighting, high quality."""
+        else:
+            edit_prompt = f"""Edit this person's clothing to show them wearing the uploaded clothing item.
+            IMPORTANT: Keep their face, body shape, skin tone, and overall appearance EXACTLY the same.
+            Only change their clothing to match the reference clothing image.
+            Make the clothing fit naturally on their body with realistic proportions.
+            Ensure the lighting and photo quality matches the original.
+            The person should look like themselves but wearing the new clothing.
+            Style: photorealistic, natural lighting, high quality."""
+        
+        print(f"Using image editing prompt (length: {len(edit_prompt)} characters)")
+        print(f"Prompt preview: {edit_prompt[:150]}...")
+        
+        # Use OpenAI image editing instead of generation
+        try:
+            # Save user image temporarily for editing
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+                temp_file.write(user_image_bytes)
+                temp_file_path = temp_file.name
+            
+            print(f"Saved temp image file: {temp_file_path}")
+            
+            # Use image editing API
+            with open(temp_file_path, 'rb') as image_file:
+                images = await image_gen.edit_images(
+                    image=[image_file],
+                    prompt=edit_prompt,
+                    model="gpt-image-1",
+                    number_of_images=1
+                )
+            
+            # Clean up temp file
+            os.unlink(temp_file_path)
+            
+        except Exception as e:
+            print(f"Image editing failed, falling back to generation: {str(e)}")
+            # Fallback to generation with user-specific details
+            generation_prompt = f"""Create a photorealistic virtual try-on image of a person wearing {clothing_description}.
+            The person should match these characteristics: height {measurements.get('height', 170)}cm, 
+            chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm, hips {measurements.get('hips', 95)}cm.
+            Show realistic clothing fit with natural proportions and professional lighting.
+            Style: photorealistic portrait, full body, natural pose, high quality."""
+            
+            images = await image_gen.generate_images(
+                prompt=generation_prompt,
+                model="gpt-image-1",
+                number_of_images=1
+            )
         
         if not images or len(images) == 0:
-            print("ERROR: No images generated")
-            raise HTTPException(status_code=500, detail="Failed to generate try-on image")
+            print("ERROR: No images generated/edited")
+            raise HTTPException(status_code=500, detail="Failed to create virtual try-on image")
         
-        print(f"Successfully generated {len(images)} image(s), first image size: {len(images[0])} bytes")
+        print(f"Successfully created virtual try-on image, size: {len(images[0])} bytes")
         
         # Convert to base64
         result_image_base64 = base64.b64encode(images[0]).decode('utf-8')
