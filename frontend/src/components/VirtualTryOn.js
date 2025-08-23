@@ -353,18 +353,26 @@ const VirtualTryOn = () => {
                 </div>
               ) : (
                 <div className="space-y-4 max-w-md mx-auto">
-                  <div className="relative bg-black rounded-lg overflow-hidden">
+                  <div className="relative bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-600">
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
-                      className="w-full h-96 object-cover"
+                      muted
+                      controls={false}
+                      className="w-full h-96 object-cover bg-gray-800"
+                      style={{ minHeight: '384px' }}
                     />
                     {countdown > 0 && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="text-6xl font-bold text-white animate-pulse">
                           {countdown}
                         </div>
+                      </div>
+                    )}
+                    {showCamera && (
+                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                        Camera Active
                       </div>
                     )}
                   </div>
