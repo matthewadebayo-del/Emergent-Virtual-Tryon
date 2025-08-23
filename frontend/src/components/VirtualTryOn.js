@@ -256,12 +256,12 @@ const VirtualTryOn = () => {
           const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
           setUserPhoto(file);
           
-          // Create both blob URL and data URL for better preservation
-          const previewUrl = URL.createObjectURL(blob);
+          // Create persistent data URL (doesn't expire like blob URLs)
           const dataUrl = await convertFileToDataURL(file);
+          setUserPhotoDataURL(dataUrl);
+          setUserPhotoPreview(dataUrl); // Use data URL instead of blob URL
           
-          setUserPhotoPreview(previewUrl);
-          console.log('Photo URLs created - Blob:', previewUrl, 'Data:', dataUrl.substring(0, 50) + '...');
+          console.log('Photo URLs created - Data URL length:', dataUrl.length);
           
           stopCamera();
           
