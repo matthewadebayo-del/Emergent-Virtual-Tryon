@@ -68,10 +68,13 @@ const VirtualTryOn = () => {
     if (file) {
       console.log('File uploaded:', file.name, file.size);
       
-      // Set photo and preview immediately
+      // Set photo immediately
       setUserPhoto(file);
-      const previewUrl = URL.createObjectURL(file);
-      setUserPhotoPreview(previewUrl);
+      
+      // Create persistent data URL
+      const dataUrl = await convertFileToDataURL(file);
+      setUserPhotoDataURL(dataUrl);
+      setUserPhotoPreview(dataUrl);
       
       console.log('Photo and preview set, starting measurement extraction...');
       
