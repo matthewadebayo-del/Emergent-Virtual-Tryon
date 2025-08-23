@@ -225,7 +225,47 @@ const VirtualTryOn = () => {
     setSelectedProduct(product);
     setSelectedSize(product.sizes[0] || '');
     setSelectedColor(product.colors[0] || '');
-    setStep(3);
+    setStep(4); // Move to configuration step
+  };
+
+  const confirmMeasurements = () => {
+    // Update recommended sizes based on edited measurements
+    const updatedMeasurements = {
+      ...editableMeasurements,
+      recommended_sizes: calculateRecommendedSizes(editableMeasurements)
+    };
+    setEditableMeasurements(updatedMeasurements);
+    setStep(3); // Move to product selection
+  };
+
+  const calculateRecommendedSizes = (measurements) => {
+    // Simple size recommendation logic based on measurements
+    const chest = measurements.chest || 0;
+    const waist = measurements.waist || 0;
+    
+    let topSize = 'M';
+    let bottomSize = 'M';
+    
+    if (chest < 34) topSize = 'S';
+    else if (chest > 40) topSize = 'L';
+    else if (chest > 44) topSize = 'XL';
+    
+    if (waist < 30) bottomSize = 'S';
+    else if (waist > 34) bottomSize = 'L';
+    else if (waist > 38) bottomSize = 'XL';
+    
+    return {
+      top: topSize,
+      bottom: bottomSize,
+      dress: topSize
+    };
+  };
+
+  const handleMeasurementChange = (field, value) => {
+    setEditableMeasurements(prev => ({
+      ...prev,
+      [field]: parseFloat(value) || 0
+    }));
   };
 
   const processTryOn = async () => {
