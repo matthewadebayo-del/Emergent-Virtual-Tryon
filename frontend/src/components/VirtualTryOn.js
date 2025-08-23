@@ -255,8 +255,14 @@ const VirtualTryOn = () => {
           console.log('Blob created, size:', blob.size);
           const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
           setUserPhoto(file);
+          
+          // Create both blob URL and data URL for better preservation
           const previewUrl = URL.createObjectURL(blob);
+          const dataUrl = await convertFileToDataURL(file);
+          
           setUserPhotoPreview(previewUrl);
+          console.log('Photo URLs created - Blob:', previewUrl, 'Data:', dataUrl.substring(0, 50) + '...');
+          
           stopCamera();
           
           console.log('Photo captured, starting measurement extraction...');
