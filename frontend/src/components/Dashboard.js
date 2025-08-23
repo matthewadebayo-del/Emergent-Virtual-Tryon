@@ -52,6 +52,20 @@ const Dashboard = () => {
     }
   }, [activeTab]);
 
+  // New useEffect to ensure video element is ready when showCamera is true
+  useEffect(() => {
+    if (showCamera && videoRef.current) {
+      console.log('showCamera effect - video element check');
+      console.log('Video element exists:', !!videoRef.current);
+      console.log('Video srcObject exists:', !!videoRef.current.srcObject);
+      
+      // If we have a video element but no stream, something went wrong
+      if (!videoRef.current.srcObject) {
+        console.warn('Video element exists but no srcObject - this might be the issue');
+      }
+    }
+  }, [showCamera]);
+
   const fetchTryOnHistory = async () => {
     try {
       setLoadingHistory(true);
