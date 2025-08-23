@@ -481,6 +481,24 @@ const Dashboard = () => {
                 <div>
                   <h2 className="text-2xl font-bold mb-6">Body Measurements</h2>
                   
+                  {measurements && (
+                    <div className="bg-green-900 border border-green-600 rounded-lg p-4 mb-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Check className="w-5 h-5 text-green-400" />
+                        <span className="text-green-200 font-semibold">Measurements Extracted Successfully!</span>
+                      </div>
+                      <div className="text-green-100 text-sm mb-3">
+                        Your body measurements have been processed. You can now proceed to virtual try-on.
+                      </div>
+                      <button
+                        onClick={() => navigate('/tryon')}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        Start Virtual Try-On
+                      </button>
+                    </div>
+                  )}
+
                   {measurements ? (
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-4">
