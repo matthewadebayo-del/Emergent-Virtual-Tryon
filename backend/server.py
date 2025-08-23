@@ -436,7 +436,8 @@ PERSONALIZATION:
         return {
             "result_image_base64": result_image_base64,
             "size_recommendation": size_recommendation,
-            "measurements_used": measurements
+            "measurements_used": measurements,
+            "personalization_note": f"Virtual try-on created using your photo as reference for realistic appearance and {clothing_description} fitting."
         }
         
     except HTTPException:
