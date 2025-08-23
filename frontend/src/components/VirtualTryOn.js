@@ -226,7 +226,15 @@ const VirtualTryOn = () => {
     }, 1000);
   };
 
-  const capturePhoto = () => {
+  const convertFileToDataURL = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const capturePhoto = async () => {
     console.log('capturePhoto function called');
     if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
