@@ -290,7 +290,7 @@ const VirtualTryOn = () => {
 
       if (response.data.success) {
         setResult(response.data.data);
-        setStep(4);
+        setStep(5);
       } else {
         setError('Try-on processing failed. Please try again.');
       }
