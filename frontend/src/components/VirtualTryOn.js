@@ -618,11 +618,30 @@ const VirtualTryOn = () => {
               
               {userPhotoPreview && (
                 <div className="flex justify-center mb-6">
-                  <img
-                    src={userPhotoPreview}
-                    alt="Your photo"
-                    className="w-32 h-32 object-cover rounded-lg border-2 border-purple-400"
-                  />
+                  <div className="relative">
+                    <img
+                      src={userPhotoPreview}
+                      alt="Your captured photo"
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-purple-400"
+                      onError={(e) => {
+                        console.error('Photo preview failed to load:', userPhotoPreview);
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                      onLoad={() => {
+                        console.log('Photo preview loaded successfully:', userPhotoPreview);
+                      }}
+                    />
+                    <div 
+                      className="w-32 h-32 bg-gray-600 rounded-lg border-2 border-purple-400 flex items-center justify-center text-gray-300 text-sm text-center hidden"
+                      style={{display: 'none'}}
+                    >
+                      <div>
+                        <div className="text-2xl mb-1">📷</div>
+                        <div>Your Photo</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
