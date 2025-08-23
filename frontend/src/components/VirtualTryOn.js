@@ -253,8 +253,37 @@ const VirtualTryOn = () => {
 
   const selectProduct = (product) => {
     setSelectedProduct(product);
-    setSelectedSize(product.sizes[0] || '');
+    
+    // Use recommended size from measurements if available
+    let defaultSize = product.sizes[0] || '';
+    if (editableMeasurements && editableMeasurements.recommended_sizes) {
+      const category = product.category.toLowerCase();
+      if (category.includes('top') || category.includes('shirt') || category.includes('sweater') || category.includes('blouse')) {
+        defaultSize = editableMeasurements.recommended_sizes.top || defaultSize;
+      } else if (category.includes('bottom') || category.includes('pant') || category.includes('jean')) {
+        defaultSize = editableMeasurements.recommended_sizes.bottom || defaultSize;
+      } else if (category.includes('dress')) {
+        defaultSize = editableMeasurements.recommended_sizes.dress || defaultSize;
+      } else if (category.includes('outerwear') || category.includes('jacket') || category.includes('cardigan')) {
+        defaultSize = editableMeasurements.recommended_sizes.top || defaultSize;
+      }
+      
+      // Make sure the recommended size is available for this product
+      if (product.sizes.includes(defaultSize)) {
+        // Size is available, use it
+      } else {
+        // Fall back to first available size
+        defaultSize = product.sizes[0] || '';
+      }
+    }
+    
+    setSelectedSize(defaultSize);
     setSelectedColor(product.colors[0] || '');
+    
+    console.log('Product selected:', product.name);
+    console.log('Recommended size from measurements:', editableMeasurements?.recommended_sizes);
+    console.log('Selected size:', defaultSize);
+    
     setStep(4); // Move to configuration step
   };
 
