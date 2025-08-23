@@ -18,9 +18,9 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # Import local modules
-from .models import *
-from .database import database
-from .auth import AuthManager, get_current_active_user
+from models import *
+from database import database
+from auth import AuthManager, get_current_active_user
 
 # Create FastAPI app
 app = FastAPI(title="Virtual Try-On API", version="1.0.0")
