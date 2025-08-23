@@ -574,46 +574,175 @@ async def initialize_sample_products():
             return  # Products already initialized
         
         sample_products = [
+            # Men's Apparel
             Product(
-                name="Classic White T-Shirt",
-                category="Tops",
-                brand="StyleCo",
-                description="Premium cotton white t-shirt with perfect fit",
-                price=29.99,
-                sizes=["XS", "S", "M", "L", "XL"],
-                colors=["White", "Black", "Gray"],
-                image_url="https://via.placeholder.com/400x400/FFFFFF/000000?text=White+T-Shirt",
+                name="Men's Classic Polo Shirt",
+                category="Men's Tops",
+                brand="LLBean Style",
+                description="Premium cotton polo shirt with classic fit and comfort. Perfect for casual or business casual occasions.",
+                price=49.99,
+                sizes=["S", "M", "L", "XL", "XXL"],
+                colors=["Navy", "White", "Light Blue", "Forest Green", "Burgundy"],
+                image_url="https://via.placeholder.com/400x400/003366/FFFFFF?text=Men's+Polo+Shirt",
                 product_images=[
-                    "https://via.placeholder.com/400x400/FFFFFF/000000?text=White+T-Shirt+1",
-                    "https://via.placeholder.com/400x400/FFFFFF/000000?text=White+T-Shirt+2"
+                    "https://via.placeholder.com/400x400/003366/FFFFFF?text=Navy+Polo",
+                    "https://via.placeholder.com/400x400/FFFFFF/000000?text=White+Polo"
                 ]
             ),
             Product(
-                name="Denim Jacket",
-                category="Outerwear",
-                brand="DenimWorks",
-                description="Classic blue denim jacket with vintage wash",
-                price=89.99,
-                sizes=["S", "M", "L", "XL"],
-                colors=["Blue", "Black", "Light Blue"],
-                image_url="https://via.placeholder.com/400x400/4169E1/FFFFFF?text=Denim+Jacket",
-                product_images=[
-                    "https://via.placeholder.com/400x400/4169E1/FFFFFF?text=Denim+Jacket+1",
-                    "https://via.placeholder.com/400x400/4169E1/FFFFFF?text=Denim+Jacket+2"
-                ]
-            ),
-            Product(
-                name="Summer Dress",
-                category="Dresses",
-                brand="FashionForward",
-                description="Elegant floral summer dress perfect for any occasion",
+                name="Men's Flannel Shirt",
+                category="Men's Tops",
+                brand="LLBean Style", 
+                description="Soft, warm flannel shirt made from premium cotton. Classic plaid pattern perfect for outdoor activities.",
                 price=69.99,
-                sizes=["XS", "S", "M", "L"],
-                colors=["Floral", "Solid Blue", "Red"],
-                image_url="https://via.placeholder.com/400x400/FFB6C1/000000?text=Summer+Dress",
+                sizes=["S", "M", "L", "XL", "XXL"],
+                colors=["Red Plaid", "Blue Plaid", "Green Plaid", "Gray Plaid"],
+                image_url="https://via.placeholder.com/400x400/8B4513/FFFFFF?text=Men's+Flannel",
                 product_images=[
-                    "https://via.placeholder.com/400x400/FFB6C1/000000?text=Summer+Dress+1",
-                    "https://via.placeholder.com/400x400/FFB6C1/000000?text=Summer+Dress+2"
+                    "https://via.placeholder.com/400x400/DC143C/FFFFFF?text=Red+Flannel",
+                    "https://via.placeholder.com/400x400/4169E1/FFFFFF?text=Blue+Flannel"
+                ]
+            ),
+            Product(
+                name="Men's Denim Jeans",
+                category="Men's Bottoms",
+                brand="LLBean Style",
+                description="Classic straight-fit denim jeans with comfort stretch. Durable construction for everyday wear.",
+                price=89.99,
+                sizes=["30", "32", "34", "36", "38", "40"],
+                colors=["Dark Wash", "Medium Wash", "Light Wash", "Black"],
+                image_url="https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Men's+Jeans",
+                product_images=[
+                    "https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Dark+Denim",
+                    "https://via.placeholder.com/400x400/3B82F6/FFFFFF?text=Medium+Denim"
+                ]
+            ),
+            Product(
+                name="Men's Outdoor Jacket",
+                category="Men's Outerwear",
+                brand="LLBean Style",
+                description="Weather-resistant outdoor jacket with insulation. Perfect for hiking, camping, and outdoor adventures.",
+                price=149.99,
+                sizes=["S", "M", "L", "XL", "XXL"],
+                colors=["Navy", "Forest Green", "Black", "Khaki"],
+                image_url="https://via.placeholder.com/400x400/2D4A22/FFFFFF?text=Men's+Jacket",
+                product_images=[
+                    "https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Navy+Jacket",
+                    "https://via.placeholder.com/400x400/2D4A22/FFFFFF?text=Green+Jacket"
+                ]
+            ),
+            Product(
+                name="Men's Chino Pants",
+                category="Men's Bottoms",
+                brand="LLBean Style",
+                description="Versatile chino pants with classic fit. Great for business casual or weekend wear.",
+                price=59.99,
+                sizes=["30", "32", "34", "36", "38", "40"],
+                colors=["Khaki", "Navy", "Olive", "Stone", "Black"],
+                image_url="https://via.placeholder.com/400x400/D2B48C/000000?text=Men's+Chinos",
+                product_images=[
+                    "https://via.placeholder.com/400x400/D2B48C/000000?text=Khaki+Chinos",
+                    "https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Navy+Chinos"
+                ]
+            ),
+            
+            # Women's Apparel  
+            Product(
+                name="Women's Cashmere Sweater",
+                category="Women's Tops",
+                brand="LLBean Style",
+                description="Luxuriously soft cashmere sweater with elegant drape. Perfect for layering or wearing alone.",
+                price=129.99,
+                sizes=["XS", "S", "M", "L", "XL"],
+                colors=["Cream", "Soft Pink", "Light Blue", "Charcoal", "Burgundy"],
+                image_url="https://via.placeholder.com/400x400/F5F5DC/000000?text=Women's+Sweater",
+                product_images=[
+                    "https://via.placeholder.com/400x400/F5F5DC/000000?text=Cream+Sweater",
+                    "https://via.placeholder.com/400x400/FFB6C1/000000?text=Pink+Sweater"
+                ]
+            ),
+            Product(
+                name="Women's Blouse",
+                category="Women's Tops", 
+                brand="LLBean Style",
+                description="Elegant silk-blend blouse with feminine silhouette. Versatile piece for professional or casual wear.",
+                price=79.99,
+                sizes=["XS", "S", "M", "L", "XL"],
+                colors=["White", "Blush Pink", "Navy", "Sage Green"],
+                image_url="https://via.placeholder.com/400x400/FFFFFF/000000?text=Women's+Blouse",
+                product_images=[
+                    "https://via.placeholder.com/400x400/FFFFFF/000000?text=White+Blouse",
+                    "https://via.placeholder.com/400x400/FFB6C1/000000?text=Pink+Blouse"
+                ]
+            ),
+            Product(
+                name="Women's A-Line Dress",
+                category="Women's Dresses",
+                brand="LLBean Style",
+                description="Classic A-line dress with flattering fit. Perfect for work, dinner, or special occasions.",
+                price=99.99,
+                sizes=["XS", "S", "M", "L", "XL"],
+                colors=["Navy", "Black", "Burgundy", "Forest Green", "Floral Print"],
+                image_url="https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Women's+Dress",
+                product_images=[
+                    "https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Navy+Dress",
+                    "https://via.placeholder.com/400x400/000000/FFFFFF?text=Black+Dress"
+                ]
+            ),
+            Product(
+                name="Women's Skinny Jeans",
+                category="Women's Bottoms",
+                brand="LLBean Style", 
+                description="Comfortable skinny jeans with stretch fabric. Flattering fit that works with any top.",
+                price=79.99,
+                sizes=["24", "26", "28", "30", "32", "34"],
+                colors=["Dark Wash", "Medium Wash", "Black", "White"],
+                image_url="https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Women's+Jeans",
+                product_images=[
+                    "https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Dark+Skinny+Jeans",
+                    "https://via.placeholder.com/400x400/000000/FFFFFF?text=Black+Jeans"
+                ]
+            ),
+            Product(
+                name="Women's Cardigan",
+                category="Women's Outerwear",
+                brand="LLBean Style",
+                description="Soft knit cardigan perfect for layering. Comfortable and versatile for any season.",
+                price=89.99,
+                sizes=["XS", "S", "M", "L", "XL"],
+                colors=["Cream", "Gray", "Navy", "Camel", "Dusty Rose"],
+                image_url="https://via.placeholder.com/400x400/F5F5DC/000000?text=Women's+Cardigan",
+                product_images=[
+                    "https://via.placeholder.com/400x400/F5F5DC/000000?text=Cream+Cardigan",
+                    "https://via.placeholder.com/400x400/808080/FFFFFF?text=Gray+Cardigan"
+                ]
+            ),
+            Product(
+                name="Women's Trench Coat",
+                category="Women's Outerwear",
+                brand="LLBean Style",
+                description="Classic trench coat with timeless style. Water-resistant and perfect for transitional weather.",
+                price=199.99,
+                sizes=["XS", "S", "M", "L", "XL"],
+                colors=["Khaki", "Navy", "Black"],
+                image_url="https://via.placeholder.com/400x400/D2B48C/000000?text=Women's+Trench",
+                product_images=[
+                    "https://via.placeholder.com/400x400/D2B48C/000000?text=Khaki+Trench",
+                    "https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Navy+Trench"
+                ]
+            ),
+            Product(
+                name="Women's Yoga Leggings",
+                category="Women's Activewear",
+                brand="LLBean Style",
+                description="High-performance yoga leggings with moisture-wicking fabric. Perfect for workouts or casual wear.",
+                price=59.99,
+                sizes=["XS", "S", "M", "L", "XL"],
+                colors=["Black", "Navy", "Charcoal", "Deep Purple"],
+                image_url="https://via.placeholder.com/400x400/000000/FFFFFF?text=Women's+Leggings",
+                product_images=[
+                    "https://via.placeholder.com/400x400/000000/FFFFFF?text=Black+Leggings",
+                    "https://via.placeholder.com/400x400/1E3A8A/FFFFFF?text=Navy+Leggings"
                 ]
             )
         ]
@@ -621,7 +750,7 @@ async def initialize_sample_products():
         for product in sample_products:
             await database.create_product(product)
         
-        logger.info("Sample products initialized successfully")
+        logger.info(f"Sample products initialized successfully - {len(sample_products)} products added")
         
     except Exception as e:
         logger.error(f"Failed to initialize sample products: {str(e)}")
