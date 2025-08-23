@@ -1100,20 +1100,62 @@ const VirtualTryOn = () => {
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Your Photo</h3>
-                  <img
-                    src={userPhotoPreview}
-                    alt="Original photo"
-                    className="w-full h-64 object-cover rounded-lg"
-                  />
+                  <div className="relative bg-gray-700 rounded-lg overflow-hidden">
+                    {userPhotoPreview ? (
+                      <img
+                        src={userPhotoPreview}
+                        alt="Original photo"
+                        className="w-full h-64 object-cover"
+                        onError={(e) => {
+                          console.error('Original photo failed to load:', userPhotoPreview);
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                        onLoad={() => {
+                          console.log('Original photo loaded successfully');
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className={`w-full h-64 bg-gray-600 flex items-center justify-center text-gray-300 ${userPhotoPreview ? 'hidden' : 'flex'}`}
+                      style={{display: userPhotoPreview ? 'none' : 'flex'}}
+                    >
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">📷</div>
+                        <div>Original photo</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Try-On Result</h3>
-                  <img
-                    src={result.result_image_url}
-                    alt="Try-on result"
-                    className="w-full h-64 object-cover rounded-lg"
-                  />
+                  <div className="relative bg-gray-700 rounded-lg overflow-hidden">
+                    {result?.result_image_url ? (
+                      <img
+                        src={result.result_image_url}
+                        alt="Try-on result"
+                        className="w-full h-64 object-cover"
+                        onError={(e) => {
+                          console.error('Try-on result failed to load:', result.result_image_url);
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                        onLoad={() => {
+                          console.log('Try-on result loaded successfully');
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className={`w-full h-64 bg-gray-600 flex items-center justify-center text-gray-300 ${result?.result_image_url ? 'hidden' : 'flex'}`}
+                      style={{display: result?.result_image_url ? 'none' : 'flex'}}
+                    >
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">✨</div>
+                        <div>Try-on result</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
