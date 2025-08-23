@@ -844,8 +844,8 @@ const VirtualTryOn = () => {
             </div>
           )}
 
-          {/* Step 4: Results */}
-          {step === 4 && result && (
+          {/* Step 5: Results */}
+          {step === 5 && result && (
             <div className="bg-gray-800 rounded-lg p-8">
               <h2 className="text-2xl font-bold mb-6 text-center">Try-On Results</h2>
               
