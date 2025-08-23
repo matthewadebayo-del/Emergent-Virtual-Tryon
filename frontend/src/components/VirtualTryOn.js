@@ -76,12 +76,17 @@ const VirtualTryOn = () => {
   };
 
   const extractMeasurements = async (imageFile) => {
+    console.log('extractMeasurements function called with file:', imageFile);
     try {
       setExtractingMeasurements(true);
       setError('');
       
+      console.log('Setting extractingMeasurements to true');
+      
       const formData = new FormData();
       formData.append('user_photo', imageFile);
+      
+      console.log('Making API call to extract measurements...');
       
       const response = await axios.post(`${API}/extract-measurements`, formData, {
         headers: {
@@ -89,18 +94,26 @@ const VirtualTryOn = () => {
         }
       });
 
+      console.log('Measurement extraction response:', response.data);
+
       if (response.data.success) {
         const measurements = response.data.data;
+        console.log('Extracted measurements:', measurements);
+        
         setExtractedMeasurements(measurements);
         setEditableMeasurements({ ...measurements });
+        
+        console.log('Moving to step 2 (measurement editing)');
         setStep(2); // Move to measurement editing step
       } else {
+        console.error('Measurement extraction failed:', response.data);
         setError('Failed to extract measurements. Please try again.');
       }
     } catch (error) {
       console.error('Error extracting measurements:', error);
       setError('Error extracting measurements. Please try again.');
     } finally {
+      console.log('Setting extractingMeasurements to false');
       setExtractingMeasurements(false);
     }
   };
