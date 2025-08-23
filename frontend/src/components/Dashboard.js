@@ -69,6 +69,13 @@ const Dashboard = () => {
   const startCamera = async () => {
     try {
       console.log('Starting camera...');
+      
+      // First set showCamera to true to ensure video element is rendered
+      setShowCamera(true);
+      
+      // Wait for React to render the video element
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -80,37 +87,51 @@ const Dashboard = () => {
       console.log('Camera stream obtained:', stream);
       
       if (videoRef.current) {
+        console.log('Video element found, setting srcObject...');
         videoRef.current.srcObject = stream;
         
-        // Add multiple event listeners for debugging
+        // Force video attributes
+        videoRef.current.autoplay = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.muted = true;
+        
+        console.log('Video element setup complete');
+        
+        // Add event listeners
         videoRef.current.onloadedmetadata = () => {
-          console.log('Video metadata loaded, starting playback...');
+          console.log('Video metadata loaded, dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
           videoRef.current.play()
             .then(() => {
               console.log('Video playback started successfully');
-              setShowCamera(true);
             })
             .catch(error => {
               console.error('Error playing video:', error);
-              alert('Failed to start video playback. Please refresh and try again.');
             });
+        };
+        
+        videoRef.current.oncanplay = () => {
+          console.log('Video can start playing');
         };
         
         videoRef.current.onerror = (error) => {
           console.error('Video element error:', error);
-          alert('Video error occurred. Please refresh and try again.');
         };
         
-        // Fallback: set showCamera after a delay if metadata doesn't load
+        // Force play attempt
         setTimeout(() => {
-          if (videoRef.current && videoRef.current.srcObject && !showCamera) {
-            console.log('Fallback: setting showCamera to true');
-            setShowCamera(true);
+          if (videoRef.current) {
+            console.log('Force play attempt...');
+            videoRef.current.play().catch(console.error);
           }
-        }, 1000);
+        }, 500);
+        
+      } else {
+        console.error('Video element not found!');
+        alert('Video element not ready. Please try again.');
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
+      setShowCamera(false);
       alert(`Camera access failed: ${error.message}. Please check browser permissions and try again.`);
     }
   };
