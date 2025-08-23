@@ -196,13 +196,26 @@ class EnhancedTryOnTester:
         """Test multiple try-ons to see if personalization varies"""
         print("\n🎨 Testing Personalization Variation...")
         
+        # Get a product to use for the test
+        headers = {'Authorization': f'Bearer {self.token}'}
+        products_response = requests.get(f"{self.base_url}/products", headers=headers)
+        if products_response.status_code != 200:
+            print("❌ Failed to get products for personalization test")
+            return False
+            
+        products = products_response.json()
+        if not products:
+            print("❌ No products available for personalization test")
+            return False
+            
+        product_id = products[0]['id']
+        
         # Test with different "user images" to see if personalization changes
         test_images = [
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",  # Image 1
             "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFUlEQVR42mNkYGBgYGBgYGBgYGBgAAACAAEAAQABAA==",  # Image 2
         ]
         
-        headers = {'Authorization': f'Bearer {self.token}'}
         url = f"{self.base_url}/tryon"
         
         personalization_notes = []
@@ -212,6 +225,7 @@ class EnhancedTryOnTester:
             
             form_data = {
                 'user_image_base64': test_image,
+                'product_id': product_id,
                 'use_stored_measurements': 'true'
             }
             
