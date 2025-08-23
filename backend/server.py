@@ -426,6 +426,39 @@ async def virtual_tryon(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Virtual try-on failed: {str(e)}")
 
+def analyze_user_image(user_image_bytes):
+    """Analyze user image to extract appearance characteristics"""
+    try:
+        # Open and analyze the image
+        image = Image.open(io.BytesIO(user_image_bytes))
+        width, height = image.size
+        
+        # Simple analysis - in production this would use AI vision
+        image_analysis = {
+            "image_size": f"{width}x{height}",
+            "aspect_ratio": "portrait" if height > width else "landscape" if width > height else "square",
+        }
+        
+        # Basic characteristics that can be inferred
+        characteristics = []
+        
+        # Infer some basic characteristics based on image properties
+        if height > width:
+            characteristics.append("full-body portrait orientation")
+        
+        return {
+            "analysis": image_analysis,
+            "characteristics": characteristics,
+            "description_keywords": ["natural lighting", "realistic proportions", "authentic appearance"]
+        }
+    except Exception as e:
+        print(f"Image analysis failed: {e}")
+        return {
+            "analysis": {"error": str(e)},
+            "characteristics": ["natural appearance"],
+            "description_keywords": ["realistic", "natural"]
+        }
+
 def determine_size_recommendation(measurements: dict, product_id: str = None) -> str:
     """Simple size recommendation logic - in production, this would be more sophisticated"""
     chest = measurements.get('chest', 90)
