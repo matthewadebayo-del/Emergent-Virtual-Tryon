@@ -742,10 +742,23 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   Based on your measurements, we recommend this size for the best fit.
                 </p>
                 {tryonResult.personalization_note && (
-                  <div className="bg-green-500/20 rounded-lg p-3 mt-4">
-                    <p className="text-green-200 text-sm">
-                      ✨ {tryonResult.personalization_note}
-                    </p>
+                  <div className="bg-yellow-500/20 rounded-lg p-4 mt-4 border border-yellow-500/50">
+                    <div className="flex items-start space-x-3">
+                      <div className="text-yellow-400 mt-1">⚠️</div>
+                      <div>
+                        <h4 className="text-yellow-200 font-semibold mb-2">Virtual Try-On Limitation Notice</h4>
+                        <p className="text-yellow-200/80 text-sm mb-3">
+                          Current AI technology generates clothing visualizations but cannot perfectly preserve your exact appearance. 
+                          The result shows clothing fit and style but may not look exactly like you.
+                        </p>
+                        <p className="text-yellow-200 text-sm font-medium">
+                          ✨ {tryonResult.personalization_note}
+                        </p>
+                        <div className="mt-3 text-yellow-200/70 text-xs">
+                          <strong>Future Enhancement:</strong> We're working on true image-editing technology that will preserve your exact appearance while only changing clothing.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
