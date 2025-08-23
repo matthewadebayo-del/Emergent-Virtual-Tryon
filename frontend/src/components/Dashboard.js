@@ -405,10 +405,11 @@ const Dashboard = () => {
                     <div className="space-y-4">
                       <div className="relative bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-600">
                         <video
+                          key={showCamera ? 'camera-active' : 'camera-inactive'}
                           ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
+                          autoPlay={true}
+                          playsInline={true}
+                          muted={true}
                           controls={false}
                           className="w-full h-96 object-cover bg-gray-800"
                           style={{ minHeight: '384px' }}
