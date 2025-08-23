@@ -11,7 +11,8 @@ import {
   Ruler,
   ShoppingBag,
   Zap,
-  Crown
+  Crown,
+  Check
 } from 'lucide-react';
 import axios from 'axios';
 
