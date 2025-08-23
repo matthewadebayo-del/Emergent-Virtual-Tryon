@@ -555,10 +555,27 @@ async def enhance_with_ai(rendered_image, original_image):
     return {"enhanced_image": "enhanced_image_data"}
 
 async def save_result_image(image_data, service_type: str) -> str:
-    """Save result image and return URL"""
-    # Mock implementation - would save to cloud storage
+    """Save result image and return URL - using a real placeholder for demo"""
+    # For demonstration, return a working placeholder image
+    # In production, this would save to actual cloud storage
     result_id = str(uuid.uuid4())
-    return f"https://storage.example.com/tryon-results/{service_type}/{result_id}.jpg"
+    
+    # Return a real working placeholder image URL
+    placeholder_images = [
+        "https://picsum.photos/400/600?random=1",
+        "https://picsum.photos/400/600?random=2", 
+        "https://picsum.photos/400/600?random=3",
+        "https://picsum.photos/400/600?random=4",
+        "https://picsum.photos/400/600?random=5"
+    ]
+    
+    # Use service type to determine placeholder
+    import random
+    random.seed(hash(result_id))  # Consistent random for same ID
+    placeholder_url = random.choice(placeholder_images)
+    
+    logger.info(f"Generated placeholder result URL: {placeholder_url}")
+    return placeholder_url
 
 async def generate_placeholder_result(product: Product, description: str) -> str:
     """Generate placeholder result image"""
