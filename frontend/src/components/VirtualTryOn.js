@@ -306,6 +306,8 @@ const VirtualTryOn = () => {
     setStep(1);
     setUserPhoto(null);
     setUserPhotoPreview(null);
+    setExtractedMeasurements(null);
+    setEditableMeasurements(null);
     setSelectedProduct(null);
     setSelectedSize('');
     setSelectedColor('');
