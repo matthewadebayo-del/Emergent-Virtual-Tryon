@@ -83,6 +83,13 @@ const VirtualTryOn = () => {
       
       console.log('Setting extractingMeasurements to true');
       
+      // IMPORTANT: Preserve the photo before making API call
+      setUserPhoto(imageFile);
+      if (!userPhotoPreview) {
+        const previewUrl = URL.createObjectURL(imageFile);
+        setUserPhotoPreview(previewUrl);
+      }
+      
       const formData = new FormData();
       formData.append('user_photo', imageFile);
       
@@ -102,6 +109,9 @@ const VirtualTryOn = () => {
         
         setExtractedMeasurements(measurements);
         setEditableMeasurements({ ...measurements });
+        
+        // Double-check photo is preserved
+        console.log('Photo preserved check:', !!imageFile);
         
         console.log('Moving to step 2 (measurement editing)');
         setStep(2); // Move to measurement editing step
