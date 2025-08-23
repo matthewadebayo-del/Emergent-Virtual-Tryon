@@ -408,6 +408,26 @@ const Dashboard = () => {
                           Cancel
                         </button>
                       </div>
+                      
+                      {/* Debug section */}
+                      <div className="mt-4 text-sm text-gray-400 bg-gray-700 p-3 rounded">
+                        <p><strong>Debug Info:</strong></p>
+                        <p>Camera Status: {videoRef.current?.srcObject ? 'Connected' : 'Not Connected'}</p>
+                        <p>Video Element: {videoRef.current ? 'Ready' : 'Not Ready'}</p>
+                        <p>Show Camera: {showCamera ? 'True' : 'False'}</p>
+                        <button
+                          onClick={() => {
+                            console.log('Video element:', videoRef.current);
+                            console.log('Video srcObject:', videoRef.current?.srcObject);
+                            console.log('Video readyState:', videoRef.current?.readyState);
+                            console.log('Video videoWidth:', videoRef.current?.videoWidth);
+                            console.log('Video videoHeight:', videoRef.current?.videoHeight);
+                          }}
+                          className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                        >
+                          Log Video Info to Console
+                        </button>
+                      </div>
                     </div>
                   )}
 
