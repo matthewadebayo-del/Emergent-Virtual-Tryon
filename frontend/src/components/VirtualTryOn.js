@@ -206,14 +206,16 @@ const VirtualTryOn = () => {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
       
-      canvas.toBlob((blob) => {
+      canvas.toBlob(async (blob) => {
         if (blob) {
           const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
           setUserPhoto(file);
           const previewUrl = URL.createObjectURL(blob);
           setUserPhotoPreview(previewUrl);
           stopCamera();
-          setStep(2);
+          
+          // Extract measurements after photo capture
+          await extractMeasurements(file);
         }
       }, 'image/jpeg', 0.8);
     }
