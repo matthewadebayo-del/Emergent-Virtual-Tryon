@@ -525,18 +525,45 @@ def analyze_user_image(user_image_bytes):
         }
 
 def determine_size_recommendation(measurements: dict, product_id: str = None) -> str:
-    """Simple size recommendation logic - in production, this would be more sophisticated"""
-    chest = measurements.get('chest', 90)
-    waist = measurements.get('waist', 75)
-    
-    if chest <= 85 and waist <= 70:
-        return "S"
-    elif chest <= 95 and waist <= 80:
-        return "M"
-    elif chest <= 105 and waist <= 90:
-        return "L"
-    else:
-        return "XL"
+    """Enhanced size recommendation logic based on actual measurements"""
+    try:
+        # Convert measurements if they're in inches (assume if height > 100 it's in cm)
+        height = measurements.get('height', 170)
+        chest = measurements.get('chest', 90)  
+        waist = measurements.get('waist', 75)
+        
+        # Convert to cm if measurements are in inches
+        if height > 100:  # Likely in cm
+            height_cm = height
+            chest_cm = chest
+            waist_cm = waist
+        else:  # Likely in inches, convert to cm
+            height_cm = height * 2.54
+            chest_cm = chest * 2.54
+            waist_cm = waist * 2.54
+        
+        print(f"Size calculation - Height: {height_cm}cm, Chest: {chest_cm}cm, Waist: {waist_cm}cm")
+        
+        # More accurate size recommendations based on standard clothing sizes
+        # For men's sizes (adjust for different product categories)
+        if chest_cm <= 86 and waist_cm <= 71:
+            return "XS"
+        elif chest_cm <= 91 and waist_cm <= 76:
+            return "S"  
+        elif chest_cm <= 97 and waist_cm <= 81:
+            return "M"
+        elif chest_cm <= 102 and waist_cm <= 86:
+            return "L"
+        elif chest_cm <= 107 and waist_cm <= 91:
+            return "XL"
+        elif chest_cm <= 112 and waist_cm <= 97:
+            return "XXL"
+        else:
+            return "XXXL"
+            
+    except Exception as e:
+        print(f"Size recommendation error: {e}")
+        return "L"  # Default fallback
 
 # Try-on History
 @api_router.get("/tryon-history")
