@@ -738,9 +738,16 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 <div className="text-3xl font-bold text-purple-400 mb-2">
                   Size {tryonResult.size_recommendation}
                 </div>
-                <p className="text-white/70">
+                <p className="text-white/70 mb-4">
                   Based on your measurements, we recommend this size for the best fit.
                 </p>
+                {tryonResult.personalization_note && (
+                  <div className="bg-green-500/20 rounded-lg p-3 mt-4">
+                    <p className="text-green-200 text-sm">
+                      ✨ {tryonResult.personalization_note}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-center space-x-4">
