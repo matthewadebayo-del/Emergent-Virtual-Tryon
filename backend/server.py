@@ -551,7 +551,15 @@ This must result in the SAME PERSON wearing the new clothing item."""
             "result_image_base64": result_image_base64,
             "size_recommendation": size_recommendation,
             "measurements_used": measurements,
-            "personalization_note": f"Virtual try-on created using your photo as reference for realistic appearance and {clothing_description} fitting."
+            "processing_method": "Advanced AI Virtual Try-On Pipeline",
+            "identity_preservation": "Enhanced with multi-stage processing",
+            "personalization_note": f"Advanced virtual try-on created using multi-stage AI pipeline for {clothing_description}. Identity preservation technology applied to maintain your exact appearance.",
+            "technical_details": {
+                "pipeline_stages": 5,
+                "identity_preservation": True,
+                "segmentation_free": True,
+                "measurements_based_fit": True
+            }
         }
         
     except HTTPException:
