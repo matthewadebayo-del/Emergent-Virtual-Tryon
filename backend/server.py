@@ -280,7 +280,7 @@ async def extract_measurements(
         )
         
         return {
-            "measurements": simulated_measurements,
+            "measurements": measurements_inches,
             "message": "Measurements extracted and saved successfully"
         }
         
