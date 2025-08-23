@@ -1073,16 +1073,6 @@ const VirtualTryOn = () => {
             <div className="bg-gray-800 rounded-lg p-8">
               <h2 className="text-2xl font-bold mb-6 text-center">Try-On Results</h2>
               
-              {/* Debug Info Panel */}
-              <div className="bg-gray-700 rounded-lg p-4 mb-6">
-                <h4 className="text-white font-semibold mb-2">🐛 Debug Information</h4>
-                <div className="text-sm text-gray-300 space-y-1">
-                  <p><strong>User Photo Preview URL:</strong> {userPhotoPreview || 'Not available'}</p>
-                  <p><strong>Try-on Result URL:</strong> {result?.result_image_url || 'Not available'}</p>
-                  <p><strong>User Photo File:</strong> {userPhoto ? `${userPhoto.name} (${userPhoto.size} bytes)` : 'Not available'}</p>
-                </div>
-              </div>
-              
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Your Photo</h3>
