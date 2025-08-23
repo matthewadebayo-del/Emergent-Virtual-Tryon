@@ -72,6 +72,7 @@ const VirtualTryOn = () => {
 
   const startCamera = async () => {
     try {
+      console.log('Starting camera...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -80,19 +81,40 @@ const VirtualTryOn = () => {
         } 
       });
       
+      console.log('Camera stream obtained:', stream);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play().catch(error => {
-            console.error('Error playing video:', error);
-            setError('Failed to start video playback. Please try again or use file upload.');
-          });
+          console.log('Video metadata loaded, starting playback...');
+          videoRef.current.play()
+            .then(() => {
+              console.log('Video playback started successfully');
+              setShowCamera(true);
+            })
+            .catch(error => {
+              console.error('Error playing video:', error);
+              setError('Failed to start video playback. Please try again or use file upload.');
+            });
         };
+        
+        videoRef.current.onerror = (error) => {
+          console.error('Video element error:', error);
+          setError('Video error occurred. Please refresh and try again.');
+        };
+        
+        // Fallback: set showCamera after a delay
+        setTimeout(() => {
+          if (videoRef.current && videoRef.current.srcObject && !showCamera) {
+            console.log('Fallback: setting showCamera to true');
+            setShowCamera(true);
+          }
+        }, 1000);
       }
-      setShowCamera(true);
     } catch (error) {
       console.error('Error accessing camera:', error);
-      setError('Camera access denied. Please use file upload instead.');
+      setError(`Camera access failed: ${error.message}. Please check browser permissions and try again.`);
     }
   };
 
