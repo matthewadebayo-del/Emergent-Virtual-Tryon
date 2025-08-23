@@ -21,10 +21,13 @@ const VirtualTryOn = () => {
   const [searchParams] = useSearchParams();
   const initialServiceType = searchParams.get('service') || 'hybrid';
 
-  const [step, setStep] = useState(1); // 1: Upload, 2: Select Product, 3: Configure, 4: Results
+  const [step, setStep] = useState(1); // 1: Upload, 2: Edit Measurements, 3: Select Product, 4: Configure, 5: Results
   const [serviceType, setServiceType] = useState(initialServiceType);
   const [userPhoto, setUserPhoto] = useState(null);
   const [userPhotoPreview, setUserPhotoPreview] = useState(null);
+  const [extractedMeasurements, setExtractedMeasurements] = useState(null);
+  const [editableMeasurements, setEditableMeasurements] = useState(null);
+  const [extractingMeasurements, setExtractingMeasurements] = useState(false);
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
