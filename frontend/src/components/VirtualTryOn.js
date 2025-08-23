@@ -740,8 +740,8 @@ const VirtualTryOn = () => {
             </div>
           )}
 
-          {/* Step 3: Configure */}
-          {step === 3 && selectedProduct && (
+          {/* Step 4: Configure */}
+          {step === 4 && selectedProduct && (
             <div className="bg-gray-800 rounded-lg p-8">
               <h2 className="text-2xl font-bold mb-6 text-center">Configure Your Try-On</h2>
               
