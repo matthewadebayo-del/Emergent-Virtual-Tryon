@@ -196,9 +196,12 @@ const VirtualTryOn = () => {
   };
 
   const capturePhoto = () => {
+    console.log('capturePhoto function called');
     if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
       const video = videoRef.current;
+      
+      console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
       
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -206,18 +209,29 @@ const VirtualTryOn = () => {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
       
+      console.log('Drawing image to canvas');
+      
       canvas.toBlob(async (blob) => {
         if (blob) {
+          console.log('Blob created, size:', blob.size);
           const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
           setUserPhoto(file);
           const previewUrl = URL.createObjectURL(blob);
           setUserPhotoPreview(previewUrl);
           stopCamera();
           
+          console.log('Photo captured, starting measurement extraction...');
           // Extract measurements after photo capture
           await extractMeasurements(file);
+        } else {
+          console.error('Failed to create blob from canvas');
         }
       }, 'image/jpeg', 0.8);
+    } else {
+      console.error('Video or canvas element not found:', {
+        video: !!videoRef.current,
+        canvas: !!canvasRef.current
+      });
     }
   };
 
