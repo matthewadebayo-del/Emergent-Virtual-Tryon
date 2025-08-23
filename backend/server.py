@@ -21,6 +21,7 @@ import numpy as np
 import tempfile
 import aiofiles
 import fal_client
+from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
