@@ -583,10 +583,10 @@ async def initialize_sample_products():
                 price=49.99,
                 sizes=["S", "M", "L", "XL", "XXL"],
                 colors=["Navy", "White", "Light Blue", "Forest Green", "Burgundy"],
-                image_url="https://via.placeholder.com/400x400/003366/FFFFFF?text=Men's+Polo+Shirt",
+                image_url="https://dummyimage.com/400x400/003366/ffffff&text=Men%27s+Polo+Shirt",
                 product_images=[
-                    "https://via.placeholder.com/400x400/003366/FFFFFF?text=Navy+Polo",
-                    "https://via.placeholder.com/400x400/FFFFFF/000000?text=White+Polo"
+                    "https://dummyimage.com/400x400/003366/ffffff&text=Navy+Polo",
+                    "https://dummyimage.com/400x400/ffffff/000000&text=White+Polo"
                 ]
             ),
             Product(
