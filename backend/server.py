@@ -578,9 +578,25 @@ async def save_result_image(image_data, service_type: str) -> str:
     return placeholder_url
 
 async def generate_placeholder_result(product: Product, description: str) -> str:
-    """Generate placeholder result image"""
-    # Mock implementation for demo
-    return f"https://via.placeholder.com/512x512/4A90E2/FFFFFF?text={product.name.replace(' ', '+')}"
+    """Generate placeholder result image - using real working URLs"""
+    # Use different placeholder based on product category
+    category_images = {
+        "men's tops": "https://picsum.photos/400/600?random=10",
+        "men's bottoms": "https://picsum.photos/400/600?random=11", 
+        "men's outerwear": "https://picsum.photos/400/600?random=12",
+        "women's tops": "https://picsum.photos/400/600?random=13",
+        "women's bottoms": "https://picsum.photos/400/600?random=14",
+        "women's dresses": "https://picsum.photos/400/600?random=15",
+        "women's outerwear": "https://picsum.photos/400/600?random=16",
+        "women's activewear": "https://picsum.photos/400/600?random=17"
+    }
+    
+    # Find matching category
+    category_key = product.category.lower()
+    placeholder_url = category_images.get(category_key, "https://picsum.photos/400/600?random=20")
+    
+    logger.info(f"Generated fallback placeholder for {product.name}: {placeholder_url}")
+    return placeholder_url
 
 async def initialize_sample_products():
     """Initialize sample products in database"""
