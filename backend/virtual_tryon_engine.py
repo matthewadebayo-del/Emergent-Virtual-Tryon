@@ -717,31 +717,67 @@ class VirtualTryOnEngine:
     
     def _enhance_result(self, result_image: np.ndarray, original_image: np.ndarray) -> np.ndarray:
         """
-        Enhance the try-on result with post-processing
+        Enhanced post-processing for more natural try-on results
         """
         try:
             # Convert to PIL for easier processing
             result_pil = Image.fromarray(result_image)
+            original_pil = Image.fromarray(original_image)
             
-            # Apply subtle blur to blend edges
-            result_pil = result_pil.filter(ImageFilter.GaussianBlur(radius=0.5))
+            # Apply edge smoothing for better blending
+            result_pil = result_pil.filter(ImageFilter.GaussianBlur(radius=0.8))
             
-            # Adjust brightness and contrast to match original
-            from PIL import ImageEnhance
+            # Color and lighting adjustments
+            from PIL import ImageEnhance, ImageFilter
             
-            # Enhance color slightly
+            # Match brightness to original
+            original_brightness = self._calculate_brightness(np.array(original_pil))
+            result_brightness = self._calculate_brightness(np.array(result_pil))
+            
+            if result_brightness > 0:
+                brightness_ratio = original_brightness / result_brightness
+                brightness_ratio = np.clip(brightness_ratio, 0.8, 1.2)  # Limit adjustment
+                
+                enhancer = ImageEnhance.Brightness(result_pil)
+                result_pil = enhancer.enhance(brightness_ratio)
+            
+            # Enhance color saturation slightly for vibrant look
             enhancer = ImageEnhance.Color(result_pil)
             result_pil = enhancer.enhance(1.1)
             
-            # Enhance sharpness slightly
+            # Sharpen slightly to counteract blur
             enhancer = ImageEnhance.Sharpness(result_pil)
-            result_pil = enhancer.enhance(1.1)
+            result_pil = enhancer.enhance(1.15)
             
-            return np.array(result_pil)
+            # Apply unsharp mask for better detail
+            result_array = np.array(result_pil)
+            blurred = cv2.GaussianBlur(result_array, (0, 0), 2.0)
+            sharpened = cv2.addWeighted(result_array, 1.5, blurred, -0.5, 0)
+            result_array = np.clip(sharpened, 0, 255).astype(np.uint8)
+            
+            return result_array
             
         except Exception as e:
-            logger.error(f"Enhancement error: {e}")
-            return result_image
+            logger.error(f"Enhanced processing error: {e}")
+            # Fallback to basic enhancement
+            try:
+                result_pil = Image.fromarray(result_image)
+                result_pil = result_pil.filter(ImageFilter.GaussianBlur(radius=0.5))
+                return np.array(result_pil)
+            except:
+                return result_image
+    
+    def _calculate_brightness(self, image: np.ndarray) -> float:
+        """Calculate average brightness of image"""
+        try:
+            # Convert to grayscale and calculate mean
+            if len(image.shape) == 3:
+                gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            else:
+                gray = image
+            return np.mean(gray)
+        except:
+            return 128.0  # Default medium brightness
     
     async def _save_result_image(self, result_image: np.ndarray) -> str:
         """
