@@ -298,7 +298,237 @@ class VirtualTryOnAPITester:
         else:
             self.log_test("Try-On History", False, f"History retrieval failed - Status: {status_code}", response_data)
 
-    def test_invalid_authentication(self):
+    def _create_realistic_person_image(self) -> bytes:
+        """Create a realistic person image for testing"""
+        # Create a simple but realistic-looking person silhouette
+        # This simulates a real person photo for testing the 3D pipeline
+        import numpy as np
+        from PIL import Image, ImageDraw
+        
+        # Create a 512x512 image with a person-like shape
+        img = Image.new('RGB', (512, 512), color='white')
+        draw = ImageDraw.Draw(img)
+        
+        # Draw a person-like silhouette
+        # Head (circle)
+        draw.ellipse([200, 50, 312, 162], fill='#D2B48C')  # Skin tone
+        
+        # Body (rectangle with rounded edges)
+        draw.rectangle([180, 160, 332, 400], fill='#4169E1')  # Blue shirt
+        
+        # Arms
+        draw.rectangle([120, 180, 180, 350], fill='#4169E1')  # Left arm
+        draw.rectangle([332, 180, 392, 350], fill='#4169E1')  # Right arm
+        
+        # Legs
+        draw.rectangle([190, 400, 240, 500], fill='#2F4F4F')  # Left leg (dark pants)
+        draw.rectangle([272, 400, 322, 500], fill='#2F4F4F')  # Right leg
+        
+        # Convert to bytes
+        buffer = io.BytesIO()
+        img.save(buffer, format='JPEG', quality=85)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def test_hybrid_3d_pipeline_comprehensive(self):
+        """Comprehensive test of the Hybrid 3D Pipeline"""
+        print("\n🔬 Testing Production-Ready Hybrid 3D Virtual Try-On Pipeline")
+        print("=" * 70)
+        
+        if not self.token:
+            self.log_test("Hybrid 3D Pipeline", False, "No authentication token available")
+            return
+        
+        # Get products for testing different categories
+        products = self.test_get_products()
+        if not products:
+            self.log_test("Hybrid 3D Pipeline", False, "No products available for testing")
+            return
+        
+        # Test different product categories
+        categories_to_test = ['tops', 'bottoms', 'dresses', 'outerwear']
+        tested_categories = []
+        
+        for product in products[:6]:  # Test first 6 products
+            category = product.get('category', '').lower()
+            product_id = product.get('id')
+            product_name = product.get('name', 'Unknown Product')
+            
+            if not product_id:
+                continue
+                
+            print(f"\n🧪 Testing {product_name} ({category})")
+            
+            # Create realistic person image
+            realistic_person_image = self._create_realistic_person_image()
+            
+            form_data = {
+                'product_id': product_id,
+                'service_type': 'hybrid',  # Force hybrid 3D processing
+                'size': 'M',
+                'color': 'Default'
+            }
+            
+            files = {'user_photo': ('realistic_person.jpg', io.BytesIO(realistic_person_image), 'image/jpeg')}
+            
+            # Measure processing time
+            start_time = time.time()
+            success, response_data, status_code = self.make_request('POST', '/tryon', 
+                                                                   data=form_data, files=files, expected_status=200)
+            processing_time = time.time() - start_time
+            
+            if success and response_data.get('success'):
+                result_data = response_data.get('data', {})
+                cost = result_data.get('cost', 0)
+                actual_processing_time = result_data.get('processing_time', processing_time)
+                result_url = result_data.get('result_image_url', '')
+                
+                # Verify Hybrid 3D Pipeline criteria
+                criteria_met = []
+                criteria_failed = []
+                
+                # 1. Check cost reflects production 3D pipeline ($0.03)
+                if cost >= 0.03:
+                    criteria_met.append(f"✅ Production cost: ${cost}")
+                else:
+                    criteria_failed.append(f"❌ Cost too low: ${cost} (expected ≥$0.03)")
+                
+                # 2. Check processing time (15-30 seconds for real 3D)
+                if 15 <= actual_processing_time <= 35:
+                    criteria_met.append(f"✅ Real 3D processing time: {actual_processing_time:.1f}s")
+                elif actual_processing_time >= 10:
+                    criteria_met.append(f"⚠️ Processing time: {actual_processing_time:.1f}s (acceptable)")
+                else:
+                    criteria_failed.append(f"❌ Processing too fast: {actual_processing_time:.1f}s (expected 15-30s)")
+                
+                # 3. Check result is data URL (indicates real processing)
+                if result_url.startswith('data:image/'):
+                    criteria_met.append("✅ Real image processing (data URL)")
+                elif result_url.startswith('http'):
+                    criteria_met.append("✅ Image result generated")
+                else:
+                    criteria_failed.append("❌ Invalid result format")
+                
+                # 4. Check service type
+                if result_data.get('service_type') == 'hybrid':
+                    criteria_met.append("✅ Hybrid service confirmed")
+                else:
+                    criteria_failed.append("❌ Wrong service type")
+                
+                # Log results
+                if len(criteria_failed) == 0:
+                    self.log_test(f"Hybrid 3D - {product_name}", True, 
+                                f"All criteria met: {'; '.join(criteria_met)}")
+                    tested_categories.append(category)
+                else:
+                    self.log_test(f"Hybrid 3D - {product_name}", False, 
+                                f"Failed criteria: {'; '.join(criteria_failed)}")
+                
+                # Print detailed results
+                print(f"   Cost: ${cost}")
+                print(f"   Processing Time: {actual_processing_time:.1f}s")
+                print(f"   Result Type: {'Data URL' if result_url.startswith('data:') else 'External URL'}")
+                
+            else:
+                self.log_test(f"Hybrid 3D - {product_name}", False, 
+                            f"Request failed - Status: {status_code}")
+                print(f"   ❌ Request failed: {response_data}")
+        
+        # Summary of category testing
+        print(f"\n📊 Categories tested: {len(set(tested_categories))}")
+        print(f"   Tested: {', '.join(set(tested_categories))}")
+        
+        # Overall assessment
+        if len(set(tested_categories)) >= 2:
+            self.log_test("Hybrid 3D Pipeline - Category Coverage", True, 
+                        f"Successfully tested {len(set(tested_categories))} different categories")
+        else:
+            self.log_test("Hybrid 3D Pipeline - Category Coverage", False, 
+                        "Insufficient category coverage")
+
+    def test_hybrid_3d_vs_premium_comparison(self):
+        """Compare Hybrid 3D vs Premium fal.ai processing"""
+        print("\n⚖️ Comparing Hybrid 3D vs Premium fal.ai Processing")
+        print("=" * 60)
+        
+        if not self.token:
+            self.log_test("3D vs Premium Comparison", False, "No authentication token available")
+            return
+        
+        # Get a product for testing
+        products = self.test_get_products()
+        if not products:
+            self.log_test("3D vs Premium Comparison", False, "No products available")
+            return
+        
+        test_product = products[0]
+        product_id = test_product.get('id')
+        product_name = test_product.get('name', 'Test Product')
+        
+        if not product_id:
+            self.log_test("3D vs Premium Comparison", False, "No valid product ID")
+            return
+        
+        realistic_person_image = self._create_realistic_person_image()
+        
+        # Test Hybrid 3D
+        print(f"\n🔬 Testing Hybrid 3D with {product_name}")
+        hybrid_result = self._test_service_type(product_id, 'hybrid', realistic_person_image)
+        
+        # Test Premium fal.ai
+        print(f"\n💎 Testing Premium fal.ai with {product_name}")
+        premium_result = self._test_service_type(product_id, 'premium', realistic_person_image)
+        
+        # Compare results
+        if hybrid_result and premium_result:
+            hybrid_cost = hybrid_result.get('cost', 0)
+            premium_cost = premium_result.get('cost', 0)
+            hybrid_time = hybrid_result.get('processing_time', 0)
+            premium_time = premium_result.get('processing_time', 0)
+            
+            comparison_details = (
+                f"Hybrid 3D: ${hybrid_cost}, {hybrid_time:.1f}s | "
+                f"Premium: ${premium_cost}, {premium_time:.1f}s"
+            )
+            
+            # Verify expected cost differences
+            if hybrid_cost >= 0.03 and premium_cost >= 0.07:
+                self.log_test("Service Comparison", True, 
+                            f"Cost structure correct - {comparison_details}")
+            else:
+                self.log_test("Service Comparison", False, 
+                            f"Unexpected cost structure - {comparison_details}")
+        else:
+            self.log_test("Service Comparison", False, "Could not complete comparison")
+
+    def _test_service_type(self, product_id: str, service_type: str, image_data: bytes) -> dict:
+        """Test a specific service type and return results"""
+        form_data = {
+            'product_id': product_id,
+            'service_type': service_type,
+            'size': 'M',
+            'color': 'Default'
+        }
+        
+        files = {'user_photo': (f'{service_type}_test.jpg', io.BytesIO(image_data), 'image/jpeg')}
+        
+        start_time = time.time()
+        success, response_data, status_code = self.make_request('POST', '/tryon', 
+                                                               data=form_data, files=files, expected_status=200)
+        processing_time = time.time() - start_time
+        
+        if success and response_data.get('success'):
+            result_data = response_data.get('data', {})
+            result_data['actual_processing_time'] = processing_time
+            
+            cost = result_data.get('cost', 0)
+            proc_time = result_data.get('processing_time', processing_time)
+            
+            print(f"   Result: ${cost}, {proc_time:.1f}s processing")
+            return result_data
+        else:
+            print(f"   Failed: {response_data}")
+            return None
         """Test API behavior with invalid authentication"""
         # Save current token
         original_token = self.token
