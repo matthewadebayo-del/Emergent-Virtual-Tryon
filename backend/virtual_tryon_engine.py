@@ -385,7 +385,7 @@ class VirtualTryOnEngine:
         keypoints: Dict
     ) -> np.ndarray:
         """
-        Fit garment to the detected region and blend with user image
+        Advanced garment fitting with perspective correction and natural blending
         """
         try:
             # Resize garment to fit the detected region
@@ -393,64 +393,326 @@ class VirtualTryOnEngine:
             if region_coords is not None:
                 x, y, w, h = cv2.boundingRect(region_coords)
                 
-                # Resize garment image to fit the region
-                garment_resized = cv2.resize(garment_image, (w, h))
+                # Get body contour for better fitting
+                body_contour = self._get_body_contour(keypoints, user_image.shape)
                 
-                # Create garment mask
-                garment_mask = np.ones((h, w), dtype=np.uint8) * 255
+                # Advanced garment preprocessing
+                garment_processed = self._preprocess_garment_for_fitting(
+                    garment_image, (w, h), body_contour, keypoints
+                )
                 
-                # Remove background from garment if it has one
-                self._ensure_bg_remover()
-                if self._bg_remover_initialized:
+                # Apply perspective correction based on pose
+                garment_warped = self._apply_perspective_correction(
+                    garment_processed, keypoints, (w, h)
+                )
+                
+                # Create smart mask for garment
+                garment_mask = self._create_smart_garment_mask(
+                    garment_warped, person_mask[y:y+h, x:x+w]
+                )
+                
+                # Advanced blending
+                result = self._advanced_blend_garment(
+                    user_image, garment_warped, garment_mask, x, y, w, h
+                )
+                
+            else:
+                # Improved fallback with better placement
+                result = self._improved_fallback_overlay(user_image, garment_image, keypoints)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Advanced garment fitting error: {e}")
+            # Fallback to basic overlay
+            return self._basic_garment_overlay(user_image, garment_image, keypoints)
+    
+    def _get_body_contour(self, keypoints: Dict, image_shape: Tuple[int, int]) -> np.ndarray:
+        """Extract body contour from pose keypoints"""
+        try:
+            if not keypoints:
+                # Create basic body shape
+                h, w = image_shape[:2]
+                contour = np.array([
+                    [w//3, h//4], [2*w//3, h//4],  # shoulders
+                    [2*w//3, 2*h//3], [w//3, 2*h//3]  # hips
+                ])
+                return contour
+            
+            # Key body outline points from MediaPipe
+            outline_points = []
+            
+            # Shoulder line
+            if 11 in keypoints and 12 in keypoints:  # left and right shoulder
+                outline_points.extend([
+                    [int(keypoints[11]['x']), int(keypoints[11]['y'])],
+                    [int(keypoints[12]['x']), int(keypoints[12]['y'])]
+                ])
+            
+            # Hip line  
+            if 23 in keypoints and 24 in keypoints:  # left and right hip
+                outline_points.extend([
+                    [int(keypoints[24]['x']), int(keypoints[24]['y'])],
+                    [int(keypoints[23]['x']), int(keypoints[23]['y'])]
+                ])
+            
+            if len(outline_points) >= 4:
+                return np.array(outline_points)
+            else:
+                # Fallback contour
+                h, w = image_shape[:2]
+                return np.array([[w//3, h//4], [2*w//3, h//4], [2*w//3, 2*h//3], [w//3, 2*h//3]])
+                
+        except Exception as e:
+            logger.error(f"Body contour extraction error: {e}")
+            h, w = image_shape[:2]
+            return np.array([[w//3, h//4], [2*w//3, h//4], [2*w//3, 2*h//3], [w//3, 2*h//3]])
+    
+    def _preprocess_garment_for_fitting(self, garment_image: np.ndarray, target_size: Tuple[int, int], 
+                                       body_contour: np.ndarray, keypoints: Dict) -> np.ndarray:
+        """Preprocess garment with intelligent resizing and background removal"""
+        try:
+            w, h = target_size
+            
+            # Resize garment maintaining aspect ratio
+            garment_h, garment_w = garment_image.shape[:2]
+            aspect_ratio = garment_w / garment_h
+            
+            if aspect_ratio > w / h:
+                # Width is limiting factor
+                new_w = w
+                new_h = int(w / aspect_ratio)
+            else:
+                # Height is limiting factor
+                new_h = h
+                new_w = int(h * aspect_ratio)
+            
+            # Resize with high quality
+            garment_resized = cv2.resize(garment_image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+            
+            # Remove background if available
+            self._ensure_bg_remover()
+            if self._bg_remover_initialized:
+                try:
                     from rembg import remove
                     garment_pil = Image.fromarray(garment_resized)
                     garment_no_bg = remove(garment_pil, session=self.bg_remover)
                     
                     if garment_no_bg.mode == 'RGBA':
-                        garment_resized = np.array(garment_no_bg)[:,:,:3]
-                        garment_mask = np.array(garment_no_bg)[:,:,3]
-                else:
-                    # Fallback: use the original garment without background removal
-                    logger.warning("Background removal not available, using original garment")
-                
-                # Blend garment with user image
-                result = user_image.copy()
-                
-                # Apply garment to the region
-                roi = result[y:y+h, x:x+w]
-                
-                # Create blended region
-                for c in range(3):
-                    roi[:, :, c] = np.where(
-                        garment_mask > 128,
-                        garment_resized[:, :, c],
-                        roi[:, :, c]
-                    )
-                
-                result[y:y+h, x:x+w] = roi
-                
-            else:
-                # Fallback: simple overlay in center
-                result = user_image.copy()
-                h_user, w_user = user_image.shape[:2]
-                h_gar, w_gar = garment_image.shape[:2]
-                
-                # Scale garment to reasonable size
-                scale = min(w_user // 3, h_user // 3) / max(w_gar, h_gar)
-                new_w, new_h = int(w_gar * scale), int(h_gar * scale)
-                garment_resized = cv2.resize(garment_image, (new_w, new_h))
-                
-                # Center placement
-                start_y = (h_user - new_h) // 3
-                start_x = (w_user - new_w) // 2
-                
-                # Simple overlay
-                result[start_y:start_y+new_h, start_x:start_x+new_w] = garment_resized
+                        # Convert RGBA to RGB with white background
+                        background = Image.new('RGB', garment_no_bg.size, (255, 255, 255))
+                        background.paste(garment_no_bg, mask=garment_no_bg.split()[3])
+                        garment_resized = np.array(background)
+                except Exception as e:
+                    logger.warning(f"Background removal failed: {e}")
+            
+            # Pad to target size if needed
+            if new_w < w or new_h < h:
+                padded = np.ones((h, w, 3), dtype=np.uint8) * 255  # white background
+                start_y = (h - new_h) // 2
+                start_x = (w - new_w) // 2
+                padded[start_y:start_y+new_h, start_x:start_x+new_w] = garment_resized
+                garment_resized = padded
+            
+            return garment_resized
+            
+        except Exception as e:
+            logger.error(f"Garment preprocessing error: {e}")
+            return cv2.resize(garment_image, target_size)
+    
+    def _apply_perspective_correction(self, garment: np.ndarray, keypoints: Dict, 
+                                    target_size: Tuple[int, int]) -> np.ndarray:
+        """Apply perspective correction based on body pose"""
+        try:
+            if not keypoints or len(keypoints) < 4:
+                return garment
+            
+            w, h = target_size
+            
+            # Calculate body orientation from keypoints
+            shoulder_angle = 0
+            if 11 in keypoints and 12 in keypoints:  # shoulders
+                left_shoulder = keypoints[11]
+                right_shoulder = keypoints[12]
+                shoulder_angle = np.arctan2(
+                    right_shoulder['y'] - left_shoulder['y'],
+                    right_shoulder['x'] - left_shoulder['x']
+                )
+            
+            # Apply subtle rotation to match body orientation
+            if abs(shoulder_angle) > 0.05:  # Only if significant tilt
+                center = (w // 2, h // 2)
+                rotation_matrix = cv2.getRotationMatrix2D(center, np.degrees(shoulder_angle) * 0.3, 1.0)
+                garment = cv2.warpAffine(garment, rotation_matrix, (w, h), 
+                                       flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+            
+            return garment
+            
+        except Exception as e:
+            logger.error(f"Perspective correction error: {e}")
+            return garment
+    
+    def _create_smart_garment_mask(self, garment: np.ndarray, person_region_mask: np.ndarray) -> np.ndarray:
+        """Create intelligent mask for garment blending"""
+        try:
+            # Convert garment to grayscale for edge detection
+            gray = cv2.cvtColor(garment, cv2.COLOR_RGB2GRAY)
+            
+            # Create base mask from non-white areas
+            mask = (gray < 240).astype(np.uint8) * 255
+            
+            # Apply morphological operations to clean up
+            kernel = np.ones((3, 3), np.uint8)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            
+            # Combine with person region mask
+            if person_region_mask.shape == mask.shape:
+                mask = cv2.bitwise_and(mask, person_region_mask)
+            
+            # Apply Gaussian blur for smooth blending
+            mask = cv2.GaussianBlur(mask, (5, 5), 0)
+            
+            return mask
+            
+        except Exception as e:
+            logger.error(f"Smart mask creation error: {e}")
+            return np.ones(garment.shape[:2], dtype=np.uint8) * 255
+    
+    def _advanced_blend_garment(self, user_image: np.ndarray, garment: np.ndarray, 
+                               mask: np.ndarray, x: int, y: int, w: int, h: int) -> np.ndarray:
+        """Advanced blending with alpha compositing and color matching"""
+        try:
+            result = user_image.copy()
+            
+            # Ensure dimensions match
+            roi = result[y:y+h, x:x+w]
+            if roi.shape[:2] != garment.shape[:2]:
+                garment = cv2.resize(garment, (roi.shape[1], roi.shape[0]))
+                mask = cv2.resize(mask, (roi.shape[1], roi.shape[0]))
+            
+            # Color matching to blend better with user's lighting
+            try:
+                garment_matched = self._match_colors(garment, roi, mask)
+            except:
+                garment_matched = garment
+            
+            # Alpha blending
+            alpha = mask.astype(float) / 255.0
+            alpha = np.stack([alpha] * 3, axis=-1)
+            
+            # Blend with some transparency for more natural look
+            alpha *= 0.85  # 85% opacity for natural blending
+            
+            blended_roi = (alpha * garment_matched + (1 - alpha) * roi).astype(np.uint8)
+            result[y:y+h, x:x+w] = blended_roi
             
             return result
             
         except Exception as e:
-            logger.error(f"Garment fitting error: {e}")
+            logger.error(f"Advanced blending error: {e}")
+            # Fallback to simple blending
+            result = user_image.copy()
+            roi = result[y:y+h, x:x+w]
+            normalized_mask = mask.astype(float) / 255.0
+            for c in range(3):
+                roi[:, :, c] = (normalized_mask * garment[:, :, c] + 
+                              (1 - normalized_mask) * roi[:, :, c]).astype(np.uint8)
+            result[y:y+h, x:x+w] = roi
+            return result
+    
+    def _match_colors(self, garment: np.ndarray, background: np.ndarray, mask: np.ndarray) -> np.ndarray:
+        """Match garment colors to background lighting"""
+        try:
+            # Convert to LAB color space for better color matching
+            garment_lab = cv2.cvtColor(garment, cv2.COLOR_RGB2LAB)
+            background_lab = cv2.cvtColor(background, cv2.COLOR_RGB2LAB)
+            
+            # Calculate mean colors in masked regions
+            mask_bool = mask > 128
+            if np.any(mask_bool):
+                garment_mean = np.mean(garment_lab[mask_bool], axis=0)
+                background_mean = np.mean(background_lab[~mask_bool], axis=0) if np.any(~mask_bool) else garment_mean
+                
+                # Adjust lightness to match background
+                lightness_diff = background_mean[0] - garment_mean[0]
+                garment_lab[:, :, 0] = np.clip(garment_lab[:, :, 0] + lightness_diff * 0.3, 0, 255)
+                
+                # Convert back to RGB
+                return cv2.cvtColor(garment_lab, cv2.COLOR_LAB2RGB)
+            
+            return garment
+            
+        except Exception as e:
+            logger.error(f"Color matching error: {e}")
+            return garment
+    
+    def _improved_fallback_overlay(self, user_image: np.ndarray, garment_image: np.ndarray, 
+                                  keypoints: Dict) -> np.ndarray:
+        """Improved fallback overlay with pose-aware placement"""
+        try:
+            result = user_image.copy()
+            h_user, w_user = user_image.shape[:2]
+            
+            # Determine placement based on keypoints
+            if keypoints and 11 in keypoints and 12 in keypoints:  # shoulders available
+                center_x = int((keypoints[11]['x'] + keypoints[12]['x']) / 2)
+                center_y = int((keypoints[11]['y'] + keypoints[12]['y']) / 2)
+            else:
+                center_x, center_y = w_user // 2, h_user // 3
+            
+            # Scale garment appropriately
+            garment_scale = min(w_user // 4, h_user // 4) / max(garment_image.shape[:2])
+            new_w = int(garment_image.shape[1] * garment_scale)
+            new_h = int(garment_image.shape[0] * garment_scale)
+            
+            garment_resized = cv2.resize(garment_image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+            
+            # Place centered on body
+            start_x = max(0, center_x - new_w // 2)
+            start_y = max(0, center_y - new_h // 4)  # Slightly above center
+            end_x = min(w_user, start_x + new_w)
+            end_y = min(h_user, start_y + new_h)
+            
+            # Adjust if out of bounds
+            actual_w = end_x - start_x
+            actual_h = end_y - start_y
+            garment_fitted = cv2.resize(garment_resized, (actual_w, actual_h))
+            
+            # Alpha blend for natural look
+            alpha = 0.7  # 70% opacity
+            result[start_y:end_y, start_x:end_x] = (
+                alpha * garment_fitted + (1 - alpha) * result[start_y:end_y, start_x:end_x]
+            ).astype(np.uint8)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Improved fallback error: {e}")
+            return user_image
+    
+    def _basic_garment_overlay(self, user_image: np.ndarray, garment_image: np.ndarray, 
+                              keypoints: Dict) -> np.ndarray:
+        """Basic garment overlay as final fallback"""
+        try:
+            result = user_image.copy()
+            h_user, w_user = user_image.shape[:2]
+            
+            # Simple center placement with reasonable size
+            scale = min(w_user // 3, h_user // 3) / max(garment_image.shape[:2])
+            new_w = int(garment_image.shape[1] * scale)
+            new_h = int(garment_image.shape[0] * scale)
+            
+            garment_resized = cv2.resize(garment_image, (new_w, new_h))
+            
+            start_x = (w_user - new_w) // 2
+            start_y = (h_user - new_h) // 3
+            
+            result[start_y:start_y+new_h, start_x:start_x+new_w] = garment_resized
+            return result
+            
+        except Exception as e:
+            logger.error(f"Basic overlay error: {e}")
             return user_image
     
     def _enhance_result(self, result_image: np.ndarray, original_image: np.ndarray) -> np.ndarray:
