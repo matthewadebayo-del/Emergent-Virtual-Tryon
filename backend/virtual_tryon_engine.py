@@ -7,7 +7,6 @@ import os
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
-import mediapipe as mp
 import base64
 import io
 import logging
@@ -15,10 +14,8 @@ from typing import Tuple, Optional, Dict, Any
 import asyncio
 import aiohttp
 import fal_client
-from rembg import remove, new_session
 from diffusers import StableDiffusionInpaintPipeline
 import torch
-from ultralytics import YOLO
 
 logger = logging.getLogger(__name__)
 
