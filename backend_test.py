@@ -529,6 +529,8 @@ class VirtualTryOnAPITester:
         else:
             print(f"   Failed: {response_data}")
             return None
+
+    def test_invalid_authentication(self):
         """Test API behavior with invalid authentication"""
         # Save current token
         original_token = self.token
