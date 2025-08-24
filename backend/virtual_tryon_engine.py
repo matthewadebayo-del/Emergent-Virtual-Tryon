@@ -791,7 +791,50 @@ class VirtualTryOnEngine:
         except Exception as e:
             logger.error(f"Result saving error: {e}")
             # Return placeholder
-            return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjZmZmIiBkb21pbmFudC1iYXNlbGluZT0iY2VudHJhbCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VHJ5LU9uIFJlc3VsdDwvdGV4dD48L3N2Zz4="
-
-# Global engine instance
-virtual_tryon_engine = VirtualTryOnEngine()
+    async def _fallback_enhanced_2d_processing(
+        self,
+        user_image_bytes: bytes,
+        garment_image_url: str, 
+        product_name: str,
+        category: str
+    ) -> Tuple[str, float]:
+        """
+        Enhanced 2D fallback processing when 3D pipeline fails
+        """
+        try:
+            logger.info("Using enhanced 2D fallback processing")
+            
+            # Stage 1: Image preprocessing
+            user_image = self._bytes_to_image(user_image_bytes)
+            garment_image = await self._download_garment_image(garment_image_url)
+            
+            # Stage 2: Person detection and segmentation
+            person_mask, body_keypoints = self._detect_person_and_pose(user_image)
+            
+            # Stage 3: Garment region detection
+            garment_region = self._detect_garment_region(user_image, body_keypoints, category)
+            
+            # Stage 4: Enhanced garment fitting and blending
+            fitted_result = self._fit_and_blend_garment(
+                user_image, 
+                garment_image,
+                person_mask,
+                garment_region,
+                body_keypoints
+            )
+            
+            # Stage 5: Enhanced post-processing
+            final_result = self._enhance_result(fitted_result, user_image)
+            
+            # Stage 6: Save result and return URL
+            result_url = await self._save_result_image(final_result)
+            cost = 0.025  # Slightly higher for enhanced processing
+            
+            logger.info("Enhanced 2D fallback processing completed")
+            return result_url, cost
+            
+        except Exception as e:
+            logger.error(f"Enhanced 2D fallback error: {str(e)}")
+            # Ultimate fallback
+            user_image_b64 = base64.b64encode(user_image_bytes).decode()
+            return f"data:image/jpeg;base64,{user_image_b64}", 0.01
