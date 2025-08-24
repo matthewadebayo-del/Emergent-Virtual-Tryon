@@ -728,7 +728,7 @@ class VirtualTryOnEngine:
             result_pil = result_pil.filter(ImageFilter.GaussianBlur(radius=0.8))
             
             # Color and lighting adjustments
-            from PIL import ImageEnhance, ImageFilter
+            from PIL import ImageEnhance
             
             # Match brightness to original
             original_brightness = self._calculate_brightness(np.array(original_pil))
