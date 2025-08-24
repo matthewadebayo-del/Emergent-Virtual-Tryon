@@ -404,12 +404,18 @@ class VirtualTryOnEngine:
                 garment_mask = np.ones((h, w), dtype=np.uint8) * 255
                 
                 # Remove background from garment if it has one
-                garment_pil = Image.fromarray(garment_resized)
-                garment_no_bg = remove(garment_pil, session=self.bg_remover)
-                
-                if garment_no_bg.mode == 'RGBA':
-                    garment_resized = np.array(garment_no_bg)[:,:,:3]
-                    garment_mask = np.array(garment_no_bg)[:,:,3]
+                self._ensure_bg_remover()
+                if self._bg_remover_initialized:
+                    from rembg import remove
+                    garment_pil = Image.fromarray(garment_resized)
+                    garment_no_bg = remove(garment_pil, session=self.bg_remover)
+                    
+                    if garment_no_bg.mode == 'RGBA':
+                        garment_resized = np.array(garment_no_bg)[:,:,:3]
+                        garment_mask = np.array(garment_no_bg)[:,:,3]
+                else:
+                    # Fallback: use the original garment without background removal
+                    logger.warning("Background removal not available, using original garment")
                 
                 # Blend garment with user image
                 result = user_image.copy()
