@@ -838,3 +838,6 @@ class VirtualTryOnEngine:
             # Ultimate fallback
             user_image_b64 = base64.b64encode(user_image_bytes).decode()
             return f"data:image/jpeg;base64,{user_image_b64}", 0.01
+
+# Global engine instance
+virtual_tryon_engine = VirtualTryOnEngine()
