@@ -47,6 +47,16 @@ const VirtualTryOn = () => {
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
   const API = `${BACKEND_URL}/api`;
 
+  // Check authentication on component mount
+  useEffect(() => {
+    if (!user) {
+      console.log('No user found, redirecting to login...');
+      navigate('/login');
+      return;
+    }
+    console.log('User authenticated:', user.email);
+  }, [user, navigate]);
+
   useEffect(() => {
     fetchProducts();
   }, []);
