@@ -555,7 +555,8 @@ async def fallback_ai_generation(
         # Return placeholder if all else fails
         return "https://via.placeholder.com/512x512/cccccc/666666?text=Try-On+Result", 0.0
 
-# Hybrid 3D Pipeline Functions (Mock implementations)
+# Hybrid 3D Pipeline Functions (For reference - now using VirtualTryOnEngine)
+# These functions would be called by the VirtualTryOnEngine in a real implementation
 async def reconstruct_3d_body(image_data: bytes):
     """3D body reconstruction using MediaPipe + SMPL"""
     # Mock implementation - would use actual MediaPipe pose detection
