@@ -555,26 +555,26 @@ async def enhance_with_ai(rendered_image, original_image):
     return {"enhanced_image": "enhanced_image_data"}
 
 async def save_result_image(image_data, service_type: str) -> str:
-    """Save result image and return URL - using a real placeholder for demo"""
-    # For demonstration, return a working placeholder image
-    # In production, this would save to actual cloud storage
+    """Save result image and return URL - using clothing-specific placeholders"""
+    # For demonstration, return clothing/fashion specific placeholder images
+    # In production, this would save actual try-on results to cloud storage
     result_id = str(uuid.uuid4())
     
-    # Return a real working placeholder image URL
-    placeholder_images = [
-        "https://picsum.photos/400/600?random=1",
-        "https://picsum.photos/400/600?random=2", 
-        "https://picsum.photos/400/600?random=3",
-        "https://picsum.photos/400/600?random=4",
-        "https://picsum.photos/400/600?random=5"
+    # Use fashion/clothing specific placeholder images
+    clothing_placeholder_images = [
+        "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=400&h=600&fit=crop&crop=center",  # person in clothing
+        "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=400&h=600&fit=crop&crop=center",  # fashion model
+        "https://images.unsplash.com/photo-1581803118522-7b72a50f7e9f?w=400&h=600&fit=crop&crop=center",  # person wearing shirt
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=600&fit=crop&crop=center",  # clothing model
+        "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=400&h=600&fit=crop&crop=center"   # fashion photo
     ]
     
-    # Use service type to determine placeholder
-    import random
-    random.seed(hash(result_id))  # Consistent random for same ID
-    placeholder_url = random.choice(placeholder_images)
+    # Use service type and result_id to determine consistent placeholder
+    import hashlib
+    hash_value = int(hashlib.md5(result_id.encode()).hexdigest(), 16)
+    placeholder_url = clothing_placeholder_images[hash_value % len(clothing_placeholder_images)]
     
-    logger.info(f"Generated placeholder result URL: {placeholder_url}")
+    logger.info(f"Generated clothing placeholder result URL: {placeholder_url}")
     return placeholder_url
 
 async def generate_placeholder_result(product: Product, description: str) -> str:
