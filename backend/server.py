@@ -466,41 +466,24 @@ async def process_fal_ai_tryon(
     size: Optional[str], 
     color: Optional[str]
 ) -> tuple[str, float]:
-    """Process virtual try-on using fal.ai FASHN API"""
+    """Process virtual try-on using real fal.ai FASHN API via VirtualTryOnEngine"""
     try:
-        import fal_client
+        logger.info("Starting real fal.ai FASHN virtual try-on")
         
-        logger.info("Starting fal.ai FASHN virtual try-on")
-        
-        # Convert images to base64
-        user_image_b64 = base64.b64encode(user_image_data).decode()
-        
-        # Prepare fal.ai request
-        handler = await fal_client.submit_async(
-            "fal-ai/fashn-virtual-try-on",
-            arguments={
-                "human_image": f"data:image/jpeg;base64,{user_image_b64}",
-                "garment_image": product.image_url,
-                "description": f"{product.name} - {product.description}",
-                "category": product.category.lower()
-            }
+        # Use the actual VirtualTryOnEngine for real fal.ai processing
+        result_url, cost = await virtual_tryon_engine.process_fal_ai_tryon(
+            user_image_data,
+            product.image_url,
+            product.name,
+            product.category
         )
         
-        # Get result
-        result = await handler.get()
+        logger.info("Real fal.ai virtual try-on completed successfully")
+        return result_url, cost
         
-        if result and result.get("image"):
-            result_url = result["image"]["url"]
-            cost = 0.075  # fal.ai pricing
-            
-            logger.info("fal.ai virtual try-on completed successfully")
-            return result_url, cost
-        else:
-            raise Exception("No result from fal.ai")
-            
     except Exception as e:
         logger.error(f"fal.ai try-on error: {str(e)}")
-        # Fallback to hybrid approach
+        # Fallback to hybrid approach if fal.ai fails
         return await process_hybrid_tryon(user_image_data, product, size, color)
 
 async def fallback_ai_generation(
