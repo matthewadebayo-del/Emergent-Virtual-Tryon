@@ -578,24 +578,24 @@ async def save_result_image(image_data, service_type: str) -> str:
     return placeholder_url
 
 async def generate_placeholder_result(product: Product, description: str) -> str:
-    """Generate placeholder result image - using real working URLs"""
-    # Use different placeholder based on product category
+    """Generate placeholder result image - using clothing/fashion specific URLs"""
+    # Use clothing/fashion specific placeholders based on product category
     category_images = {
-        "men's tops": "https://picsum.photos/400/600?random=10",
-        "men's bottoms": "https://picsum.photos/400/600?random=11", 
-        "men's outerwear": "https://picsum.photos/400/600?random=12",
-        "women's tops": "https://picsum.photos/400/600?random=13",
-        "women's bottoms": "https://picsum.photos/400/600?random=14",
-        "women's dresses": "https://picsum.photos/400/600?random=15",
-        "women's outerwear": "https://picsum.photos/400/600?random=16",
-        "women's activewear": "https://picsum.photos/400/600?random=17"
+        "men's tops": "https://images.unsplash.com/photo-1564859228273-274232fdb516?w=400&h=600&fit=crop&crop=center",  # man in shirt
+        "men's bottoms": "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=400&h=600&fit=crop&crop=center",  # man in jeans
+        "men's outerwear": "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=600&fit=crop&crop=center",  # man in jacket
+        "women's tops": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400&h=600&fit=crop&crop=center",  # woman in top
+        "women's bottoms": "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=600&fit=crop&crop=center",  # woman in pants
+        "women's dresses": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=400&h=600&fit=crop&crop=center",  # woman in dress
+        "women's outerwear": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=600&fit=crop&crop=center",  # woman in jacket
+        "women's activewear": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=600&fit=crop&crop=center"  # activewear
     }
     
-    # Find matching category
+    # Find matching category or use default
     category_key = product.category.lower()
-    placeholder_url = category_images.get(category_key, "https://picsum.photos/400/600?random=20")
+    placeholder_url = category_images.get(category_key, "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=600&fit=crop&crop=center")
     
-    logger.info(f"Generated fallback placeholder for {product.name}: {placeholder_url}")
+    logger.info(f"Generated clothing fallback placeholder for {product.name}: {placeholder_url}")
     return placeholder_url
 
 async def initialize_sample_products():
