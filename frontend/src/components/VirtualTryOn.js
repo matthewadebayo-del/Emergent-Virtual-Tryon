@@ -1245,6 +1245,8 @@ const VirtualTryOn = () => {
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
       </div>
     </div>
