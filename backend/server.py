@@ -435,30 +435,6 @@ async def process_hybrid_tryon(
         # Fallback to placeholder if engine fails
         return await fallback_tryon_result(user_image_data, product, size, color)
 
-async def create_composite_tryon_result(user_image_b64: str, product: Product, size: Optional[str], color: Optional[str]) -> str:
-    """Create a composite try-on result - simplified version for demo"""
-    try:
-        # In a real implementation, this would:
-        # 1. Use computer vision to detect body pose
-        # 2. Map the garment onto the user's body
-        # 3. Adjust for lighting and shadows
-        # 4. Generate realistic result
-        
-        # For now, we need to return the user's image as is with a note
-        # The real solution requires complex ML models for proper virtual try-on
-        
-        logger.warning("Using simplified try-on result - real implementation needs ML models")
-        
-        # Return the user's image data URL (not ideal, but shows their image)
-        # In production, this would be the actual processed result
-        result_data_url = f"data:image/jpeg;base64,{user_image_b64}"
-        
-        return result_data_url
-        
-    except Exception as e:
-        logger.error(f"Composite creation error: {str(e)}")
-        # Fallback to clothing placeholder
-        return await generate_placeholder_result(product, "composite failed")
 
 async def process_fal_ai_tryon(
     user_image_data: bytes, 
