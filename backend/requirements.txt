@@ -36,3 +36,6 @@ diffusers>=0.25.0
 transformers>=4.30.0
 Pillow>=10.0.0
 scipy>=1.11.0
+rembg>=2.0.0
+segment-anything>=1.0
+ultralytics>=8.0.0
