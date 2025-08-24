@@ -92,6 +92,7 @@ class VirtualTryOnEngine:
         Process virtual try-on using fal.ai FASHN API
         """
         try:
+            import fal_client
             logger.info("Starting fal.ai FASHN virtual try-on")
             
             # Convert user image to base64
