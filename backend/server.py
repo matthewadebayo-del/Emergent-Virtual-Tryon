@@ -486,6 +486,31 @@ async def process_fal_ai_tryon(
         # Fallback to hybrid approach if fal.ai fails
         return await process_hybrid_tryon(user_image_data, product, size, color)
 
+async def fallback_tryon_result(
+    user_image_data: bytes, 
+    product: Product, 
+    size: Optional[str], 
+    color: Optional[str]
+) -> tuple[str, float]:
+    """Fallback function when VirtualTryOnEngine fails"""
+    try:
+        logger.info("Using fallback try-on result generation")
+        
+        # Convert user image to base64 data URL to show their actual image
+        user_image_b64 = base64.b64encode(user_image_data).decode()
+        result_data_url = f"data:image/jpeg;base64,{user_image_b64}"
+        
+        # Very low cost for fallback
+        cost = 0.01
+        
+        logger.info("Fallback try-on result generated")
+        return result_data_url, cost
+        
+    except Exception as e:
+        logger.error(f"Fallback generation error: {str(e)}")
+        # Return placeholder if all else fails
+        return await generate_placeholder_result(product, "fallback failed"), 0.0
+
 async def fallback_ai_generation(
     user_image_data: bytes, 
     product: Product, 
