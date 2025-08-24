@@ -208,8 +208,8 @@ class VirtualTryOnAPITester:
             self.log_test("Virtual Try-On (Hybrid)", False, "No authentication token available")
             return
         
-        # Create dummy image data
-        dummy_image = b"dummy_user_photo_for_tryon_testing"
+        # Create realistic person image data (base64 encoded sample image)
+        realistic_person_image = self._create_realistic_person_image()
         
         form_data = {
             'product_id': product_id,
@@ -218,16 +218,30 @@ class VirtualTryOnAPITester:
             'color': 'Blue'
         }
         
-        files = {'user_photo': ('user_photo.jpg', io.BytesIO(dummy_image), 'image/jpeg')}
+        files = {'user_photo': ('user_photo.jpg', io.BytesIO(realistic_person_image), 'image/jpeg')}
         
+        # Measure processing time
+        start_time = time.time()
         success, response_data, status_code = self.make_request('POST', '/tryon', 
                                                                data=form_data, files=files, expected_status=200)
+        processing_time = time.time() - start_time
         
         if success and response_data.get('success'):
             result_data = response_data.get('data', {})
             if result_data.get('result_image_url') and result_data.get('service_type') == 'hybrid':
-                self.log_test("Virtual Try-On (Hybrid)", True, 
-                            f"Try-on completed - Cost: ${result_data.get('cost', 0)} - Status: {status_code}")
+                cost = result_data.get('cost', 0)
+                actual_processing_time = result_data.get('processing_time', processing_time)
+                
+                # Verify production 3D pipeline criteria
+                details = f"Cost: ${cost}, Processing Time: {actual_processing_time:.1f}s, Status: {status_code}"
+                
+                # Check if it meets production 3D criteria
+                if cost >= 0.03 and actual_processing_time >= 15:
+                    self.log_test("Virtual Try-On (Hybrid 3D Production)", True, details)
+                else:
+                    self.log_test("Virtual Try-On (Hybrid 3D Production)", False, 
+                                f"Does not meet 3D criteria - {details}")
+                
                 return result_data
             else:
                 self.log_test("Virtual Try-On (Hybrid)", False, "Invalid try-on result data", response_data)
