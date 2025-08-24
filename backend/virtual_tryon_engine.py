@@ -24,32 +24,65 @@ logger = logging.getLogger(__name__)
 
 class VirtualTryOnEngine:
     def __init__(self):
-        """Initialize the Virtual Try-On Engine with all necessary models"""
-        logger.info("Initializing Virtual Try-On Engine...")
+        """Initialize the Virtual Try-On Engine with lazy loading"""
+        logger.info("Initializing Virtual Try-On Engine with lazy loading...")
         
-        # MediaPipe setup for pose detection
-        self.mp_pose = mp.solutions.pose
-        self.pose = self.mp_pose.Pose(
-            static_image_mode=True,
-            model_complexity=2,
-            enable_segmentation=True,
-            min_detection_confidence=0.5
-        )
-        
-        # Background removal setup
-        self.bg_remover = new_session('u2net')
-        
-        # Person segmentation model
-        try:
-            self.yolo_model = YOLO('yolov8n-seg.pt')
-        except Exception as e:
-            logger.warning(f"YOLO model loading failed: {e}, using fallback")
-            self.yolo_model = None
-        
-        # Stable Diffusion for inpainting (lazy load)
+        # Initialize components to None - will be loaded when needed
+        self.mp_pose = None
+        self.pose = None
+        self.bg_remover = None
+        self.yolo_model = None
         self.inpainting_pipe = None
         
-        logger.info("Virtual Try-On Engine initialized successfully")
+        # Flags to track initialization state
+        self._pose_initialized = False
+        self._bg_remover_initialized = False
+        self._yolo_initialized = False
+        
+        logger.info("Virtual Try-On Engine initialized with lazy loading")
+    
+    def _ensure_pose_detection(self):
+        """Lazy initialize pose detection components"""
+        if not self._pose_initialized:
+            try:
+                import mediapipe as mp
+                self.mp_pose = mp.solutions.pose
+                self.pose = self.mp_pose.Pose(
+                    static_image_mode=True,
+                    model_complexity=2,
+                    enable_segmentation=True,
+                    min_detection_confidence=0.5
+                )
+                self._pose_initialized = True
+                logger.info("MediaPipe pose detection initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize pose detection: {e}")
+                self._pose_initialized = False
+    
+    def _ensure_bg_remover(self):
+        """Lazy initialize background removal"""
+        if not self._bg_remover_initialized:
+            try:
+                from rembg import new_session
+                self.bg_remover = new_session('u2net')
+                self._bg_remover_initialized = True
+                logger.info("Background remover initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize background remover: {e}")
+                self._bg_remover_initialized = False
+    
+    def _ensure_yolo_model(self):
+        """Lazy initialize YOLO model"""
+        if not self._yolo_initialized:
+            try:
+                from ultralytics import YOLO
+                self.yolo_model = YOLO('yolov8n-seg.pt')
+                self._yolo_initialized = True
+                logger.info("YOLO model initialized")
+            except Exception as e:
+                logger.warning(f"YOLO model loading failed: {e}, will use fallback")
+                self.yolo_model = None
+                self._yolo_initialized = False
     
     async def process_fal_ai_tryon(
         self, 
