@@ -15,7 +15,7 @@ import io
 import base64
 
 class VirtualTryOnAPITester:
-    def __init__(self, base_url="https://compile-fix-2.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://virtufit-7.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.user_data = None
