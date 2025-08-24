@@ -579,6 +579,17 @@ class VirtualTryOnAPITester:
                     self.test_virtual_tryon_hybrid(product_id)
                     self.test_virtual_tryon_premium(product_id)
         
+        # PRODUCTION-READY HYBRID 3D PIPELINE TESTS
+        print("\n" + "="*70)
+        print("🔬 PRODUCTION-READY HYBRID 3D PIPELINE TESTING")
+        print("="*70)
+        
+        # Comprehensive Hybrid 3D Pipeline test
+        self.test_hybrid_3d_pipeline_comprehensive()
+        
+        # Service comparison test
+        self.test_hybrid_3d_vs_premium_comparison()
+        
         # Try-on history test
         self.test_tryon_history()
         
