@@ -565,15 +565,31 @@ const VirtualTryOn = () => {
 
       <div className="container mx-auto px-6 py-8">
         <div className="max-w-4xl mx-auto">
-          <ServiceTypeToggle />
-          <StepIndicator />
-
-          {error && (
-            <div className="bg-red-900 border border-red-600 text-red-200 p-4 rounded-lg mb-6 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              {error}
+          
+          {/* Authentication Check */}
+          {!user ? (
+            <div className="bg-gray-800 rounded-lg p-8 text-center">
+              <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+              <p className="text-gray-300 mb-6">Please login to access the virtual try-on feature.</p>
+              <button
+                onClick={() => navigate('/login')}
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                Login Now
+              </button>
             </div>
-          )}
+          ) : (
+            <>
+              <ServiceTypeToggle />
+              <StepIndicator />
+
+              {error && (
+                <div className="bg-red-900 border border-red-600 text-red-200 p-4 rounded-lg mb-6 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" />
+                  {error}
+                </div>
+              )}
 
           {/* Step 1: Upload Photo */}
           {step === 1 && (
