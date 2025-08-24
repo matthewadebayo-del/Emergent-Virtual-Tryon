@@ -415,31 +415,25 @@ async def process_hybrid_tryon(
     size: Optional[str], 
     color: Optional[str]
 ) -> tuple[str, float]:
-    """Process virtual try-on using hybrid 3D approach"""
+    """Process virtual try-on using real hybrid 3D approach via VirtualTryOnEngine"""
     try:
-        logger.info("Starting hybrid 3D virtual try-on pipeline")
+        logger.info("Starting real hybrid 3D virtual try-on pipeline")
         
-        # Stage 1: Convert user image to base64 for processing
-        import base64
-        user_image_b64 = base64.b64encode(user_image_data).decode()
+        # Use the actual VirtualTryOnEngine for real processing
+        result_url, cost = await virtual_tryon_engine.process_hybrid_tryon(
+            user_image_data,
+            product.image_url,
+            product.name,
+            product.category
+        )
         
-        # For now, create a composite result using the user's image
-        # In a real implementation, this would use actual 3D processing
-        
-        # Stage 2: Create a simple composite (placeholder for real processing)
-        # This should blend the user image with the selected garment
-        result_url = await create_composite_tryon_result(user_image_b64, product, size, color)
-        
-        # Cost calculation (much lower than fal.ai)
-        cost = 0.02  # $0.02 per generation
-        
-        logger.info("Hybrid 3D virtual try-on completed successfully")
+        logger.info("Real hybrid 3D virtual try-on completed successfully")
         return result_url, cost
         
     except Exception as e:
         logger.error(f"Hybrid try-on error: {str(e)}")
-        # Fallback to EMERGENT_LLM_KEY based generation
-        return await fallback_ai_generation(user_image_data, product, size, color)
+        # Fallback to placeholder if engine fails
+        return await fallback_tryon_result(user_image_data, product, size, color)
 
 async def create_composite_tryon_result(user_image_b64: str, product: Product, size: Optional[str], color: Optional[str]) -> str:
     """Create a composite try-on result - simplified version for demo"""
