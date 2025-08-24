@@ -203,6 +203,15 @@ class VirtualTryOnEngine:
         Detect person in image and extract pose keypoints using MediaPipe
         """
         try:
+            # Ensure pose detection is initialized
+            self._ensure_pose_detection()
+            
+            if not self._pose_initialized or self.pose is None:
+                # Fallback: create basic mask
+                logger.warning("Pose detection not available, using fallback")
+                mask = np.ones(image.shape[:2], dtype=np.uint8) * 255
+                return mask, {}
+            
             # Convert to RGB for MediaPipe
             rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             
@@ -215,15 +224,22 @@ class VirtualTryOnEngine:
                 mask = results.segmentation_mask
                 mask = (mask > 0.5).astype(np.uint8) * 255
             else:
-                # Fallback: create mask from YOLO if available
+                # Fallback: try YOLO if available
+                self._ensure_yolo_model()
                 if self.yolo_model:
                     yolo_results = self.yolo_model(image)
                     mask = self._extract_person_mask_from_yolo(yolo_results, image.shape[:2])
                 else:
                     # Ultimate fallback: use rembg
-                    pil_image = Image.fromarray(image)
-                    no_bg = remove(pil_image, session=self.bg_remover)
-                    mask = np.array(no_bg)[:,:,3] if no_bg.mode == 'RGBA' else np.ones(image.shape[:2], dtype=np.uint8) * 255
+                    self._ensure_bg_remover()
+                    if self._bg_remover_initialized:
+                        from rembg import remove
+                        pil_image = Image.fromarray(image)
+                        no_bg = remove(pil_image, session=self.bg_remover)
+                        mask = np.array(no_bg)[:,:,3] if no_bg.mode == 'RGBA' else np.ones(image.shape[:2], dtype=np.uint8) * 255
+                    else:
+                        # Final fallback: full image mask
+                        mask = np.ones(image.shape[:2], dtype=np.uint8) * 255
             
             # Extract keypoints
             keypoints = {}
