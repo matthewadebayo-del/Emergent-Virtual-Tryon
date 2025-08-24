@@ -13,8 +13,6 @@ import logging
 from typing import Tuple, Optional, Dict, Any
 import asyncio
 import aiohttp
-import fal_client
-from diffusers import StableDiffusionInpaintPipeline
 import torch
 
 logger = logging.getLogger(__name__)
