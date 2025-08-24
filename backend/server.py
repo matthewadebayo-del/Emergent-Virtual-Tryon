@@ -17,6 +17,9 @@ import json
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# Import the production Virtual Try-On Engine
+from virtual_tryon_engine import virtual_tryon_engine
+
 # Import local modules
 from models import *
 from database import database
