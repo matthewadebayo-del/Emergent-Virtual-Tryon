@@ -114,12 +114,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (userData) => {
+    console.log('Updating user data in context:', userData);
+    setUser(userData);
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
     resetPassword,
+    updateUser,
     loading,
     token
   };
