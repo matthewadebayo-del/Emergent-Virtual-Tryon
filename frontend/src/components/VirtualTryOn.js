@@ -47,7 +47,7 @@ const VirtualTryOn = () => {
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
   const API = `${BACKEND_URL}/api`;
 
-  // Check authentication on component mount
+  // Check authentication and existing measurements on component mount
   useEffect(() => {
     if (!user) {
       console.log('No user found, redirecting to login...');
@@ -55,6 +55,14 @@ const VirtualTryOn = () => {
       return;
     }
     console.log('User authenticated:', user.email);
+    
+    // Check if user already has measurements - if so, skip photo capture
+    if (user.measurements && Object.keys(user.measurements).length > 0) {
+      console.log('User already has measurements, skipping to step 2');
+      setExtractedMeasurements(user.measurements);
+      setEditableMeasurements({ ...user.measurements });
+      setStep(2); // Skip directly to measurement review step
+    }
   }, [user, navigate]);
 
   useEffect(() => {
