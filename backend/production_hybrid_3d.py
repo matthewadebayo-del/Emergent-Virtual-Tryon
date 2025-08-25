@@ -1598,31 +1598,6 @@ class ProductionHybrid3DEngine:
             logger.error(f"AI enhancement error: {e}")
             return self._enhance_2d_result(rendered_result, user_image)
     
-    def _apply_cotton_texture(self, image: np.ndarray) -> np.ndarray:
-        """Apply cotton-like texture"""
-        # Add subtle matte finish
-        enhanced = image.copy()
-        enhanced = cv2.GaussianBlur(enhanced, (3, 3), 0)
-        enhanced = cv2.addWeighted(image, 0.7, enhanced, 0.3, 0)
-        return enhanced
-    
-    def _apply_silk_texture(self, image: np.ndarray) -> np.ndarray:
-        """Apply silk-like texture"""
-        # Add subtle shine
-        enhanced = image.copy()
-        enhancer = ImageEnhance.Brightness(Image.fromarray(enhanced))
-        enhanced_pil = enhancer.enhance(1.1)
-        return np.array(enhanced_pil)
-    
-    def _apply_denim_texture(self, image: np.ndarray) -> np.ndarray:
-        """Apply denim-like texture"""
-        # Add rougher texture
-        enhanced = image.copy()
-        noise = np.random.normal(0, 5, enhanced.shape).astype(np.int16)
-        enhanced = enhanced.astype(np.int16) + noise
-        enhanced = np.clip(enhanced, 0, 255).astype(np.uint8)
-        return enhanced
-    
     async def _ai_enhance_result(self, rendered_image: np.ndarray, original_image: np.ndarray,
                                product_name: str) -> np.ndarray:
         """
