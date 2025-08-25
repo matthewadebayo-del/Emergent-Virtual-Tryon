@@ -709,7 +709,45 @@ const VirtualTryOn = () => {
           {/* Step 1: Upload Photo */}
           {step === 1 && (
             <div className="bg-gray-800 rounded-lg p-8">
-              <h2 className="text-2xl font-bold mb-6 text-center">Upload Your Photo</h2>
+              <h2 className="text-2xl font-bold mb-6 text-center">Your Photo</h2>
+              
+              {/* Show existing photo option if user has a saved photo */}
+              {user.profile_photo && (
+                <div className="mb-8 p-6 bg-gray-700 rounded-lg border-2 border-green-400">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Check className="w-5 h-5 text-green-400" />
+                    <h3 className="text-lg font-semibold text-green-400">Saved Photo Available</h3>
+                  </div>
+                  
+                  <div className="grid md:grid-cols-2 gap-6 items-center">
+                    <div>
+                      <img
+                        src={user.profile_photo}
+                        alt="Your saved photo"
+                        className="w-full max-w-48 h-64 object-cover rounded-lg border-2 border-gray-500 mx-auto"
+                      />
+                    </div>
+                    <div className="space-y-4">
+                      <p className="text-gray-300">
+                        We found your saved photo from a previous session. You can use this photo or take a new one if anything has changed.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setUserPhotoDataURL(user.profile_photo);
+                          setUserPhotoPreview(user.profile_photo);
+                          handleFileUpload({target: {files: []}}, true); // Trigger measurement extraction with existing photo
+                        }}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Check className="w-5 h-5" />
+                        Use Saved Photo
+                      </button>
+                      <p className="text-center text-gray-400">or take a new photo below</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <p className="text-gray-300 text-center mb-8">
                 Take a full-body photo or upload an existing image for the best try-on results.
               </p>
@@ -721,7 +759,7 @@ const VirtualTryOn = () => {
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-3"
                   >
                     <Camera className="w-6 h-6" />
-                    Take Photo with Camera
+                    {user.profile_photo ? 'Take New Photo with Camera' : 'Take Photo with Camera'}
                   </button>
                   
                   <div className="text-center text-gray-400">or</div>
@@ -738,7 +776,7 @@ const VirtualTryOn = () => {
                     className="w-full bg-gray-600 hover:bg-gray-700 text-white py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-3"
                   >
                     <Upload className="w-6 h-6" />
-                    Upload from Device
+                    {user.profile_photo ? 'Upload New Photo from Device' : 'Upload from Device'}
                   </button>
                 </div>
               ) : (
