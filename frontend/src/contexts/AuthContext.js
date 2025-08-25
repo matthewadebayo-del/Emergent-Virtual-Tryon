@@ -19,24 +19,18 @@ export const AuthProvider = ({ children }) => {
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
   const API = `${BACKEND_URL}/api`;
 
-  // Configure axios defaults
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
-  }, [token]);
-
-  // Check if user is logged in on app start
+  // Configure axios and check auth on token change
   useEffect(() => {
     const initAuth = async () => {
       if (token) {
         try {
-          // Set the authorization header before making the request
+          // Set the authorization header
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          // Verify token by fetching user profile
           const response = await axios.get(`${API}/profile`);
           setUser(response.data);
+          console.log('User authenticated successfully:', response.data.email);
         } catch (error) {
           console.error('Auth check failed:', error);
           // Clear invalid token
@@ -44,6 +38,9 @@ export const AuthProvider = ({ children }) => {
           setToken(null);
           delete axios.defaults.headers.common['Authorization'];
         }
+      } else {
+        // No token - clear auth headers
+        delete axios.defaults.headers.common['Authorization'];
       }
       setLoading(false);
     };
