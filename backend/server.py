@@ -200,21 +200,28 @@ async def extract_measurements(
     user_photo: UploadFile = File(...),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Extract body measurements from user photo"""
+    """Extract body measurements from user photo and save photo to profile"""
     try:
         # Read and process the uploaded image
         image_data = await user_photo.read()
         
-        # Here you would implement the actual measurement extraction
-        # For now, we'll return mock measurements
+        # Convert image to base64 for storage
+        import base64
+        image_base64 = base64.b64encode(image_data).decode()
+        profile_photo_data_url = f"data:image/jpeg;base64,{image_base64}"
+        
+        # Process measurement extraction
         measurements = await process_measurement_extraction(image_data)
         
-        # Update user measurements in database
+        # Update user measurements AND save photo to profile
         await database.update_user_measurements(current_user.id, measurements)
+        await database.update_user_profile_photo(current_user.id, profile_photo_data_url)
+        
+        logger.info(f"Measurements extracted and photo saved for user {current_user.id}")
         
         return ApiResponse(
             success=True,
-            message="Measurements extracted successfully",
+            message="Measurements extracted and photo saved successfully",
             data=measurements
         )
         
