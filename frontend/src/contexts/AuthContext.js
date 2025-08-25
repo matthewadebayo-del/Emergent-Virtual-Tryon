@@ -33,12 +33,16 @@ export const AuthProvider = ({ children }) => {
     const initAuth = async () => {
       if (token) {
         try {
+          // Set the authorization header before making the request
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           const response = await axios.get(`${API}/profile`);
           setUser(response.data);
         } catch (error) {
           console.error('Auth check failed:', error);
+          // Clear invalid token
           localStorage.removeItem('token');
           setToken(null);
+          delete axios.defaults.headers.common['Authorization'];
         }
       }
       setLoading(false);
