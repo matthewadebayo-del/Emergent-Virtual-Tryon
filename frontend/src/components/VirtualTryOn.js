@@ -61,6 +61,14 @@ const VirtualTryOn = () => {
       console.log('User already has measurements, skipping to step 2');
       setExtractedMeasurements(user.measurements);
       setEditableMeasurements({ ...user.measurements });
+      
+      // Check if user has a stored photo URL in their profile
+      if (user.profile_photo) {
+        setUserPhotoDataURL(user.profile_photo);
+        setUserPhotoPreview(user.profile_photo);
+        console.log('Using stored profile photo');
+      }
+      
       setStep(2); // Skip directly to measurement review step
     }
   }, [user, navigate]);
