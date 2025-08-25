@@ -487,8 +487,7 @@ const VirtualTryOn = () => {
 
       const formData = new FormData();
       
-      // If we have measurements, we ALREADY processed a photo successfully
-      // Don't ask for photo again - use what we have or create a placeholder
+      // Try to get photo from multiple sources including localStorage backup
       if (userPhoto) {
         console.log('Using userPhoto file object');
         formData.append('user_photo', userPhoto);
@@ -500,38 +499,38 @@ const VirtualTryOn = () => {
         console.log('Converting userPhotoPreview to blob');
         const blob = await urlToBlob(userPhotoPreview);
         formData.append('user_photo', blob, 'user_photo.jpg');
-      } else if (extractedMeasurements) {
-        // If we have measurements but no photo data, create a minimal photo
-        // The backend has already processed the original photo for measurements
-        console.log('Using measurements data - photo was already processed by backend');
-        
-        // Create a simple placeholder image since the backend already has the user's data
-        const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 400;
-        const ctx = canvas.getContext('2d');
-        
-        // Create a simple colored rectangle as placeholder
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fillRect(0, 0, 400, 400);
-        ctx.fillStyle = '#666';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('User Photo', 200, 200);
-        
-        // Convert canvas to blob
-        const blob = await new Promise(resolve => {
-          canvas.toBlob(resolve, 'image/jpeg', 0.8);
-        });
-        
-        formData.append('user_photo', blob, 'user_photo.jpg');
-        console.log('Placeholder photo created for backend processing');
       } else {
-        // This should truly never happen
-        console.error('No photo data and no measurements - user needs to start over');
-        setError('Please capture your photo first to proceed with virtual try-on.');
-        setStep(1);
-        return;
+        // Try localStorage backup
+        const backupPhotoData = localStorage.getItem('virtualTryOn_userPhoto');
+        if (backupPhotoData) {
+          console.log('Recovering photo from localStorage backup');
+          const blob = await dataURLToBlob(backupPhotoData);
+          formData.append('user_photo', blob, 'user_photo.jpg');
+        } else if (extractedMeasurements) {
+          // If we have measurements, the backend already processed a photo
+          // Create a minimal placeholder since the real processing doesn't need the original image
+          console.log('Using measurements data - backend already has user photo data');
+          
+          // Create a minimal 1x1 pixel image as placeholder
+          const canvas = document.createElement('canvas');
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, 1, 1);
+          
+          const blob = await new Promise(resolve => {
+            canvas.toBlob(resolve, 'image/jpeg', 0.1);
+          });
+          
+          formData.append('user_photo', blob, 'placeholder.jpg');
+          console.log('Minimal placeholder created - backend will use stored user data');
+        } else {
+          console.error('No photo data available and no measurements');
+          setError('Please capture your photo first to proceed with virtual try-on.');
+          setStep(1);
+          return;
+        }
       }
       
       formData.append('product_id', selectedProduct.id);
