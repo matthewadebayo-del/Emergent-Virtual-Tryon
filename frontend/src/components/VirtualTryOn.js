@@ -56,6 +56,18 @@ const VirtualTryOn = () => {
     }
     console.log('User authenticated:', user.email);
     
+    // Try to restore photo from localStorage backup
+    try {
+      const backupPhotoData = localStorage.getItem('virtualTryOn_userPhoto');
+      if (backupPhotoData && !userPhotoDataURL) {
+        console.log('Restoring photo from localStorage backup');
+        setUserPhotoDataURL(backupPhotoData);
+        setUserPhotoPreview(backupPhotoData);
+      }
+    } catch (error) {
+      console.warn('Could not restore photo from localStorage:', error);
+    }
+    
     // Check if user already has measurements - if so, skip photo capture
     if (user.measurements && Object.keys(user.measurements).length > 0) {
       console.log('User already has measurements, skipping to step 2');
@@ -71,7 +83,7 @@ const VirtualTryOn = () => {
       
       setStep(2); // Skip directly to measurement review step
     }
-  }, [user, navigate]);
+  }, [user, navigate, userPhotoDataURL]);
 
   useEffect(() => {
     fetchProducts();
