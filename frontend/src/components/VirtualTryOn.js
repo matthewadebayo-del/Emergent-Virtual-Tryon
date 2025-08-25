@@ -124,26 +124,29 @@ const VirtualTryOn = () => {
       
       console.log('Setting extractingMeasurements to true');
       
-      // IMPORTANT: Preserve the photo in multiple formats AND localStorage for reliability
+      // IMPORTANT: Clear old data and preserve new photo in multiple formats
+      console.log('Processing new photo - clearing old data');
+      
+      // Clear old photo data to ensure new photo is used
+      setUserPhotoDataURL(null);
+      setUserPhotoPreview(null);
+      
+      // Set new photo data
       setUserPhoto(imageFile);
       
       // Convert to data URL for backup
       const dataURL = await convertFileToDataURL(imageFile);
       setUserPhotoDataURL(dataURL);
       
-      // Store in localStorage as backup
-      try {
-        localStorage.setItem('virtualTryOn_userPhoto', dataURL);
-        console.log('Photo backed up to localStorage');
-      } catch (error) {
-        console.warn('Could not backup photo to localStorage:', error);
-      }
+      // Clear old measurements to force regeneration
+      setExtractedMeasurements(null);
+      setEditableMeasurements(null);
       
       // Set preview URL
-      if (!userPhotoPreview) {
-        const previewUrl = URL.createObjectURL(imageFile);
-        setUserPhotoPreview(previewUrl);
-      }
+      const previewUrl = URL.createObjectURL(imageFile);
+      setUserPhotoPreview(previewUrl);
+      
+      console.log('New photo set, old data cleared');
       
       const formData = new FormData();
       formData.append('user_photo', imageFile);
