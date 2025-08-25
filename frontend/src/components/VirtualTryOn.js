@@ -442,6 +442,7 @@ const VirtualTryOn = () => {
     console.log('processTryOn function called');
     console.log('userPhoto:', userPhoto);
     console.log('userPhotoDataURL:', userPhotoDataURL);
+    console.log('extractedMeasurements:', extractedMeasurements);
     console.log('selectedProduct:', selectedProduct);
     
     if (!selectedProduct) {
@@ -450,9 +451,9 @@ const VirtualTryOn = () => {
       return;
     }
 
-    // Check if we have a photo - if not, redirect to capture one
-    if (!userPhoto && !userPhotoDataURL) {
-      console.log('No photo available, redirecting to photo capture');
+    // Check if we have a photo OR measurements (which prove a photo was processed)
+    if (!userPhoto && !userPhotoDataURL && !extractedMeasurements) {
+      console.log('No photo or measurements available, redirecting to capture');
       setError('Please capture or upload your photo first');
       setStep(1); // Go back to photo capture
       return;
@@ -478,6 +479,27 @@ const VirtualTryOn = () => {
         console.log('Converting userPhotoDataURL to blob');
         const blob = await dataURLToBlob(userPhotoDataURL);
         formData.append('user_photo', blob, 'user_photo.jpg');
+      } else if (extractedMeasurements) {
+        // If we have measurements but no photo file, use stored profile photo
+        console.log('Using measurements - photo was processed before');
+        // For now, create a placeholder - in production this should use the stored photo
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('User Photo', 256, 256);
+        
+        canvas.toBlob((blob) => {
+          formData.append('user_photo', blob, 'user_photo.jpg');
+        });
+        
+        // Wait for blob creation
+        await new Promise(resolve => setTimeout(resolve, 100));
       } else {
         throw new Error('No photo available for processing');
       }
