@@ -61,6 +61,9 @@ export const AuthProvider = ({ children }) => {
       setToken(access_token);
       localStorage.setItem('token', access_token);
       
+      // Set authorization header immediately
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
@@ -84,6 +87,9 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setToken(access_token);
       localStorage.setItem('token', access_token);
+      
+      // Set authorization header immediately
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       
       return { success: true };
     } catch (error) {
