@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
         }
       } else {
         // No token - ensure clean state
-        console.log('No token found, ensuring clean auth state');
+        console.log('No valid token found, ensuring clean auth state');
         setUser(null);
         delete axios.defaults.headers.common['Authorization'];
       }
@@ -72,7 +72,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
 
-    initAuth();
+    // Prevent duplicate calls in development mode
+    const timeoutId = setTimeout(initAuth, 0);
+    return () => clearTimeout(timeoutId);
+    
   }, [API, token]);
 
   const login = async (email, password) => {
