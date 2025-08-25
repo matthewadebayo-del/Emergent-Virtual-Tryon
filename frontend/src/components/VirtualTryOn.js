@@ -311,6 +311,17 @@ const VirtualTryOn = () => {
     });
   };
 
+  const urlToBlob = async (url) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return blob;
+    } catch (error) {
+      console.error('Error converting URL to blob:', error);
+      throw error;
+    }
+  };
+
   const capturePhoto = async () => {
     console.log('capturePhoto function called');
     if (videoRef.current && canvasRef.current) {
