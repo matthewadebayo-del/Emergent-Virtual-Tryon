@@ -22,26 +22,40 @@ export const AuthProvider = ({ children }) => {
   // Configure axios and check auth on token change
   useEffect(() => {
     const initAuth = async () => {
-      if (token) {
+      // Only attempt auth check if we have a token
+      if (token && token.trim()) {
         try {
+          console.log('Checking authentication with existing token...');
+          
           // Set the authorization header
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           
           // Verify token by fetching user profile
           const response = await axios.get(`${API}/profile`);
-          setUser(response.data);
-          console.log('User authenticated successfully:', response.data.email);
+          
+          if (response.data && response.data.email) {
+            setUser(response.data);
+            console.log('User authenticated successfully:', response.data.email);
+          } else {
+            throw new Error('Invalid user data received');
+          }
+          
         } catch (error) {
-          console.error('Auth check failed:', error);
-          // Clear invalid token
+          console.warn('Auth check failed, clearing invalid token:', error.message);
+          
+          // Clear invalid token and auth state
           localStorage.removeItem('token');
           setToken(null);
+          setUser(null);
           delete axios.defaults.headers.common['Authorization'];
         }
       } else {
-        // No token - clear auth headers
+        // No token - ensure clean state
+        console.log('No token found, ensuring clean auth state');
+        setUser(null);
         delete axios.defaults.headers.common['Authorization'];
       }
+      
       setLoading(false);
     };
 
