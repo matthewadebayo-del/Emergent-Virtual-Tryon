@@ -480,26 +480,12 @@ const VirtualTryOn = () => {
         const blob = await dataURLToBlob(userPhotoDataURL);
         formData.append('user_photo', blob, 'user_photo.jpg');
       } else if (extractedMeasurements) {
-        // If we have measurements but no photo file, use stored profile photo
-        console.log('Using measurements - photo was processed before');
-        // For now, create a placeholder - in production this should use the stored photo
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#333';
-        ctx.fillRect(0, 0, 512, 512);
-        ctx.fillStyle = '#fff';
-        ctx.font = '20px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('User Photo', 256, 256);
-        
-        canvas.toBlob((blob) => {
-          formData.append('user_photo', blob, 'user_photo.jpg');
-        });
-        
-        // Wait for blob creation
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // If we have measurements but no photo file, we need to get the photo from the user session
+        // This shouldn't happen in normal flow, but let's handle it gracefully
+        console.log('Have measurements but no photo - redirecting to capture photo');
+        setError('Please capture your photo to proceed with virtual try-on');
+        setStep(1);
+        return;
       } else {
         throw new Error('No photo available for processing');
       }
