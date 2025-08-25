@@ -1483,7 +1483,142 @@ class ProductionHybrid3DEngine:
             
         except Exception as e:
             logger.error(f"Materials and textures error: {e}")
+    def _apply_materials_and_textures(self, image: np.ndarray, garment_mesh: Dict) -> np.ndarray:
+        """Apply realistic materials and textures"""
+        try:
+            result = image.copy()
+            
+            # Add fabric-specific enhancements based on garment type
+            garment_type = garment_mesh.get('type', 'generic')
+            
+            if 'shirt' in garment_type.lower():
+                # Cotton-like texture
+                result = self._add_cotton_texture(result)
+            elif 'dress' in garment_type.lower():
+                # Silk-like texture
+                result = self._add_silk_texture(result)
+            elif 'pants' in garment_type.lower():
+                # Denim-like texture
+                result = self._add_denim_texture(result)
+            
+            # Add subtle lighting effects
+            result = self._add_fabric_lighting(result)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Materials and textures error: {e}")
             return image
+    
+    def _add_cotton_texture(self, image: np.ndarray) -> np.ndarray:
+        """Add cotton-like texture"""
+        try:
+            # Add subtle grain
+            noise = np.random.normal(0, 2, image.shape).astype(np.int16)
+            result = image.astype(np.int16) + noise
+            return np.clip(result, 0, 255).astype(np.uint8)
+        except:
+            return image
+    
+    def _add_silk_texture(self, image: np.ndarray) -> np.ndarray:
+        """Add silk-like sheen"""
+        try:
+            result = image.copy()
+            # Add subtle brightness variation
+            h, w = image.shape[:2]
+            for y in range(0, h, 8):
+                for x in range(0, w, 12):
+                    if y < h and x < w:
+                        result[y, x] = np.minimum(result[y, x] + 15, 255)
+            return result
+        except:
+            return image
+    
+    def _add_denim_texture(self, image: np.ndarray) -> np.ndarray:
+        """Add denim-like texture"""
+        try:
+            result = image.copy()
+            h, w = image.shape[:2]
+            # Add woven pattern
+            for y in range(0, h, 3):
+                cv2.line(result, (0, y), (w, y), (255, 255, 255), 1, cv2.LINE_AA)
+            for x in range(0, w, 4):
+                cv2.line(result, (x, 0), (x, h), (255, 255, 255), 1, cv2.LINE_AA)
+            return result
+        except:
+            return image
+    
+    def _add_fabric_lighting(self, image: np.ndarray) -> np.ndarray:
+        """Add fabric lighting effects"""
+        try:
+            # Convert to PIL for enhancement
+            pil_image = Image.fromarray(image)
+            from PIL import ImageEnhance
+            
+            # Enhance contrast slightly for fabric effect
+            enhancer = ImageEnhance.Contrast(pil_image)
+            enhanced = enhancer.enhance(1.05)
+            
+            return np.array(enhanced)
+        except:
+            return image
+    
+    async def _advanced_2d_render(self, user_image: np.ndarray, garment_mesh: Dict) -> np.ndarray:
+        """Advanced 2D rendering fallback"""
+        try:
+            logger.info("Using advanced 2D rendering fallback")
+            
+            # Use enhanced 2D processing
+            result = await self._enhanced_2d_processing(
+                user_image, 
+                np.zeros((200, 200, 3), dtype=np.uint8),  # Placeholder garment
+                "fallback", 
+                garment_mesh.get('type', 'generic')
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Advanced 2D render error: {e}")
+            return user_image
+    
+    async def _ai_enhance_result(self, rendered_result: np.ndarray, user_image: np.ndarray, product_name: str) -> np.ndarray:
+        """
+        STAGE 4: AI Enhancement using Stable Diffusion (if available)
+        """
+        try:
+            logger.info("Applying AI enhancement...")
+            
+            if self.ai_enhancer is not None:
+                # Use Stable Diffusion for enhancement
+                try:
+                    # Convert to PIL
+                    pil_image = Image.fromarray(rendered_result)
+                    
+                    # Create enhancement prompt
+                    prompt = f"high quality photo of person wearing {product_name}, photorealistic, natural lighting"
+                    
+                    # Apply AI enhancement
+                    enhanced = self.ai_enhancer(
+                        prompt=prompt,
+                        image=pil_image,
+                        strength=0.3,  # Light enhancement
+                        num_inference_steps=20,
+                        guidance_scale=7.5
+                    ).images[0]
+                    
+                    logger.info("AI enhancement completed")
+                    return np.array(enhanced)
+                    
+                except Exception as e:
+                    logger.warning(f"AI enhancement failed: {e}, using fallback")
+            
+            # Fallback enhancement
+            return self._enhance_2d_result(rendered_result, user_image)
+            
+        except Exception as e:
+            logger.error(f"AI enhancement error: {e}")
+            return self._enhance_2d_result(rendered_result, user_image)
     
     def _apply_cotton_texture(self, image: np.ndarray) -> np.ndarray:
         """Apply cotton-like texture"""
