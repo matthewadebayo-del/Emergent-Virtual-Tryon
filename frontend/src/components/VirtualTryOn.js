@@ -55,18 +55,7 @@ const VirtualTryOn = () => {
       return;
     }
     console.log('User authenticated:', user.email);
-    
-    // Try to restore photo from localStorage backup
-    try {
-      const backupPhotoData = localStorage.getItem('virtualTryOn_userPhoto');
-      if (backupPhotoData && !userPhotoDataURL) {
-        console.log('Restoring photo from localStorage backup');
-        setUserPhotoDataURL(backupPhotoData);
-        setUserPhotoPreview(backupPhotoData);
-      }
-    } catch (error) {
-      console.warn('Could not restore photo from localStorage:', error);
-    }
+    console.log('User profile photo:', user.profile_photo ? 'exists' : 'none');
     
     // Check if user already has measurements - if so, skip photo capture
     if (user.measurements && Object.keys(user.measurements).length > 0) {
@@ -74,16 +63,21 @@ const VirtualTryOn = () => {
       setExtractedMeasurements(user.measurements);
       setEditableMeasurements({ ...user.measurements });
       
-      // Check if user has a stored photo URL in their profile
+      // Use stored profile photo if available
       if (user.profile_photo) {
+        console.log('Using saved profile photo');
         setUserPhotoDataURL(user.profile_photo);
         setUserPhotoPreview(user.profile_photo);
-        console.log('Using stored profile photo');
       }
       
       setStep(2); // Skip directly to measurement review step
+    } else if (user.profile_photo) {
+      // If user has a saved photo but no measurements, offer to use it
+      console.log('User has saved photo but no measurements, showing photo first');
+      setUserPhotoDataURL(user.profile_photo);
+      setUserPhotoPreview(user.profile_photo);
     }
-  }, [user, navigate, userPhotoDataURL]);
+  }, [user, navigate]);
 
   useEffect(() => {
     fetchProducts();
