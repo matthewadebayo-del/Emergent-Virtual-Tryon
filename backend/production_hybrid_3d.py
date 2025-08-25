@@ -1598,17 +1598,6 @@ class ProductionHybrid3DEngine:
             logger.error(f"AI enhancement error: {e}")
             return self._enhance_2d_result(rendered_result, user_image)
     
-    async def _advanced_2d_render(self, user_image: np.ndarray, garment_mesh: Dict) -> np.ndarray:
-        """Advanced 2D rendering as fallback"""
-        try:
-            # Use the enhanced 2D approach
-            from .hybrid_3d_engine import hybrid_3d_engine
-            return await hybrid_3d_engine._fallback_3d_visualization(
-                {'vertices': np.array([])}, garment_mesh, user_image
-            )
-        except:
-            return user_image
-    
     async def _production_fallback(self, user_image_bytes: bytes, garment_image_url: str,
                                  product_name: str, category: str) -> Tuple[str, float]:
         """Production-quality fallback when main pipeline fails"""
