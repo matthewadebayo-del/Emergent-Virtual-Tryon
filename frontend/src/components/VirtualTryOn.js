@@ -419,11 +419,20 @@ const VirtualTryOn = () => {
   const processTryOn = async () => {
     console.log('processTryOn function called');
     console.log('userPhoto:', userPhoto);
+    console.log('userPhotoDataURL:', userPhotoDataURL);
     console.log('selectedProduct:', selectedProduct);
     
-    if (!userPhoto || !selectedProduct) {
-      console.error('Missing userPhoto or selectedProduct');
-      setError('Missing photo or product selection');
+    if (!selectedProduct) {
+      console.error('Missing selectedProduct');
+      setError('Please select a product first');
+      return;
+    }
+
+    // Check if we have a photo - if not, redirect to capture one
+    if (!userPhoto && !userPhotoDataURL) {
+      console.log('No photo available, redirecting to photo capture');
+      setError('Please capture or upload your photo first');
+      setStep(1); // Go back to photo capture
       return;
     }
 
@@ -437,7 +446,20 @@ const VirtualTryOn = () => {
       console.log('Selected color:', selectedColor);
 
       const formData = new FormData();
-      formData.append('user_photo', userPhoto);
+      
+      // If we have userPhoto (File object), use it directly
+      if (userPhoto) {
+        console.log('Using userPhoto file object');
+        formData.append('user_photo', userPhoto);
+      } else if (userPhotoDataURL) {
+        // If we only have data URL, convert it to blob
+        console.log('Converting userPhotoDataURL to blob');
+        const blob = await dataURLToBlob(userPhotoDataURL);
+        formData.append('user_photo', blob, 'user_photo.jpg');
+      } else {
+        throw new Error('No photo available for processing');
+      }
+      
       formData.append('product_id', selectedProduct.id);
       formData.append('service_type', serviceType);
       formData.append('size', selectedSize);
@@ -448,7 +470,8 @@ const VirtualTryOn = () => {
       const response = await axios.post(`${API}/tryon`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
-        }
+        },
+        timeout: 60000 // 60 second timeout for 3D processing
       });
 
       console.log('Try-on API response:', response.data);
@@ -464,7 +487,12 @@ const VirtualTryOn = () => {
     } catch (error) {
       console.error('Try-on processing error:', error);
       console.error('Error response:', error.response?.data);
-      setError(error.response?.data?.detail || 'Try-on processing failed. Please try again.');
+      
+      if (error.code === 'ECONNABORTED') {
+        setError('Processing timeout. The 3D pipeline may be taking longer than expected. Please try again.');
+      } else {
+        setError(error.response?.data?.detail || 'Try-on processing failed. Please try again.');
+      }
     } finally {
       console.log('Setting isProcessing to false');
       setIsProcessing(false);
