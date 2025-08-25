@@ -171,7 +171,7 @@ const VirtualTryOn = () => {
         // Double-check photo is preserved
         console.log('Photo preserved check:', !!imageFile);
         
-        // IMPORTANT: Refresh user data to get the saved profile photo
+        // IMPORTANT: Refresh user data to get the LATEST saved profile photo
         try {
           const userResponse = await axios.get(`${API}/profile`, {
             headers: {
@@ -180,9 +180,15 @@ const VirtualTryOn = () => {
           });
           
           if (userResponse.data.success) {
-            console.log('User data refreshed after photo save');
-            // Update the user context with fresh data including profile_photo
+            console.log('User data refreshed - new photo saved successfully');
+            // Update the user context with fresh data including NEW profile_photo
             updateUser(userResponse.data.data);
+            
+            // CRITICAL: Also update local photo state to show the NEW photo in UI
+            setUserPhotoDataURL(userResponse.data.data.profile_photo);
+            setUserPhotoPreview(userResponse.data.data.profile_photo);
+            
+            console.log('Local photo state updated with NEW photo');
           }
         } catch (error) {
           console.warn('Failed to refresh user data:', error);
