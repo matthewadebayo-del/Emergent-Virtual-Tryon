@@ -422,20 +422,30 @@ async def process_hybrid_tryon(
     size: Optional[str], 
     color: Optional[str]
 ) -> tuple[str, float]:
-    """Process virtual try-on using real hybrid 3D approach via VirtualTryOnEngine"""
+    """Process virtual try-on using real hybrid 3D approach via VirtualTryOnEngine with timeout protection"""
     try:
-        logger.info("Starting real hybrid 3D virtual try-on pipeline")
+        logger.info("Starting real hybrid 3D virtual try-on pipeline with server-level timeout")
         
-        # Use the actual VirtualTryOnEngine for real processing
-        result_url, cost = await virtual_tryon_engine.process_hybrid_tryon(
-            user_image_data,
-            product.image_url,
-            product.name,
-            product.category
-        )
-        
-        logger.info("Real hybrid 3D virtual try-on completed successfully")
-        return result_url, cost
+        # Add server-level timeout protection to prevent 502 errors
+        try:
+            # Use the actual VirtualTryOnEngine for real processing with 40-second timeout
+            result_url, cost = await asyncio.wait_for(
+                virtual_tryon_engine.process_hybrid_tryon(
+                    user_image_data,
+                    product.image_url,
+                    product.name,
+                    product.category
+                ),
+                timeout=40.0  # 40 seconds to ensure we respond before proxy timeout
+            )
+            
+            logger.info("Real hybrid 3D virtual try-on completed successfully")
+            return result_url, cost
+            
+        except asyncio.TimeoutError:
+            logger.warning("Server-level timeout reached for hybrid try-on, using fallback")
+            # Use fallback when server-level timeout is reached
+            return await fallback_tryon_result(user_image_data, product, size, color)
         
     except Exception as e:
         logger.error(f"Hybrid try-on error: {str(e)}")
