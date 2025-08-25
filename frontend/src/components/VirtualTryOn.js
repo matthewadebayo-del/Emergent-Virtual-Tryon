@@ -983,8 +983,8 @@ const VirtualTryOn = () => {
                 </div>
               )}
 
-              {/* Photo validation warning */}
-              {!userPhoto && !userPhotoDataURL && (
+              {/* Photo validation warning - only if no measurements exist */}
+              {!extractedMeasurements && !userPhoto && !userPhotoDataURL && (
                 <div className="bg-yellow-900 border border-yellow-600 rounded-lg p-4 mb-6">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-yellow-400" />
