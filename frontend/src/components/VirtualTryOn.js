@@ -168,6 +168,23 @@ const VirtualTryOn = () => {
         // Double-check photo is preserved
         console.log('Photo preserved check:', !!imageFile);
         
+        // IMPORTANT: Refresh user data to get the saved profile photo
+        try {
+          const userResponse = await axios.get(`${API}/profile`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          
+          if (userResponse.data.success) {
+            console.log('User data refreshed after photo save');
+            // Update the user context with fresh data including profile_photo
+            updateUser(userResponse.data.data);
+          }
+        } catch (error) {
+          console.warn('Failed to refresh user data:', error);
+        }
+        
         console.log('Moving to step 2 (measurement editing)');
         setStep(2); // Move to measurement editing step
       } else {
