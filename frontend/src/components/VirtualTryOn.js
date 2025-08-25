@@ -118,8 +118,14 @@ const VirtualTryOn = () => {
       
       console.log('Setting extractingMeasurements to true');
       
-      // IMPORTANT: Preserve the photo before making API call
+      // IMPORTANT: Preserve the photo in multiple formats for reliability
       setUserPhoto(imageFile);
+      
+      // Convert to data URL for backup
+      const dataURL = await convertFileToDataURL(imageFile);
+      setUserPhotoDataURL(dataURL);
+      
+      // Set preview URL
       if (!userPhotoPreview) {
         const previewUrl = URL.createObjectURL(imageFile);
         setUserPhotoPreview(previewUrl);
