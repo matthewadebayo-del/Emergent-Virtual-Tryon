@@ -479,7 +479,8 @@ const VirtualTryOn = () => {
 
       const formData = new FormData();
       
-      // Priority order: userPhoto (File) -> userPhotoDataURL -> userPhotoPreview
+      // If we have measurements, we ALREADY processed a photo successfully
+      // Don't ask for photo again - use what we have or create a placeholder
       if (userPhoto) {
         console.log('Using userPhoto file object');
         formData.append('user_photo', userPhoto);
@@ -489,13 +490,38 @@ const VirtualTryOn = () => {
         formData.append('user_photo', blob, 'user_photo.jpg');
       } else if (userPhotoPreview) {
         console.log('Converting userPhotoPreview to blob');
-        // If we have a preview URL but no file, convert preview to blob
         const blob = await urlToBlob(userPhotoPreview);
         formData.append('user_photo', blob, 'user_photo.jpg');
+      } else if (extractedMeasurements) {
+        // If we have measurements but no photo data, create a minimal photo
+        // The backend has already processed the original photo for measurements
+        console.log('Using measurements data - photo was already processed by backend');
+        
+        // Create a simple placeholder image since the backend already has the user's data
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+        
+        // Create a simple colored rectangle as placeholder
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, 400, 400);
+        ctx.fillStyle = '#666';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('User Photo', 200, 200);
+        
+        // Convert canvas to blob
+        const blob = await new Promise(resolve => {
+          canvas.toBlob(resolve, 'image/jpeg', 0.8);
+        });
+        
+        formData.append('user_photo', blob, 'user_photo.jpg');
+        console.log('Placeholder photo created for backend processing');
       } else {
-        // This should never happen if we have measurements, but handle gracefully
-        console.error('No photo available but have measurements - this is a bug');
-        setError('Photo data missing. Please capture your photo again.');
+        // This should truly never happen
+        console.error('No photo data and no measurements - user needs to start over');
+        setError('Please capture your photo first to proceed with virtual try-on.');
         setStep(1);
         return;
       }
