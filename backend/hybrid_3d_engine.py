@@ -1079,35 +1079,20 @@ class Hybrid3DEngine:
     async def _render_with_open3d(self, body_mesh: trimesh.Trimesh, garment_mesh: trimesh.Trimesh,
                                 camera_params: Dict, lighting_params: Dict, 
                                 image_size: Tuple[int, int]) -> np.ndarray:
-        """Render 3D scene using Open3D with timeout protection"""
+        """Render 3D scene using stable fallback approach (Open3D disabled for stability)"""
         try:
-            logger.info("Starting Open3D rendering with timeout protection...")
+            logger.info("Using stable fallback 3D visualization (Open3D disabled for 502 error prevention)")
             
-            # Set a timeout for the rendering process
-            import asyncio
-            import signal
-            
-            def timeout_handler():
-                logger.warning("Open3D rendering timeout - falling back to simple visualization")
-                raise asyncio.TimeoutError("Open3D rendering timeout")
-            
-            try:
-                # Try Open3D rendering with timeout
-                result = await asyncio.wait_for(
-                    self._safe_open3d_render(body_mesh, garment_mesh, camera_params, lighting_params, image_size),
-                    timeout=15.0  # 15 second timeout
-                )
-                return result
-            except asyncio.TimeoutError:
-                logger.warning("Open3D rendering timed out, using fallback visualization")
-                return await self._fallback_3d_visualization(body_mesh, garment_mesh, 
-                                                           np.ones((*image_size, 3), dtype=np.uint8) * 128)
+            # Skip Open3D rendering to prevent 502 errors and use stable fallback
+            logger.info("Skipping Open3D rendering to prevent process hanging - using stable fallback")
+            return await self._fallback_3d_visualization(body_mesh, garment_mesh, 
+                                                       np.ones((*image_size, 3), dtype=np.uint8) * 128)
                 
         except Exception as e:
-            logger.error(f"Open3D rendering error: {e}")
-            # Fallback: return simple visualization
-            return await self._fallback_3d_visualization(body_mesh, garment_mesh,
-                                                       np.ones((*image_size, 3), dtype=np.uint8) * 128)
+            logger.error(f"3D visualization error: {e}")
+            # Final fallback: return simple colored image
+            fallback_image = np.ones((*image_size, 3), dtype=np.uint8) * 200  # Light gray
+            return fallback_image
     
     async def _safe_open3d_render(self, body_mesh: trimesh.Trimesh, garment_mesh: trimesh.Trimesh,
                                 camera_params: Dict, lighting_params: Dict, 
