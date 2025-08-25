@@ -753,11 +753,7 @@ const VirtualTryOn = () => {
                         We found your saved photo from a previous session. You can use this photo or take a new one if anything has changed.
                       </p>
                       <button
-                        onClick={() => {
-                          setUserPhotoDataURL(user.profile_photo);
-                          setUserPhotoPreview(user.profile_photo);
-                          handleFileUpload({target: {files: []}}, true); // Trigger measurement extraction with existing photo
-                        }}
+                        onClick={useSavedPhoto}
                         className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
                       >
                         <Check className="w-5 h-5" />
