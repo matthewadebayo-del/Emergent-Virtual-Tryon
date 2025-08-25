@@ -16,7 +16,7 @@ import {
 import axios from 'axios';
 
 const VirtualTryOn = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialServiceType = searchParams.get('service') || 'hybrid';
