@@ -14,7 +14,20 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  // Token state with better validation
+  const [token, setToken] = useState(() => {
+    try {
+      const storedToken = localStorage.getItem('token');
+      // Only return token if it exists, is not empty, and looks like a JWT
+      if (storedToken && storedToken.trim() && storedToken.includes('.')) {
+        return storedToken;
+      }
+      return null;
+    } catch (error) {
+      console.warn('Error reading token from localStorage:', error);
+      return null;
+    }
+  });
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
   const API = `${BACKEND_URL}/api`;
