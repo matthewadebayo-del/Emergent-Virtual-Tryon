@@ -118,12 +118,20 @@ const VirtualTryOn = () => {
       
       console.log('Setting extractingMeasurements to true');
       
-      // IMPORTANT: Preserve the photo in multiple formats for reliability
+      // IMPORTANT: Preserve the photo in multiple formats AND localStorage for reliability
       setUserPhoto(imageFile);
       
       // Convert to data URL for backup
       const dataURL = await convertFileToDataURL(imageFile);
       setUserPhotoDataURL(dataURL);
+      
+      // Store in localStorage as backup
+      try {
+        localStorage.setItem('virtualTryOn_userPhoto', dataURL);
+        console.log('Photo backed up to localStorage');
+      } catch (error) {
+        console.warn('Could not backup photo to localStorage:', error);
+      }
       
       // Set preview URL
       if (!userPhotoPreview) {
