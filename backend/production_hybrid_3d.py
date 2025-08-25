@@ -98,8 +98,359 @@ class ProductionHybrid3DEngine:
             
         except Exception as e:
             logger.error(f"Production pipeline error: {str(e)}")
-            # Enhanced fallback
-            return await self._production_fallback(user_image_bytes, garment_image_url, product_name, category)
+    async def _production_fallback(
+        self, 
+        user_image_bytes: bytes,
+        garment_image_url: str,
+        product_name: str,
+        category: str
+    ) -> Tuple[str, float]:
+        """Enhanced production fallback when 3D pipeline fails"""
+        try:
+            logger.info("Using enhanced production fallback")
+            
+            # Convert input
+            user_image = self._bytes_to_image(user_image_bytes)
+            garment_image = await self._download_garment_image(garment_image_url)
+            
+            # Enhanced 2D processing with production quality
+            enhanced_result = await self._enhanced_2d_processing(
+                user_image, garment_image, product_name, category
+            )
+            
+            # Save result
+            result_url = await self._save_result_image(enhanced_result)
+            cost = 0.025  # Fallback cost
+            
+            logger.info("Enhanced production fallback completed")
+            return result_url, cost
+            
+        except Exception as e:
+            logger.error(f"Production fallback error: {e}")
+            # Return basic placeholder
+            user_image_b64 = base64.b64encode(user_image_bytes).decode()
+            return f"data:image/jpeg;base64,{user_image_b64}", 0.01
+    
+    async def _enhanced_2d_processing(
+        self, 
+        user_image: np.ndarray,
+        garment_image: np.ndarray,
+        product_name: str,
+        category: str
+    ) -> np.ndarray:
+        """Enhanced 2D processing as production fallback"""
+        try:
+            # Ensure pose detection
+            self._ensure_pose_detection()
+            
+            # Stage 1: Pose detection and segmentation
+            pose_results = self.pose.process(cv2.cvtColor(user_image, cv2.COLOR_BGR2RGB))
+            
+            # Stage 2: Create garment region based on pose
+            garment_region = self._create_garment_region_from_pose(
+                user_image, pose_results, category
+            )
+            
+            # Stage 3: Intelligent garment fitting
+            fitted_garment = self._intelligent_garment_fitting(
+                user_image, garment_image, garment_region, pose_results
+            )
+            
+            # Stage 4: Advanced blending
+            result = self._advanced_2d_blend(user_image, fitted_garment, garment_region)
+            
+            # Stage 5: Post-processing
+            enhanced_result = self._enhance_2d_result(result, user_image)
+            
+            return enhanced_result
+            
+        except Exception as e:
+            logger.error(f"Enhanced 2D processing error: {e}")
+            return self._basic_overlay(user_image, garment_image, category)
+    
+    def _ensure_pose_detection(self):
+        """Ensure MediaPipe pose detection is available"""
+        if self.pose is None:
+            try:
+                self.mp_pose = mp.solutions.pose
+                self.pose = self.mp_pose.Pose(
+                    static_image_mode=True,
+                    model_complexity=2,
+                    enable_segmentation=True,
+                    min_detection_confidence=0.7
+                )
+                logger.info("MediaPipe pose detection initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize pose detection: {e}")
+    
+    def _create_garment_region_from_pose(
+        self, 
+        user_image: np.ndarray,
+        pose_results,
+        category: str
+    ) -> np.ndarray:
+        """Create garment region based on pose landmarks"""
+        try:
+            h, w = user_image.shape[:2]
+            mask = np.zeros((h, w), dtype=np.uint8)
+            
+            if pose_results.pose_landmarks:
+                landmarks = pose_results.pose_landmarks.landmark
+                
+                # Extract key body points based on category
+                if 'shirt' in category.lower() or 'top' in category.lower():
+                    # Upper body region
+                    points = self._get_upper_body_region(landmarks, w, h)
+                elif 'bottom' in category.lower() or 'pant' in category.lower():
+                    # Lower body region
+                    points = self._get_lower_body_region(landmarks, w, h)
+                elif 'dress' in category.lower():
+                    # Full torso region
+                    points = self._get_full_torso_region(landmarks, w, h)
+                else:
+                    # Default to upper body
+                    points = self._get_upper_body_region(landmarks, w, h)
+                
+                if len(points) >= 3:
+                    cv2.fillPoly(mask, [np.array(points, dtype=np.int32)], 255)
+            
+            if np.sum(mask) == 0:
+                # Fallback region
+                cv2.rectangle(mask, (w//4, h//4), (3*w//4, 3*h//4), 255, -1)
+            
+            return mask
+            
+        except Exception as e:
+            logger.error(f"Garment region creation error: {e}")
+            h, w = user_image.shape[:2]
+            mask = np.zeros((h, w), dtype=np.uint8)
+            cv2.rectangle(mask, (w//4, h//4), (3*w//4, 3*h//4), 255, -1)
+            return mask
+    
+    def _get_upper_body_region(self, landmarks, w: int, h: int) -> List[List[int]]:
+        """Get upper body region points"""
+        try:
+            points = []
+            # Key landmarks: 11=left shoulder, 12=right shoulder, 23=left hip, 24=right hip
+            key_indices = [11, 12, 24, 23]  # clockwise from left shoulder
+            
+            for idx in key_indices:
+                if idx < len(landmarks):
+                    landmark = landmarks[idx]
+                    if landmark.visibility > 0.5:
+                        x = int(landmark.x * w)
+                        y = int(landmark.y * h)
+                        points.append([x, y])
+            
+            # Expand shoulder points outward for better coverage
+            if len(points) >= 2:
+                shoulder_width = abs(points[1][0] - points[0][0])
+                expand = shoulder_width // 6
+                points[0][0] -= expand  # Left shoulder
+                points[1][0] += expand  # Right shoulder
+            
+            return points
+            
+        except Exception as e:
+            logger.error(f"Upper body region error: {e}")
+            return []
+    
+    def _get_lower_body_region(self, landmarks, w: int, h: int) -> List[List[int]]:
+        """Get lower body region points"""
+        try:
+            points = []
+            # Key landmarks: 23=left hip, 24=right hip, 27=left ankle, 28=right ankle
+            key_indices = [23, 24, 28, 27]  # clockwise from left hip
+            
+            for idx in key_indices:
+                if idx < len(landmarks):
+                    landmark = landmarks[idx]
+                    if landmark.visibility > 0.5:
+                        x = int(landmark.x * w)
+                        y = int(landmark.y * h)
+                        points.append([x, y])
+            
+            return points
+            
+        except Exception as e:
+            logger.error(f"Lower body region error: {e}")
+            return []
+    
+    def _get_full_torso_region(self, landmarks, w: int, h: int) -> List[List[int]]:
+        """Get full torso region points (for dresses)"""
+        try:
+            points = []
+            # Key landmarks: 11=left shoulder, 12=right shoulder, 25=left knee, 26=right knee  
+            key_indices = [11, 12, 26, 25]  # clockwise from left shoulder
+            
+            for idx in key_indices:
+                if idx < len(landmarks):
+                    landmark = landmarks[idx]
+                    if landmark.visibility > 0.5:
+                        x = int(landmark.x * w)
+                        y = int(landmark.y * h)
+                        points.append([x, y])
+            
+            return points
+            
+        except Exception as e:
+            logger.error(f"Full torso region error: {e}")
+            return []
+    
+    def _intelligent_garment_fitting(
+        self,
+        user_image: np.ndarray,
+        garment_image: np.ndarray,
+        garment_region: np.ndarray,
+        pose_results
+    ) -> np.ndarray:
+        """Intelligent garment fitting with pose awareness"""
+        try:
+            h, w = user_image.shape[:2]
+            
+            # Find bounding box of garment region
+            coords = cv2.findNonZero(garment_region)
+            if coords is not None:
+                x, y, region_w, region_h = cv2.boundingRect(coords)
+                
+                # Resize garment to fit region while maintaining aspect ratio
+                garment_h, garment_w = garment_image.shape[:2]
+                aspect_ratio = garment_w / garment_h
+                
+                if aspect_ratio > region_w / region_h:
+                    # Width constrained
+                    new_w = region_w
+                    new_h = int(region_w / aspect_ratio)
+                else:
+                    # Height constrained
+                    new_h = region_h
+                    new_w = int(region_h * aspect_ratio)
+                
+                # Resize garment
+                fitted_garment = cv2.resize(garment_image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+                
+                # Create full-size garment overlay
+                garment_overlay = np.zeros((h, w, 3), dtype=np.uint8)
+                
+                # Center garment in region
+                start_x = x + (region_w - new_w) // 2
+                start_y = y + (region_h - new_h) // 2
+                end_x = start_x + new_w
+                end_y = start_y + new_h
+                
+                # Ensure bounds are valid
+                start_x = max(0, start_x)
+                start_y = max(0, start_y)
+                end_x = min(w, end_x)
+                end_y = min(h, end_y)
+                
+                actual_w = end_x - start_x
+                actual_h = end_y - start_y
+                
+                if actual_w > 0 and actual_h > 0:
+                    fitted_garment_resized = cv2.resize(fitted_garment, (actual_w, actual_h))
+                    garment_overlay[start_y:end_y, start_x:end_x] = fitted_garment_resized
+                
+                return garment_overlay
+            
+            else:
+                # Fallback: center placement
+                return self._basic_overlay(user_image, garment_image, "default")
+                
+        except Exception as e:
+            logger.error(f"Intelligent garment fitting error: {e}")
+            return self._basic_overlay(user_image, garment_image, "default")
+    
+    def _advanced_2d_blend(
+        self,
+        user_image: np.ndarray,
+        garment_overlay: np.ndarray,
+        garment_region: np.ndarray
+    ) -> np.ndarray:
+        """Advanced 2D blending with realistic effects"""
+        try:
+            result = user_image.copy()
+            
+            # Create alpha mask from garment region
+            mask = garment_region.astype(float) / 255.0
+            
+            # Apply Gaussian blur for soft edges
+            mask = cv2.GaussianBlur(mask, (15, 15), 0)
+            
+            # Alpha blend with transparency for natural look
+            alpha = 0.85  # 85% opacity
+            
+            for c in range(3):
+                result[:, :, c] = (
+                    alpha * mask * garment_overlay[:, :, c] + 
+                    (1 - alpha * mask) * user_image[:, :, c]
+                ).astype(np.uint8)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Advanced 2D blending error: {e}")
+            return user_image
+    
+    def _enhance_2d_result(self, result: np.ndarray, original: np.ndarray) -> np.ndarray:
+        """Enhance 2D result with post-processing"""
+        try:
+            # Convert to PIL for enhancement
+            result_pil = Image.fromarray(result)
+            
+            # Apply subtle enhancements
+            from PIL import ImageEnhance
+            
+            # Enhance color slightly
+            enhancer = ImageEnhance.Color(result_pil)
+            result_pil = enhancer.enhance(1.05)
+            
+            # Sharpen slightly
+            enhancer = ImageEnhance.Sharpness(result_pil)
+            result_pil = enhancer.enhance(1.1)
+            
+            return np.array(result_pil)
+            
+        except Exception as e:
+            logger.error(f"2D enhancement error: {e}")
+            return result
+    
+    def _basic_overlay(self, user_image: np.ndarray, garment_image: np.ndarray, category: str) -> np.ndarray:
+        """Basic overlay as final fallback"""
+        try:
+            result = user_image.copy()
+            h, w = result.shape[:2]
+            
+            # Scale garment appropriately
+            scale = min(w // 3, h // 3) / max(garment_image.shape[:2])
+            new_w = int(garment_image.shape[1] * scale)
+            new_h = int(garment_image.shape[0] * scale)
+            
+            garment_resized = cv2.resize(garment_image, (new_w, new_h))
+            
+            # Position based on category
+            if 'bottom' in category.lower():
+                start_y = h // 2  # Lower position for bottoms
+            else:
+                start_y = h // 3  # Upper position for tops
+            
+            start_x = (w - new_w) // 2
+            end_x = start_x + new_w
+            end_y = start_y + new_h
+            
+            # Ensure bounds
+            if end_x <= w and end_y <= h and start_x >= 0 and start_y >= 0:
+                # Alpha blend
+                alpha = 0.7
+                result[start_y:end_y, start_x:end_x] = (
+                    alpha * garment_resized + (1 - alpha) * result[start_y:end_y, start_x:end_x]
+                ).astype(np.uint8)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Basic overlay error: {e}")
+            return user_image
     
     async def _reconstruct_3d_body(self, user_image: np.ndarray) -> Tuple[Dict, Dict]:
         """
