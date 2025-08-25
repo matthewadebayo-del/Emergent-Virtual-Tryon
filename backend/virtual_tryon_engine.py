@@ -135,29 +135,28 @@ class VirtualTryOnEngine:
         category: str
     ) -> Tuple[str, float]:
         """
-        Process virtual try-on using REAL Hybrid 3D Pipeline
-        Implements full 4-step production-ready 3D process
+        Process virtual try-on using REAL PRODUCTION Hybrid 3D Pipeline per PDF specifications
         """
         try:
-            logger.info("Starting PRODUCTION Hybrid 3D Pipeline")
+            logger.info("Starting REAL PRODUCTION Hybrid 3D Pipeline per PDF")
             
-            # Import and use the real 3D engine
-            from hybrid_3d_engine import hybrid_3d_engine
+            # Import and use the PRODUCTION 3D engine per PDF requirements
+            from production_hybrid_3d import production_3d_engine
             
-            # Process using full 3D pipeline
-            result_url, cost = await hybrid_3d_engine.process_3d_tryon(
+            # Process using REAL production pipeline following PDF specifications
+            result_url, cost = await production_3d_engine.process_production_tryon(
                 user_image_bytes,
                 garment_image_url,
                 product_name,
                 category
             )
             
-            logger.info("PRODUCTION Hybrid 3D Pipeline completed successfully")
+            logger.info("REAL PRODUCTION Hybrid 3D Pipeline completed successfully per PDF")
             return result_url, cost
             
         except Exception as e:
-            logger.error(f"Production Hybrid 3D Pipeline error: {str(e)}")
-            # Fallback to advanced 2D processing if 3D fails
+            logger.error(f"PRODUCTION Hybrid 3D Pipeline error: {str(e)}")
+            # Fallback to enhanced 2D processing if production 3D fails
             logger.warning("Falling back to enhanced 2D processing")
             return await self._fallback_enhanced_2d_processing(
                 user_image_bytes, garment_image_url, product_name, category
