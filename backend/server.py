@@ -459,20 +459,30 @@ async def process_fal_ai_tryon(
     size: Optional[str], 
     color: Optional[str]
 ) -> tuple[str, float]:
-    """Process virtual try-on using real fal.ai FASHN API via VirtualTryOnEngine"""
+    """Process virtual try-on using real fal.ai FASHN API via VirtualTryOnEngine with timeout protection"""
     try:
-        logger.info("Starting real fal.ai FASHN virtual try-on")
+        logger.info("Starting real fal.ai FASHN virtual try-on with server-level timeout")
         
-        # Use the actual VirtualTryOnEngine for real fal.ai processing
-        result_url, cost = await virtual_tryon_engine.process_fal_ai_tryon(
-            user_image_data,
-            product.image_url,
-            product.name,
-            product.category
-        )
-        
-        logger.info("Real fal.ai virtual try-on completed successfully")
-        return result_url, cost
+        # Add server-level timeout protection to prevent 502 errors
+        try:
+            # Use the actual VirtualTryOnEngine for real fal.ai processing with 35-second timeout
+            result_url, cost = await asyncio.wait_for(
+                virtual_tryon_engine.process_fal_ai_tryon(
+                    user_image_data,
+                    product.image_url,
+                    product.name,
+                    product.category
+                ),
+                timeout=35.0  # 35 seconds to ensure we respond before proxy timeout
+            )
+            
+            logger.info("Real fal.ai virtual try-on completed successfully")
+            return result_url, cost
+            
+        except asyncio.TimeoutError:
+            logger.warning("Server-level timeout reached for fal.ai try-on, falling back to hybrid")
+            # Fallback to hybrid approach if fal.ai times out
+            return await process_hybrid_tryon(user_image_data, product, size, color)
         
     except Exception as e:
         logger.error(f"fal.ai try-on error: {str(e)}")
