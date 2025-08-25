@@ -965,17 +965,17 @@ const VirtualTryOn = () => {
               )}
 
               {/* Photo validation warning */}
-              {!userPhoto && (
+              {!userPhoto && !userPhotoDataURL && (
                 <div className="bg-yellow-900 border border-yellow-600 rounded-lg p-4 mb-6">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-yellow-400" />
-                    <span className="text-yellow-200">Warning: Your photo is missing. You may need to recapture it.</span>
+                    <span className="text-yellow-200">Warning: You need a photo to proceed with virtual try-on.</span>
                   </div>
                   <button
                     onClick={() => setStep(1)}
                     className="mt-3 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm transition-colors"
                   >
-                    Retake Photo
+                    Capture Photo
                   </button>
                 </div>
               )}
