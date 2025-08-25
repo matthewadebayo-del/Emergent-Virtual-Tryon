@@ -925,11 +925,34 @@ const VirtualTryOn = () => {
 
                     <button
                       onClick={confirmMeasurements}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-3"
+                      disabled={!userPhoto && !userPhotoDataURL}
+                      className={`w-full py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-3 ${
+                        !userPhoto && !userPhotoDataURL
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      }`}
                     >
                       <Check className="w-5 h-5" />
                       Save Measurements & Continue to Products
                     </button>
+                    
+                    {!userPhoto && !userPhotoDataURL && (
+                      <div className="bg-yellow-900 border border-yellow-600 rounded-lg p-4 mt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertCircle className="w-5 h-5 text-yellow-400" />
+                          <span className="text-yellow-200 font-semibold">Photo Required</span>
+                        </div>
+                        <p className="text-yellow-100 text-sm mb-3">
+                          You need to capture a photo to proceed with virtual try-on.
+                        </p>
+                        <button
+                          onClick={() => setStep(1)}
+                          className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm transition-colors"
+                        >
+                          Capture Photo Now
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
