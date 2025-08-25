@@ -1395,34 +1395,53 @@ class Hybrid3DEngine:
     async def _fallback_3d_visualization(self, body_mesh: trimesh.Trimesh, 
                                        garment_mesh: trimesh.Trimesh,
                                        user_image: np.ndarray) -> np.ndarray:
-        """Fallback 3D visualization when full rendering fails"""
+        """Enhanced fallback 3D visualization with realistic garment placement"""
         try:
-            logger.info("Using fallback 3D visualization...")
+            logger.info("Using enhanced fallback 3D visualization...")
             
-            # Create simple 2D projection of 3D meshes
             h, w = user_image.shape[:2]
             result = user_image.copy()
             
-            # Project garment vertices to 2D
+            # Enhanced garment visualization based on mesh data
             garment_vertices_2d = self._project_3d_to_2d(garment_mesh.vertices, (w, h))
             
-            # Draw garment outline
             if len(garment_vertices_2d) > 0:
-                # Find convex hull for outline
-                hull = cv2.convexHull(garment_vertices_2d.astype(np.int32))
+                # Get bounding box of projected garment
+                x_coords = garment_vertices_2d[:, 0]
+                y_coords = garment_vertices_2d[:, 1]
                 
-                # Fill garment area with semi-transparent color
-                overlay = result.copy()
-                cv2.fillPoly(overlay, [hull], (100, 150, 200))  # Blue garment color
-                result = cv2.addWeighted(result, 0.7, overlay, 0.3, 0)
+                min_x, max_x = int(np.min(x_coords)), int(np.max(x_coords))
+                min_y, max_y = int(np.min(y_coords)), int(np.max(y_coords))
                 
-                # Draw outline
-                cv2.polylines(result, [hull], True, (50, 100, 150), 2)
+                # Ensure bounds are within image
+                min_x = max(0, min_x)
+                max_x = min(w, max_x)
+                min_y = max(0, min_y)
+                max_y = min(h, max_y)
+                
+                if max_x > min_x and max_y > min_y:
+                    # Create realistic garment overlay in the projected region
+                    garment_region = (min_x, min_y, max_x, max_y)
+                    garment_overlay = self._create_realistic_garment_overlay(result, garment_region, "Selected Item")
+                    
+                    # Blend with sophisticated alpha blending
+                    result = self._blend_garment_with_user(result, garment_overlay, garment_region)
+                else:
+                    # Fallback to center placement
+                    center_region = (w//4, h//6, 3*w//4, 2*h//3)
+                    garment_overlay = self._create_realistic_garment_overlay(result, center_region, "Selected Item")
+                    result = self._blend_garment_with_user(result, garment_overlay, center_region)
+            else:
+                # Ultimate fallback - place garment in typical clothing area
+                torso_region = self._detect_torso_region(result)
+                if torso_region:
+                    garment_overlay = self._create_realistic_garment_overlay(result, torso_region, "Selected Item")
+                    result = self._blend_garment_with_user(result, garment_overlay, torso_region)
             
             return result
             
         except Exception as e:
-            logger.error(f"Fallback 3D visualization error: {e}")
+            logger.error(f"Enhanced fallback visualization error: {e}")
             return user_image
     
     def _project_3d_to_2d(self, vertices_3d: np.ndarray, image_size: Tuple[int, int]) -> np.ndarray:
