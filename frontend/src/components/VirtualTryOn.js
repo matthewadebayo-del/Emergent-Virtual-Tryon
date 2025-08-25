@@ -342,6 +342,27 @@ const VirtualTryOn = () => {
     }
   };
 
+  const useSavedPhoto = async () => {
+    try {
+      console.log('Using saved photo from profile');
+      
+      // Set the photo data from user profile
+      setUserPhotoDataURL(user.profile_photo);
+      setUserPhotoPreview(user.profile_photo);
+      
+      // Convert data URL to blob for API call
+      const blob = await dataURLToBlob(user.profile_photo);
+      const file = new File([blob], 'saved_photo.jpg', { type: 'image/jpeg' });
+      
+      // Process the saved photo for measurements
+      await extractMeasurements(file);
+      
+    } catch (error) {
+      console.error('Error using saved photo:', error);
+      setError('Failed to use saved photo. Please try taking a new one.');
+    }
+  };
+
   const capturePhoto = async () => {
     console.log('capturePhoto function called');
     if (videoRef.current && canvasRef.current) {
