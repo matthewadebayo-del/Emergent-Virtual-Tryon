@@ -451,14 +451,6 @@ const VirtualTryOn = () => {
       return;
     }
 
-    // Check if we have a photo OR measurements (which prove a photo was processed)
-    if (!userPhoto && !userPhotoDataURL && !extractedMeasurements) {
-      console.log('No photo or measurements available, redirecting to capture');
-      setError('Please capture or upload your photo first');
-      setStep(1); // Go back to photo capture
-      return;
-    }
-
     try {
       setIsProcessing(true);
       setError('');
@@ -470,24 +462,25 @@ const VirtualTryOn = () => {
 
       const formData = new FormData();
       
-      // If we have userPhoto (File object), use it directly
+      // Priority order: userPhoto (File) -> userPhotoDataURL -> userPhotoPreview
       if (userPhoto) {
         console.log('Using userPhoto file object');
         formData.append('user_photo', userPhoto);
       } else if (userPhotoDataURL) {
-        // If we only have data URL, convert it to blob
         console.log('Converting userPhotoDataURL to blob');
         const blob = await dataURLToBlob(userPhotoDataURL);
         formData.append('user_photo', blob, 'user_photo.jpg');
-      } else if (extractedMeasurements) {
-        // If we have measurements but no photo file, we need to get the photo from the user session
-        // This shouldn't happen in normal flow, but let's handle it gracefully
-        console.log('Have measurements but no photo - redirecting to capture photo');
-        setError('Please capture your photo to proceed with virtual try-on');
+      } else if (userPhotoPreview) {
+        console.log('Converting userPhotoPreview to blob');
+        // If we have a preview URL but no file, convert preview to blob
+        const blob = await urlToBlob(userPhotoPreview);
+        formData.append('user_photo', blob, 'user_photo.jpg');
+      } else {
+        // This should never happen if we have measurements, but handle gracefully
+        console.error('No photo available but have measurements - this is a bug');
+        setError('Photo data missing. Please capture your photo again.');
         setStep(1);
         return;
-      } else {
-        throw new Error('No photo available for processing');
       }
       
       formData.append('product_id', selectedProduct.id);
