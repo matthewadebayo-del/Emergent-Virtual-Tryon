@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Comprehensive Backend API Testing for Virtual Try-On Application
-Tests all endpoints including authentication, products, and virtual try-on functionality
+PRODUCTION 3D PIPELINE & fal.ai INTEGRATION TESTING
+Focused testing for newly implemented real 3D pipeline and fal.ai multi-stage pipeline
 """
 
 import requests
