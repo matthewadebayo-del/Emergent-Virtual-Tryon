@@ -1464,28 +1464,6 @@ class ProductionHybrid3DEngine:
     def _apply_materials_and_textures(self, image: np.ndarray, garment_mesh: Dict) -> np.ndarray:
         """Apply realistic materials and textures"""
         try:
-            enhanced = image.copy()
-            
-            # Enhance based on garment type
-            garment_type = garment_mesh.get('type', 'generic')
-            
-            if garment_type == 'shirt':
-                # Cotton-like texture
-                enhanced = self._apply_cotton_texture(enhanced)
-            elif garment_type == 'dress':
-                # Silk-like texture
-                enhanced = self._apply_silk_texture(enhanced)
-            elif garment_type == 'pants':
-                # Denim-like texture
-                enhanced = self._apply_denim_texture(enhanced)
-            
-            return enhanced
-            
-        except Exception as e:
-            logger.error(f"Materials and textures error: {e}")
-    def _apply_materials_and_textures(self, image: np.ndarray, garment_mesh: Dict) -> np.ndarray:
-        """Apply realistic materials and textures"""
-        try:
             result = image.copy()
             
             # Add fabric-specific enhancements based on garment type
