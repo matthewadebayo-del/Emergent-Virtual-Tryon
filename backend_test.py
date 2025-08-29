@@ -5,7 +5,7 @@ import base64
 from datetime import datetime
 
 class VirtualTryOnAPITester:
-    def __init__(self, base_url="https://virtual-tryon-app.preview.emergentagent.com/api"):
+    def __init__(self, base_url="http://localhost:8001/api"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
@@ -167,7 +167,8 @@ class VirtualTryOnAPITester:
             # Send as form data (not JSON)
             form_data = {
                 'user_image_base64': test_image_base64,
-                'use_stored_measurements': 'true'
+                'use_stored_measurements': 'true',
+                'tryon_method': 'hybrid_3d'
             }
             
             if product_id:

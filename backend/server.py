@@ -13,7 +13,7 @@ import bcrypt
 from jose import jwt, JWTError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import base64
-from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
+# from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
 import asyncio
 from PIL import Image
 import io
@@ -46,7 +46,7 @@ security = HTTPBearer()
 
 # Initialize OpenAI Image Generation
 llm_key = os.environ.get('EMERGENT_LLM_KEY')
-image_gen = OpenAIImageGeneration(api_key=llm_key) if llm_key else None
+# image_gen = OpenAIImageGeneration(api_key=llm_key) if llm_key else None
 
 # Data Models
 class User(BaseModel):
@@ -119,7 +119,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
+        email: Optional[str] = payload.get("sub")
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     except JWTError:
@@ -298,269 +298,109 @@ async def virtual_tryon(
     user_image_base64: str = Form(...),
     product_id: Optional[str] = Form(None),
     clothing_image_base64: Optional[str] = Form(None),
-    use_stored_measurements: str = Form("false"),  # Changed to str to avoid bool parsing issues
+    use_stored_measurements: str = Form("false"),
+    tryon_method: str = Form("hybrid_3d"),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        print(f"=== Try-on request DEBUG ===")
-        print(f"User: {current_user.email}")
-        print(f"Product ID: {product_id}")
-        print(f"User image length: {len(user_image_base64) if user_image_base64 else 0}")
-        print(f"Clothing image: {clothing_image_base64 is not None}")
-        print(f"Use stored measurements (raw): {use_stored_measurements}")
+        print("🚀 STARTING VIRTUAL TRY-ON PROCESS...")
+        print(f"👤 User: {current_user.email}")
+        print(f"📦 Product ID: {product_id}")
+        print(f"🔧 Method: {tryon_method}")
+        print(f"📏 Use stored measurements: {use_stored_measurements}")
         
-        # Convert string to boolean
-        use_measurements = use_stored_measurements.lower() in ['true', '1', 'yes']
-        print(f"Use stored measurements (parsed): {use_measurements}")
-        
-        if not image_gen:
-            print("ERROR: Image generation service not available")
-            raise HTTPException(status_code=500, detail="Image generation service not available")
-        
-        # Validate inputs
-        if not user_image_base64:
-            print("ERROR: User image is missing")
-            raise HTTPException(status_code=422, detail="User image is required")
-            
-        if not product_id and not clothing_image_base64:
-            print("ERROR: Neither product_id nor clothing_image_base64 provided")
-            raise HTTPException(status_code=422, detail="Either product_id or clothing_image_base64 is required")
-        
+        try:
+            user_image_data = base64.b64decode(user_image_base64)
+            print(f"✅ User image decoded: {len(user_image_data)} bytes")
+        except Exception as e:
+            print(f"❌ Failed to decode user image: {e}")
+            raise HTTPException(status_code=400, detail="Invalid user image data")
+
+        # Get measurements
+        measurements = {}
+        if use_stored_measurements.lower() == 'true':
+            user_doc = await db.users.find_one({"email": current_user.email})
+            if user_doc and user_doc.get("measurements"):
+                measurements = user_doc["measurements"]
+                print(f"📏 Using stored measurements: {measurements}")
+            else:
+                print("⚠️ No stored measurements found, using defaults")
+                measurements = {"height": 175, "chest": 90, "waist": 80, "hips": 95}
+        else:
+            print("📏 Using default measurements")
+            measurements = {"height": 175, "chest": 90, "waist": 80, "hips": 95}
+
         # Get clothing information
         clothing_description = ""
+        clothing_image_data = None
+        
         if product_id:
-            print(f"Looking up product: {product_id}")
+            print("📦 Looking up product in database...")
             product = await db.products.find_one({"id": product_id})
-            if not product:
-                print(f"ERROR: Product not found: {product_id}")
-                raise HTTPException(status_code=404, detail="Product not found")
-            clothing_description = f"{product['name']} - {product['description']}"
-            print(f"Using product: {clothing_description}")
-        else:
-            clothing_description = "uploaded clothing item"
-            print("Using uploaded clothing image")
+            if product:
+                clothing_description = f"{product.get('name', '')} - {product.get('description', '')}"
+                print(f"✅ Product found: {clothing_description}")
+            else:
+                print(f"⚠️ Product {product_id} not found in database")
+                clothing_description = "Selected clothing item"
         
-        # Use stored measurements or extract from image
-        measurements = None
-        if use_measurements and current_user.measurements:
-            measurements = current_user.measurements
-            print(f"Using stored measurements: {measurements}")
-        else:
-            # For now, use default measurements - in production, you'd use AI to extract from image
-            measurements = {
-                "height": 170,
-                "weight": 70,
-                "chest": 90,
-                "waist": 75,
-                "hips": 95,
-                "shoulder_width": 45
-            }
-            print(f"Using default measurements: {measurements}")
-        
-        # Generate try-on image using AI with personalized approach
-        print("🎭 Creating personalized virtual try-on...")
-        
-        # Decode the user's image for processing
-        try:
-            user_image_bytes = base64.b64decode(user_image_base64)
-            print(f"Successfully decoded user image, size: {len(user_image_bytes)} bytes")
-        except Exception as e:
-            print(f"ERROR decoding user image: {str(e)}")
-            raise HTTPException(status_code=422, detail="Invalid user image format")
-        
-        # 🎯 ADVANCED VIRTUAL TRY-ON: Multi-Stage AI Pipeline
-        print("🚀 Starting Advanced Virtual Try-On with Identity Preservation...")
-        print("📊 Pipeline: Photo Analysis → Person Segmentation → Garment Integration → Realistic Blending")
-        
-        # Stage 1: Image Analysis and Preprocessing
-        print("🔍 Stage 1: Advanced Image Analysis...")
-        try:
-            user_image_bytes = base64.b64decode(user_image_base64)
-            print(f"✅ User image decoded: {len(user_image_bytes)} bytes")
-            
-            # Save user image temporarily for advanced processing
-            temp_dir = Path("/tmp/virtualfit")
-            temp_dir.mkdir(exist_ok=True)
-            
-            user_image_path = temp_dir / f"user_{current_user.id}_{hash(user_image_base64[:100])}.png"
-            
-            async with aiofiles.open(user_image_path, 'wb') as f:
-                await f.write(user_image_bytes)
-            
-            print(f"💾 Saved user image for processing: {user_image_path}")
-            
-        except Exception as e:
-            print(f"❌ Image preprocessing failed: {str(e)}")
-            raise HTTPException(status_code=422, detail="Invalid user image format")
-        
-        # Stage 2: Get Clothing Item Information
-        print("👔 Stage 2: Clothing Item Analysis...")
-        clothing_item_url = None
-        if product_id:
-            print(f"🔍 Looking up product: {product_id}")
-            product = await db.products.find_one({"id": product_id})
-            if not product:
-                print(f"❌ Product not found: {product_id}")
-                raise HTTPException(status_code=404, detail="Product not found")
-            
-            clothing_item_url = product['image_url']
-            clothing_description = f"{product['name']} - {product['description']}"
-            print(f"✅ Using product: {clothing_description}")
-            print(f"🖼️ Clothing image URL: {clothing_item_url}")
-            
-        elif clothing_image_base64:
-            # Handle uploaded clothing image
-            print("📤 Processing uploaded clothing image...")
+        if clothing_image_base64:
             try:
-                clothing_bytes = base64.b64decode(clothing_image_base64)
-                clothing_path = temp_dir / f"clothing_{current_user.id}_{hash(clothing_image_base64[:100])}.png"
-                
-                async with aiofiles.open(clothing_path, 'wb') as f:
-                    await f.write(clothing_bytes)
-                
-                clothing_item_url = str(clothing_path)  # Local file path for now
-                clothing_description = "custom uploaded clothing item"
-                print(f"✅ Saved clothing image: {clothing_path}")
-                
+                clothing_image_data = base64.b64decode(clothing_image_base64)
+                print(f"✅ Clothing image decoded: {len(clothing_image_data)} bytes")
+                if not clothing_description:
+                    clothing_description = "Uploaded clothing item"
             except Exception as e:
-                print(f"❌ Clothing image processing failed: {str(e)}")
-                raise HTTPException(status_code=422, detail="Invalid clothing image format")
-        
-        # Stage 3: Advanced Virtual Try-On using fal.ai FASHN
-        print("🎨 Stage 3: Advanced AI Virtual Try-On Processing...")
-        print("🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing")
-        
-        try:
-            # Configure fal.ai client (it will use EMERGENT_LLM_KEY or require FAL_KEY)
-            print("🔑 Configuring advanced AI service...")
-            
-            # For now, let's use a hybrid approach with enhanced prompting
-            # until we get fal.ai API key configured
-            if not clothing_item_url:
-                raise HTTPException(status_code=422, detail="No clothing item specified")
-            
-            # Enhanced Virtual Try-On with Identity Preservation
-            print("🎭 Generating virtual try-on with advanced identity preservation...")
-            
-            # Create ultra-detailed prompt for identity preservation
-            advanced_prompt = f"""ADVANCED VIRTUAL TRY-ON INSTRUCTION:
+                print(f"❌ Failed to decode clothing image: {e}")
+                raise HTTPException(status_code=400, detail="Invalid clothing image data")
 
-CRITICAL IDENTITY PRESERVATION REQUIREMENTS:
-- This is a VIRTUAL TRY-ON task, NOT image generation
-- PRESERVE the exact person from the reference photo: face, skin tone, ethnicity, body shape, hair
-- ONLY change their clothing to show them wearing: {clothing_description}
-- Maintain their natural body proportions: height {measurements.get('height', 170)}cm, chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
-- Keep the same lighting, background, and photo quality as the original
-- The person should look EXACTLY like themselves, just wearing different clothes
+        if not clothing_description:
+            raise HTTPException(status_code=400, detail="No clothing item specified")
 
-GARMENT INTEGRATION SPECIFICATIONS:
-- Clothing item: {clothing_description}
-- Fit the garment naturally on their specific body shape and measurements
-- Apply realistic fabric physics: proper draping, wrinkles, and shadows
-- Ensure clothing fits according to their measurements
-- Maintain realistic lighting that matches the original photo
-- Preserve depth perception and natural shadows
+        garment_info = {
+            'description': clothing_description,
+            'image_base64': clothing_image_base64 if clothing_image_base64 else None,
+            'category': 'clothing'
+        }
 
-QUALITY REQUIREMENTS:
-- Ultra-high resolution output (1024x1536 portrait)
-- Photorealistic quality matching original photo
-- Seamless integration between person and clothing
-- Professional photography appearance
-- Natural lighting and shadow consistency
+        openai_key = os.environ.get('EMERGENT_LLM_KEY')
+        fal_key = os.environ.get('FAL_KEY')
 
-TECHNICAL CONSTRAINTS:
-- NO changes to facial features, skin tone, or ethnicity
-- NO changes to body shape or proportions beyond clothing fit
-- NO background alterations unless necessary for realism
-- PRESERVE original photo's lighting conditions and style
-
-This must result in the SAME PERSON wearing the new clothing item."""
-
-            print(f"📝 Enhanced prompt created: {len(advanced_prompt)} characters")
-            
-            # Use advanced image generation with enhanced prompting
-            # This is a temporary solution until fal.ai integration is complete
-            images = await image_gen.generate_images(
-                prompt=advanced_prompt,
-                model="gpt-image-1", 
-                number_of_images=1
-            )
-            
-            print("⚠️ Note: Using enhanced OpenAI generation. Upgrading to fal.ai FASHN for perfect identity preservation...")
-            
-        except Exception as e:
-            print(f"❌ Advanced virtual try-on failed: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Virtual try-on processing failed: {str(e)}")
+        from .virtual_tryon_engine import process_virtual_tryon_request
         
-        # Stage 4: Post-Processing and Quality Enhancement
-        print("✨ Stage 4: Post-Processing and Quality Enhancement...")
-        
-        if not images or len(images) == 0:
-            print("❌ No virtual try-on result generated")
-            raise HTTPException(status_code=500, detail="Failed to create virtual try-on image")
-        
-        print(f"✅ Virtual try-on generated successfully: {len(images[0])} bytes")
-        
-        # Clean up temporary files
-        try:
-            if user_image_path.exists():
-                user_image_path.unlink()
-            if 'clothing_path' in locals() and Path(clothing_path).exists():
-                Path(clothing_path).unlink()
-            print("🧹 Cleaned up temporary files")
-        except Exception as e:
-            print(f"⚠️ Cleanup warning: {e}")
-        
-        # Stage 5: Results and Recommendations
-        print("📊 Stage 5: Size Analysis and Recommendations...")
-        
-        result_image_base64 = base64.b64encode(images[0]).decode('utf-8')
-        size_recommendation = determine_size_recommendation(measurements, product_id)
-        
-        print(f"✅ ADVANCED VIRTUAL TRY-ON COMPLETE!")
-        print(f"👔 Clothing: {clothing_description}")
-        print(f"📏 Size Recommendation: {size_recommendation}")
-        print(f"🎯 Identity Preservation: Enhanced prompting applied")
-        print(f"💾 Result Size: {len(result_image_base64)} characters (base64)")
-        
-        if not images or len(images) == 0:
-            print("ERROR: No images generated")
-            raise HTTPException(status_code=500, detail="Failed to create virtual try-on image")
-        
-        print(f"Successfully created personalized virtual try-on, size: {len(images[0])} bytes")
-        
-        # Convert to base64
-        result_image_base64 = base64.b64encode(images[0]).decode('utf-8')
-        
-        # Determine size recommendation based on measurements
-        size_recommendation = determine_size_recommendation(measurements, product_id if product_id else None)
-        print(f"Size recommendation: {size_recommendation}")
-        
-        # Save try-on result
-        tryon_result = TryonResult(
-            user_id=current_user.id,
-            result_image_base64=result_image_base64,
-            measurements_used=measurements,
-            size_recommendation=size_recommendation
+        result = await process_virtual_tryon_request(
+            user_image_base64=user_image_base64,
+            garment_info=garment_info,
+            measurements=measurements,
+            method_str=tryon_method,
+            openai_api_key=openai_key,
+            fal_api_key=fal_key
         )
         
-        await db.tryon_results.insert_one(tryon_result.dict())
-        print(f"✅ Try-on completed successfully for user {current_user.email}")
+        print(f"✅ VIRTUAL TRY-ON COMPLETE!")
+        print(f"👔 Clothing: {clothing_description}")
+        print(f"🔧 Method: {result['technical_details']['method']}")
+        print(f"📏 Recommended Size: {result['size_recommendation']}")
         
-        return {
-            "result_image_base64": result_image_base64,
-            "size_recommendation": size_recommendation,
-            "measurements_used": measurements,
-            "processing_method": "Advanced AI Virtual Try-On Pipeline",
-            "identity_preservation": "Enhanced with multi-stage processing",
-            "personalization_note": f"Advanced virtual try-on created using multi-stage AI pipeline for {clothing_description}. Identity preservation technology applied to maintain your exact appearance.",
-            "technical_details": {
-                "pipeline_stages": 5,
-                "identity_preservation": True,
-                "segmentation_free": True,
-                "measurements_based_fit": True
+        # Save try-on result
+        try:
+            tryon_result = {
+                "user_email": current_user.email,
+                "product_id": product_id,
+                "clothing_description": clothing_description,
+                "result_image_base64": result['result_image_base64'],
+                "size_recommendation": result['size_recommendation'],
+                "measurements_used": measurements,
+                "timestamp": datetime.utcnow(),
+                "processing_method": result['technical_details']['method'],
+                "tryon_method": tryon_method
             }
-        }
+            await db.tryon_results.insert_one(tryon_result)
+            print("💾 Try-on result saved to database")
+        except Exception as e:
+            print(f"⚠️ Failed to save try-on result: {e}")
+
+        return result
         
     except HTTPException:
         # Re-raise HTTP exceptions as-is
@@ -604,7 +444,7 @@ def analyze_user_image(user_image_bytes):
             "description_keywords": ["realistic", "natural"]
         }
 
-def determine_size_recommendation(measurements: dict, product_id: str = None) -> str:
+def determine_size_recommendation(measurements: dict, product_id: Optional[str] = None) -> str:
     """Enhanced size recommendation logic based on actual measurements"""
     try:
         # Convert measurements if they're in inches (assume if height > 100 it's in cm)

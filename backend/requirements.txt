@@ -28,3 +28,17 @@ bcrypt>=4.0.1
 pillow>=10.0.0
 fal-client
 aiofiles
+
+# Hybrid 3D Pipeline Dependencies
+mediapipe>=0.10.0
+opencv-python>=4.8.0
+trimesh>=4.0.0
+pybullet>=3.2.5
+smplx>=0.1.28
+torch>=2.0.0
+torchvision>=0.15.0
+diffusers>=0.21.0
+transformers>=4.30.0
+accelerate>=0.20.0
+scipy>=1.10.0
+scikit-image>=0.21.0
