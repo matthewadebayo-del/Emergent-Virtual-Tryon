@@ -28,7 +28,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # Firebase connection
-from .firebase_db import FirebaseDB
+from firebase_db import FirebaseDB
 
 try:
     # Initialize Firebase Admin SDK with service account
@@ -224,7 +224,7 @@ async def save_measurements(measurements: Measurements, current_user: User = Dep
 @api_router.get("/products", response_model=List[Product])
 async def get_products():
     # Import L.L.Bean product catalog
-    from .llbean_catalog import get_llbean_products
+    from llbean_catalog import get_llbean_products
     sample_products = get_llbean_products()
     
     # Store products in database if they don't exist
