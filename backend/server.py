@@ -1,7 +1,8 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+import firebase_admin
+from firebase_admin import credentials, firestore
 import os
 import logging
 from pathlib import Path
@@ -26,10 +27,36 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Firebase connection
+from .firebase_db import FirebaseDB
+
+try:
+    # Initialize Firebase Admin SDK with service account
+    firebase_config = {
+        "type": "service_account",
+        "project_id": "virtual-tryon-solution",
+        "private_key_id": os.environ.get('FIREBASE_PRIVATE_KEY_ID', ''),
+        "private_key": os.environ.get('FIREBASE_PRIVATE_KEY', '').replace('\\n', '\n'),
+        "client_email": os.environ.get('FIREBASE_CLIENT_EMAIL', ''),
+        "client_id": os.environ.get('FIREBASE_CLIENT_ID', ''),
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": os.environ.get('FIREBASE_CLIENT_CERT_URL', '')
+    }
+    
+    if not firebase_config.get('private_key'):
+        print("Firebase service account not configured, using mock database for development")
+        db = FirebaseDB(None)  # Mock mode
+    else:
+        cred = credentials.Certificate(firebase_config)
+        firebase_admin.initialize_app(cred)
+        firestore_client = firestore.client()
+        db = FirebaseDB(firestore_client)
+        print("Connected to Firebase successfully")
+except Exception as e:
+    print(f"Failed to connect to Firebase: {e}")
+    db = FirebaseDB(None)  # Fallback to mock mode
 
 # JWT Configuration
 SECRET_KEY = "your-secret-key-change-this-in-production"
@@ -196,45 +223,9 @@ async def save_measurements(measurements: Measurements, current_user: User = Dep
 # Product Catalog Routes
 @api_router.get("/products", response_model=List[Product])
 async def get_products():
-    # Sample product catalog
-    sample_products = [
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Classic White T-Shirt",
-            "category": "shirts",
-            "sizes": ["XS", "S", "M", "L", "XL"],
-            "image_url": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
-            "description": "Comfortable cotton white t-shirt",
-            "price": 29.99
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Blue Denim Jeans",
-            "category": "pants",
-            "sizes": ["28", "30", "32", "34", "36"],
-            "image_url": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400",
-            "description": "Classic blue denim jeans",
-            "price": 79.99
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Black Blazer",
-            "category": "jackets",
-            "sizes": ["XS", "S", "M", "L", "XL"],
-            "image_url": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400",
-            "description": "Professional black blazer",
-            "price": 149.99
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Summer Dress",
-            "category": "dresses",
-            "sizes": ["XS", "S", "M", "L", "XL"],
-            "image_url": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400",
-            "description": "Light summer dress",
-            "price": 89.99
-        }
-    ]
+    # Import L.L.Bean product catalog
+    from .llbean_catalog import get_llbean_products
+    sample_products = get_llbean_products()
     
     # Store products in database if they don't exist
     for product in sample_products:
@@ -526,4 +517,6 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    if hasattr(db, 'db') and db.db:
+        # Firebase client doesn't need explicit closing
+        print("Firebase connection closed")

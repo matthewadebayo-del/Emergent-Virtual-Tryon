@@ -95,10 +95,21 @@ Parameters:
 
 ### Required
 - `EMERGENT_LLM_KEY` - OpenAI API key for fallback pipeline
-- `MONGO_URL` - MongoDB connection string
 
 ### Optional
 - `FAL_KEY` - fal.ai API key for premium pipeline
+- Firebase service account credentials (for production):
+  - `FIREBASE_PRIVATE_KEY_ID`
+  - `FIREBASE_PRIVATE_KEY`
+  - `FIREBASE_CLIENT_EMAIL`
+  - `FIREBASE_CLIENT_ID`
+  - `FIREBASE_CLIENT_CERT_URL`
+
+### Database
+- **Firebase Firestore** - Production database with automatic scaling
+- **Mock Database** - Development fallback when Firebase credentials unavailable
+- **Collections**: users, products, tryon_results
+- **MongoDB-like Interface** - Maintains compatibility during migration
 
 ## Testing
 
@@ -147,7 +158,7 @@ npm run build
 
 2. **Frontend Dependencies**: React 19 compatibility issues with some packages. Use `--legacy-peer-deps` flag for installation.
 
-3. **MongoDB Connection**: Local development requires MongoDB running on localhost:27017 or proper MONGO_URL configuration.
+3. **Firebase Connection**: Production uses Firebase Firestore. Development falls back to mock database when Firebase credentials unavailable.
 
 ## Fallback Behavior
 
