@@ -126,7 +126,7 @@ class VirtualTryOnEngine:
         measurements: Dict[str, float],
         fallback_enabled: bool = True
     ) -> Dict[str, Any]:
-        """Process using fal.ai premium pipeline"""
+        """Process using fal.ai premium 3-stage pipeline"""
         
         if not self.fal_api_key:
             if fallback_enabled:
@@ -135,34 +135,35 @@ class VirtualTryOnEngine:
             else:
                 raise RuntimeError("fal.ai API key not configured")
         
-        logger.info("Processing with fal.ai premium pipeline")
+        logger.info("Processing with fal.ai premium 3-stage pipeline")
         
         try:
-            import fal_client
+            from fal_ai_premium_pipeline import FalAIPremiumPipeline
             
-            result = await fal_client.submit_async(
-                "fal-ai/virtual-tryon",
-                arguments={
-                    "person_image_url": f"data:image/jpeg;base64,{user_image_base64}",
-                    "garment_image_url": f"data:image/jpeg;base64,{garment_info.get('image_base64', '')}",
-                    "description": garment_info.get('description', ''),
-                    "category": garment_info.get('category', 'clothing')
-                }
+            premium_pipeline = FalAIPremiumPipeline(fal_api_key=self.fal_api_key)
+            
+            user_image_bytes = base64.b64decode(user_image_base64)
+            
+            garment_image_bytes = None
+            if garment_info.get('image_base64'):
+                garment_image_bytes = base64.b64decode(garment_info['image_base64'])
+            
+            result = await premium_pipeline.process_virtual_tryon(
+                user_image_bytes=user_image_bytes,
+                garment_image_bytes=garment_image_bytes,
+                garment_description=garment_info.get('description', ''),
+                measurements=measurements
             )
             
             return {
-                'result_image_base64': result.get('image_base64', ''),
-                'size_recommendation': self._determine_size_from_measurements(measurements),
-                'personalization_note': 'Premium fal.ai virtual try-on with advanced AI processing',
-                'technical_details': {
-                    'method': 'fal_ai',
-                    'pipeline_stages': 1,
-                    'stages': ['fal.ai Premium AI Processing']
-                }
+                'result_image_base64': result['result_image_base64'],
+                'size_recommendation': result.get('size_recommendation', 'M'),
+                'personalization_note': 'Premium fal.ai 3-stage virtual try-on with pose detection, garment integration, and realistic blending',
+                'technical_details': result['technical_details']
             }
             
         except Exception as e:
-            logger.error(f"fal.ai processing failed: {e}")
+            logger.error(f"fal.ai premium pipeline failed: {e}")
             if fallback_enabled:
                 logger.info("Falling back to Hybrid 3D pipeline")
                 return await self._process_hybrid_3d(user_image_base64, garment_info, measurements)
