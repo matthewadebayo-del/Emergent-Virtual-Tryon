@@ -357,7 +357,7 @@ async def virtual_tryon(
         openai_key = os.environ.get('EMERGENT_LLM_KEY')
         fal_key = os.environ.get('FAL_KEY')
 
-        from .virtual_tryon_engine import process_virtual_tryon_request
+        from virtual_tryon_engine import process_virtual_tryon_request
         
         result = await process_virtual_tryon_request(
             user_image_base64=user_image_base64,
