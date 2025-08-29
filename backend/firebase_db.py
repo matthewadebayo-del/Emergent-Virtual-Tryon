@@ -100,6 +100,36 @@ class FirestoreCollection:
             logger.error(f"Error in update_one: {e}")
             return False
     
+    async def delete_one(self, query: Dict[str, Any]) -> bool:
+        """Delete a single document matching the query"""
+        try:
+            if '_id' in query:
+                doc_ref = self.collection_ref.document(query['_id'])
+                doc_ref.delete()
+                return True
+            else:
+                docs = list(self.collection_ref.where(**{k: ('==', v) for k, v in query.items()}).limit(1).stream())
+                if docs:
+                    docs[0].reference.delete()
+                    return True
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting document: {e}")
+            return False
+
+    async def delete_many(self, query: Dict[str, Any]) -> int:
+        """Delete multiple documents matching the query"""
+        try:
+            docs = self.collection_ref.where(**{k: ('==', v) for k, v in query.items()}).stream()
+            deleted_count = 0
+            for doc in docs:
+                doc.reference.delete()
+                deleted_count += 1
+            return deleted_count
+        except Exception as e:
+            logger.error(f"Error deleting documents: {e}")
+            return 0
+
     def find(self, query: Optional[Dict[str, Any]] = None):
         """Find documents matching the query"""
         return FirestoreQuery(self.collection_ref, query or {})
@@ -171,6 +201,25 @@ class MockCollection:
         
         return True
     
+    async def delete_one(self, query: Dict[str, Any]) -> bool:
+        """Mock delete_one implementation"""
+        collection = self.mock_data[self.collection_name]
+        for doc_id, doc in list(collection.items()):
+            if all(doc.get(k) == v for k, v in query.items()):
+                del collection[doc_id]
+                return True
+        return False
+
+    async def delete_many(self, query: Dict[str, Any]) -> int:
+        """Mock delete_many implementation"""
+        collection = self.mock_data[self.collection_name]
+        deleted_count = 0
+        for doc_id, doc in list(collection.items()):
+            if all(doc.get(k) == v for k, v in query.items()):
+                del collection[doc_id]
+                deleted_count += 1
+        return deleted_count
+
     def find(self, query: Optional[Dict[str, Any]] = None):
         """Mock find implementation"""
         return MockQuery(self.collection_name, self.mock_data, query or {})

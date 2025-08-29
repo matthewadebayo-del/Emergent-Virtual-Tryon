@@ -127,6 +127,7 @@ class TryonRequest(BaseModel):
     user_image_base64: str
     product_id: Optional[str] = None
     clothing_image_base64: Optional[str] = None
+    tryon_method: Optional[str] = "hybrid_3d"
     use_stored_measurements: bool = False
 
 class TryonResult(BaseModel):
@@ -294,22 +295,18 @@ async def extract_measurements(
 # Virtual Try-on Routes
 @api_router.post("/tryon")
 async def virtual_tryon(
-    user_image_base64: str = Form(...),
-    product_id: Optional[str] = Form(None),
-    clothing_image_base64: Optional[str] = Form(None),
-    use_stored_measurements: str = Form("false"),
-    tryon_method: str = Form("hybrid_3d"),
+    request: TryonRequest,
     current_user: User = Depends(get_current_user)
 ):
     try:
         print("🚀 STARTING VIRTUAL TRY-ON PROCESS...")
         print(f"👤 User: {current_user.email}")
-        print(f"📦 Product ID: {product_id}")
-        print(f"🔧 Method: {tryon_method}")
-        print(f"📏 Use stored measurements: {use_stored_measurements}")
+        print(f"📦 Product ID: {request.product_id}")
+        print(f"🔧 Method: {request.tryon_method}")
+        print(f"📏 Use stored measurements: {request.use_stored_measurements}")
         
         try:
-            user_image_data = base64.b64decode(user_image_base64)
+            user_image_data = base64.b64decode(request.user_image_base64)
             print(f"✅ User image decoded: {len(user_image_data)} bytes")
         except Exception as e:
             print(f"❌ Failed to decode user image: {e}")
@@ -317,7 +314,7 @@ async def virtual_tryon(
 
         # Get measurements
         measurements = {}
-        if use_stored_measurements.lower() == 'true':
+        if request.use_stored_measurements:
             user_doc = await db.users.find_one({"email": current_user.email})
             if user_doc and user_doc.get("measurements"):
                 measurements = user_doc["measurements"]
@@ -333,19 +330,19 @@ async def virtual_tryon(
         clothing_description = ""
         clothing_image_data = None
         
-        if product_id:
+        if request.product_id:
             print("📦 Looking up product in database...")
-            product = await db.products.find_one({"id": product_id})
+            product = await db.products.find_one({"id": request.product_id})
             if product:
                 clothing_description = f"{product.get('name', '')} - {product.get('description', '')}"
                 print(f"✅ Product found: {clothing_description}")
             else:
-                print(f"⚠️ Product {product_id} not found in database")
+                print(f"⚠️ Product {request.product_id} not found in database")
                 clothing_description = "Selected clothing item"
         
-        if clothing_image_base64:
+        if request.clothing_image_base64:
             try:
-                clothing_image_data = base64.b64decode(clothing_image_base64)
+                clothing_image_data = base64.b64decode(request.clothing_image_base64)
                 print(f"✅ Clothing image decoded: {len(clothing_image_data)} bytes")
                 if not clothing_description:
                     clothing_description = "Uploaded clothing item"
@@ -358,7 +355,7 @@ async def virtual_tryon(
 
         garment_info = {
             'description': clothing_description,
-            'image_base64': clothing_image_base64 if clothing_image_base64 else None,
+            'image_base64': request.clothing_image_base64 if request.clothing_image_base64 else None,
             'category': 'clothing'
         }
 
@@ -368,10 +365,10 @@ async def virtual_tryon(
         from virtual_tryon_engine import process_virtual_tryon_request
         
         result = await process_virtual_tryon_request(
-            user_image_base64=user_image_base64,
+            user_image_base64=request.user_image_base64,
             garment_info=garment_info,
             measurements=measurements,
-            method_str=tryon_method,
+            method_str=request.tryon_method,
             openai_api_key=openai_key,
             fal_api_key=fal_key
         )
@@ -385,14 +382,14 @@ async def virtual_tryon(
         try:
             tryon_result = {
                 "user_email": current_user.email,
-                "product_id": product_id,
+                "product_id": request.product_id,
                 "clothing_description": clothing_description,
                 "result_image_base64": result['result_image_base64'],
                 "size_recommendation": result['size_recommendation'],
                 "measurements_used": measurements,
                 "timestamp": datetime.utcnow(),
                 "processing_method": result['technical_details']['method'],
-                "tryon_method": tryon_method
+                "tryon_method": request.tryon_method
             }
             await db.tryon_results.insert_one(tryon_result)
             print("💾 Try-on result saved to database")
@@ -504,6 +501,10 @@ async def get_tryon_history(current_user: User = Depends(get_current_user)):
 @api_router.get("/")
 async def root():
     return {"message": "Virtual Try-on API is running"}
+
+@api_router.get("/health")
+async def health_check():
+    return {"status": "healthy", "message": "Virtual Try-On API is running"}
 
 # Include the router in the main app
 app.include_router(api_router)
