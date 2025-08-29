@@ -255,12 +255,16 @@ class FalAIPremiumPipeline:
             }
         
         user_buffer = io.BytesIO()
+        if user_image.mode == 'RGBA':
+            user_image = user_image.convert('RGB')
         user_image.save(user_buffer, format='JPEG')
         user_base64 = base64.b64encode(user_buffer.getvalue()).decode('utf-8')
         
         garment_base64 = ""
         if garment_image:
             garment_buffer = io.BytesIO()
+            if garment_image.mode == 'RGBA':
+                garment_image = garment_image.convert('RGB')
             garment_image.save(garment_buffer, format='JPEG')
             garment_base64 = base64.b64encode(garment_buffer.getvalue()).decode('utf-8')
         
@@ -337,10 +341,14 @@ class FalAIPremiumPipeline:
         
         try:
             integrated_buffer = io.BytesIO()
+            if integrated_image.mode == 'RGBA':
+                integrated_image = integrated_image.convert('RGB')
             integrated_image.save(integrated_buffer, format='JPEG')
             integrated_base64 = base64.b64encode(integrated_buffer.getvalue()).decode('utf-8')
             
             original_buffer = io.BytesIO()
+            if original_user_image.mode == 'RGBA':
+                original_user_image = original_user_image.convert('RGB')
             original_user_image.save(original_buffer, format='JPEG')
             original_base64 = base64.b64encode(original_buffer.getvalue()).decode('utf-8')
             

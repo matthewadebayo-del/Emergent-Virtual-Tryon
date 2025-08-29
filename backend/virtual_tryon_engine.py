@@ -97,9 +97,8 @@ class VirtualTryOnEngine:
             garment_image_bytes = base64.b64decode(garment_info['image_base64'])
         
         result = await self.hybrid_3d_pipeline.process_virtual_tryon(
-            user_image_bytes=user_image_bytes,
-            garment_image_bytes=garment_image_bytes,
-            garment_description=garment_info.get('description', ''),
+            user_image_base64=user_image_base64,
+            garment_info=garment_info,
             measurements=measurements
         )
         
