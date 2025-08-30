@@ -34,6 +34,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const [loadingStep, setLoadingStep] = useState('');
   const [useStoredMeasurements, setUseStoredMeasurements] = useState(true);
   const [inputMode, setInputMode] = useState('catalog');
+  const [tryonMethod, setTryonMethod] = useState('hybrid_3d');
   const [cameraStream, setCameraStream] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [measurements, setMeasurements] = useState(null);
@@ -241,8 +242,9 @@ const VirtualTryOn = ({ user, onLogout }) => {
       formData.append('product_id', selectedProduct?.id || '');
       formData.append('clothing_image_base64', clothingImageBase64 || '');
       formData.append('use_stored_measurements', String(useStoredMeasurements && (user.measurements || measurements)));
+      formData.append('tryon_method', tryonMethod);
 
-      console.log('Sending try-on FormData with product_id:', selectedProduct?.id);
+      console.log('Sending try-on FormData with method:', tryonMethod, 'product_id:', selectedProduct?.id);
 
       const response = await axios.post('/tryon', formData, {
         headers: {
@@ -280,6 +282,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
     setClothingImagePreview(null);
     setTryonResult(null);
     setMeasurements(null);
+    setTryonMethod('hybrid_3d');
     if (cameraFirst) {
       startCamera();
     }
@@ -346,7 +349,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
           <div className="text-center text-white/80">
             {step === 0 && "Camera Setup & Capture"}
             {step === 1 && "Upload Your Photo"}
-            {step === 2 && "Choose Input Mode"}
+            {step === 2 && "Choose Pipeline & Input Mode"}
             {step === 3 && "Select Clothing"}
             {step === 4 && "Virtual Try-On Result"}
           </div>
@@ -528,48 +531,90 @@ const VirtualTryOn = ({ user, onLogout }) => {
           </div>
         )}
 
-        {/* Step 2: Choose Input Mode */}
+        {/* Step 2: Choose Pipeline & Input Mode */}
         {step === 2 && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="card text-center">
-              <h2 className="text-2xl font-bold text-white mb-6">How would you like to try on clothes?</h2>
+              <h2 className="text-2xl font-bold text-white mb-6">Choose Your Virtual Try-On Experience</h2>
               
-              <div className="grid md:grid-cols-3 gap-6">
-                <button
-                  onClick={() => {
-                    setInputMode('catalog');
-                    setStep(3);
-                  }}
-                  className="card-dark hover-lift text-center p-6"
-                >
-                  <Shirt className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">Product Catalog</h3>
-                  <p className="text-white/70 text-sm">Choose from our curated collection of clothing items</p>
-                </button>
+              {/* Pipeline Selection */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-white mb-4">Processing Method</h3>
+                <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                  <button
+                    onClick={() => setTryonMethod('hybrid_3d')}
+                    className={`card-dark hover-lift text-center p-6 ${
+                      tryonMethod === 'hybrid_3d' 
+                        ? 'ring-4 ring-purple-500 ring-opacity-75 shadow-lg shadow-purple-500/50' 
+                        : ''
+                    }`}
+                  >
+                    <Zap className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white mb-2">Hybrid 3D Pipeline</h4>
+                    <p className="text-white/70 text-sm mb-2">Advanced 4-stage 3D processing with physics simulation</p>
+                    <div className="text-xs text-purple-300">
+                      ✨ Default • 3D Body Modeling • Physics Simulation • AI Rendering
+                    </div>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setInputMode('upload');
-                    setStep(3);
-                  }}
-                  className="card-dark hover-lift text-center p-6"
-                >
-                  <Upload className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">Upload Clothing</h3>
-                  <p className="text-white/70 text-sm">Upload your own clothing image to try on</p>
-                </button>
+                  <button
+                    onClick={() => setTryonMethod('fal_ai')}
+                    className={`card-dark hover-lift text-center p-6 ${
+                      tryonMethod === 'fal_ai' 
+                        ? 'ring-4 ring-blue-500 ring-opacity-75 shadow-lg shadow-blue-500/50' 
+                        : ''
+                    }`}
+                  >
+                    <Sparkles className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white mb-2">fal.ai Premium</h4>
+                    <p className="text-white/70 text-sm mb-2">Premium AI virtual try-on service</p>
+                    <div className="text-xs text-blue-300">
+                      💎 Premium • Fast Processing • Identity Preservation
+                    </div>
+                  </button>
+                </div>
+              </div>
 
-                <button
-                  onClick={() => {
-                    setInputMode('mixed');
-                    setStep(3);
-                  }}
-                  className="card-dark hover-lift text-center p-6"
-                >
-                  <Sparkles className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">Both Options</h3>
-                  <p className="text-white/70 text-sm">Access both catalog and upload options</p>
-                </button>
+              {/* Input Mode Selection */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-white mb-4">How would you like to try on clothes?</h3>
+                <div className="grid md:grid-cols-3 gap-6">
+                  <button
+                    onClick={() => {
+                      setInputMode('catalog');
+                      setStep(3);
+                    }}
+                    className="card-dark hover-lift text-center p-6"
+                  >
+                    <Shirt className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white mb-2">Product Catalog</h4>
+                    <p className="text-white/70 text-sm">Choose from our curated collection of clothing items</p>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setInputMode('upload');
+                      setStep(3);
+                    }}
+                    className="card-dark hover-lift text-center p-6"
+                  >
+                    <Upload className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white mb-2">Upload Clothing</h4>
+                    <p className="text-white/70 text-sm">Upload your own clothing image to try on</p>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setInputMode('mixed');
+                      setStep(3);
+                    }}
+                    className="card-dark hover-lift text-center p-6"
+                  >
+                    <Sparkles className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white mb-2">Both Options</h4>
+                    <p className="text-white/70 text-sm">Access both catalog and upload options</p>
+                  </button>
+                </div>
               </div>
               
               <button
@@ -754,14 +799,22 @@ const VirtualTryOn = ({ user, onLogout }) => {
                         {tryonResult.technical_details && (
                           <div className="bg-blue-600/20 rounded p-3 mt-3">
                             <h5 className="text-blue-200 font-medium mb-2">Processing Pipeline:</h5>
-                            <div className="grid grid-cols-2 gap-2 text-xs text-blue-200/80">
-                              <div>✅ Photo Analysis & Segmentation</div>
-                              <div>✅ Pose Estimation & Mapping</div>
-                              <div>✅ Identity Preservation</div>
-                              <div>✅ Garment Integration</div>
-                              <div>✅ Realistic Blending</div>
-                              <div>✅ Quality Enhancement</div>
-                            </div>
+                            {tryonResult.technical_details && tryonResult.technical_details.stages ? (
+                              <div className="grid grid-cols-1 gap-2 text-xs text-blue-200/80">
+                                {tryonResult.technical_details.stages.map((stage, index) => (
+                                  <div key={index}>✅ {stage}</div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-2 text-xs text-blue-200/80">
+                                <div>✅ Photo Analysis & Segmentation</div>
+                                <div>✅ Pose Estimation & Mapping</div>
+                                <div>✅ Identity Preservation</div>
+                                <div>✅ Garment Integration</div>
+                                <div>✅ Realistic Blending</div>
+                                <div>✅ Quality Enhancement</div>
+                              </div>
+                            )}
                           </div>
                         )}
                         

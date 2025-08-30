@@ -4,7 +4,7 @@ boto3>=1.34.129
 requests-oauthlib>=2.0.0
 cryptography>=42.0.8
 python-dotenv>=1.0.1
-pymongo==4.5.0
+firebase-admin==6.4.0
 pydantic>=2.6.4
 email-validator>=2.2.0
 pyjwt>=2.10.1
@@ -28,3 +28,25 @@ bcrypt>=4.0.1
 pillow>=10.0.0
 fal-client
 aiofiles
+
+# Hybrid 3D Pipeline Dependencies
+mediapipe>=0.10.0
+opencv-python>=4.8.0
+trimesh>=4.0.0
+pybullet>=3.2.5
+smplx>=0.1.28
+torch>=2.0.0
+torchvision>=0.15.0
+diffusers>=0.21.0
+transformers>=4.30.0
+accelerate>=0.20.0
+scipy>=1.10.0
+scikit-image>=0.21.0
+# Note: Using compatible protobuf version for Firebase and MediaPipe
+protobuf==4.25.3
+
+# fal.ai Premium Pipeline Dependencies
+requests>=2.31.0
+Pillow>=10.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0

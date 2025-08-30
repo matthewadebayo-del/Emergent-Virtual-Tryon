@@ -8,7 +8,10 @@ import RegisterPage from "./components/RegisterPage";
 import Dashboard from "./components/Dashboard";
 import VirtualTryOn from "./components/VirtualTryOn";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const isPublicURL = window.location.hostname.includes('devinapps.com');
+const BACKEND_URL = isPublicURL 
+  ? process.env.REACT_APP_BACKEND_URL_PUBLIC || "http://localhost:8001"
+  : process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
 const API = `${BACKEND_URL}/api`;
 
 // Set up axios defaults
