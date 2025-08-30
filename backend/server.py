@@ -514,15 +514,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_origins=[
         "http://localhost:3000",
-        "https://project-summary-app-tunnel-1280i936.devinapps.com",
-        "https://user:4e8d4e04fdb215110ed5606c09cb71b1@project-summary-app-tunnel-1280i936.devinapps.com",
-        "https://project-summary-app-tunnel-4281p8o8.devinapps.com",
-        "https://user:179b4381791ee74e2dcfadecefd74c7b@project-summary-app-tunnel-4281p8o8.devinapps.com",
-        "https://project-summary-app-tunnel-jszwn45n.devinapps.com",
-        "https://user:29ec0d686fe48a3ffc3c0e164a9a7030@project-summary-app-tunnel-jszwn45n.devinapps.com",
-        "https://project-summary-app-tunnel-*.devinapps.com",
-        "https://user:*@project-summary-app-tunnel-*.devinapps.com"
+        "https://project-summary-app-tunnel-jz7a4mdc.devinapps.com",
+        "https://user:557ca376fd5a918d35b160503ae43861@project-summary-app-tunnel-jz7a4mdc.devinapps.com"
     ],
+    allow_origin_regex=r"https://(user:[a-f0-9]+@)?project-summary-app-tunnel-[a-z0-9]+\.devinapps\.com",
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
@@ -533,6 +528,31 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup"""
+    logger.info("Starting Virtual Try-On API server...")
+    
+    global db
+    
+    try:
+        existing_user = await db.users.find_one({"email": "demo@virtualfit.com"})
+        if not existing_user:
+            demo_user = {
+                "email": "demo@virtualfit.com",
+                "password": hash_password("demo123"),
+                "full_name": "Demo User",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+            user_id = await db.users.insert_one(demo_user)
+            logger.info(f"Demo user created successfully with ID: {user_id}")
+        else:
+            logger.info("Demo user already exists")
+    except Exception as e:
+        logger.error(f"Failed to create demo user: {e}")
+    
+    logger.info("Virtual Try-On API server started successfully")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

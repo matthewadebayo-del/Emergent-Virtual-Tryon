@@ -86,10 +86,10 @@ class VirtualTryOnEngine:
                 logger.info("Hybrid 3D pipeline initialized successfully")
             except ImportError as e:
                 logger.warning(f"Hybrid 3D pipeline dependencies not available: {e}")
-                raise RuntimeError("Hybrid 3D pipeline dependencies not available")
+                self.hybrid_3d_pipeline = None
             except Exception as e:
                 logger.error(f"Failed to initialize Hybrid 3D pipeline: {e}")
-                raise RuntimeError("Hybrid 3D pipeline not available")
+                self.hybrid_3d_pipeline = None
         
         logger.info("Processing with Hybrid 3D pipeline")
         
