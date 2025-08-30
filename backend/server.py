@@ -514,6 +514,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001",
         "https://project-summary-app-tunnel-jz7a4mdc.devinapps.com",
         "https://user:557ca376fd5a918d35b160503ae43861@project-summary-app-tunnel-jz7a4mdc.devinapps.com"
     ],

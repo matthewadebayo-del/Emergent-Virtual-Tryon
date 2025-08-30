@@ -42,7 +42,7 @@ transformers>=4.30.0
 accelerate>=0.20.0
 scipy>=1.10.0
 scikit-image>=0.21.0
-# Note: Using Firebase protobuf version to resolve MediaPipe conflict
+# Note: Using compatible protobuf version for Firebase and MediaPipe
 protobuf==4.25.3
 
 # fal.ai Premium Pipeline Dependencies
