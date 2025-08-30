@@ -33,20 +33,8 @@ class VirtualTryOnEngine:
         self._initialize_components()
     
     def _initialize_components(self):
-        """Initialize available pipeline components"""
-        try:
-            import sys
-            import os
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            if current_dir not in sys.path:
-                sys.path.insert(0, current_dir)
-            
-            from production_hybrid_3d import Hybrid3DPipeline
-            self.hybrid_3d_pipeline = Hybrid3DPipeline()
-            logger.info("Hybrid 3D pipeline initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Hybrid 3D pipeline: {e}")
-            self.hybrid_3d_pipeline = None
+        """Initialize available pipeline components with lazy loading"""
+        logger.info("Virtual try-on engine initialized (lazy loading enabled)")
     
     async def process_virtual_tryon(
         self,
@@ -86,7 +74,22 @@ class VirtualTryOnEngine:
         """Process using Hybrid 3D pipeline"""
         
         if not self.hybrid_3d_pipeline:
-            raise RuntimeError("Hybrid 3D pipeline not available")
+            try:
+                import sys
+                import os
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                if current_dir not in sys.path:
+                    sys.path.insert(0, current_dir)
+                
+                from production_hybrid_3d import Hybrid3DPipeline
+                self.hybrid_3d_pipeline = Hybrid3DPipeline()
+                logger.info("Hybrid 3D pipeline initialized successfully")
+            except ImportError as e:
+                logger.warning(f"Hybrid 3D pipeline dependencies not available: {e}")
+                raise RuntimeError("Hybrid 3D pipeline dependencies not available")
+            except Exception as e:
+                logger.error(f"Failed to initialize Hybrid 3D pipeline: {e}")
+                raise RuntimeError("Hybrid 3D pipeline not available")
         
         logger.info("Processing with Hybrid 3D pipeline")
         

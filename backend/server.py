@@ -515,7 +515,11 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://project-summary-app-tunnel-1280i936.devinapps.com",
-        "https://user:4e8d4e04fdb215110ed5606c09cb71b1@project-summary-app-tunnel-1280i936.devinapps.com"
+        "https://user:4e8d4e04fdb215110ed5606c09cb71b1@project-summary-app-tunnel-1280i936.devinapps.com",
+        "https://project-summary-app-tunnel-4281p8o8.devinapps.com",
+        "https://user:179b4381791ee74e2dcfadecefd74c7b@project-summary-app-tunnel-4281p8o8.devinapps.com",
+        "https://project-summary-app-tunnel-*.devinapps.com",
+        "https://user:*@project-summary-app-tunnel-*.devinapps.com"
     ],
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

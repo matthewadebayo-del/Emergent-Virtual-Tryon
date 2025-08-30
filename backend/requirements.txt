@@ -43,6 +43,7 @@ accelerate>=0.20.0
 scipy>=1.10.0
 scikit-image>=0.21.0
 # Note: protobuf version conflict between Firebase (6.32.0) and MediaPipe (<5) - using Firebase version
+protobuf==6.32.0
 
 # fal.ai Premium Pipeline Dependencies
 requests>=2.31.0
