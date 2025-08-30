@@ -511,12 +511,8 @@ app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=[
-        "https://project-summary-app-tunnel-03ykiqcd.devinapps.com",
-        "https://user:0132082ebf7ed272ec09ee9c601ddc30@project-summary-app-tunnel-03ykiqcd.devinapps.com",
-        "http://localhost:3000"
-    ],
+    allow_credentials=False,
+    allow_origins=["*"],
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
