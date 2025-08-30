@@ -513,12 +513,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=[
-        "https://project-summary-app-tunnel-bex2felj.devinapps.com",
-        "https://user:524c5ced6f5f062940baebe792d3d311@project-summary-app-tunnel-bex2felj.devinapps.com",
-        "https://project-summary-app-tunnel-zvsrw5b9.devinapps.com",
-        "https://user:982a470ffb93911183d0459d63ba2e65@project-summary-app-tunnel-zvsrw5b9.devinapps.com",
-        "https://project-summary-app-tunnel-iaonstrc.devinapps.com",
-        "https://user:e2a970edd08ccc0d238c5de2c137ea6b@project-summary-app-tunnel-iaonstrc.devinapps.com",
+        "https://project-summary-app-tunnel-03ykiqcd.devinapps.com",
+        "https://user:0132082ebf7ed272ec09ee9c601ddc30@project-summary-app-tunnel-03ykiqcd.devinapps.com",
         "http://localhost:3000"
     ],
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
