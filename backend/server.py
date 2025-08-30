@@ -512,7 +512,14 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=[
+        "*",
+        "https://user:982a470ffb93911183d0459d63ba2e65@project-summary-app-tunnel-zvsrw5b9.devinapps.com",
+        "https://project-summary-app-tunnel-zvsrw5b9.devinapps.com",
+        "https://user:e2a970edd08ccc0d238c5de2c137ea6b@project-summary-app-tunnel-iaonstrc.devinapps.com",
+        "https://project-summary-app-tunnel-iaonstrc.devinapps.com",
+        "http://localhost:3000"
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
