@@ -518,6 +518,8 @@ app.add_middleware(
         "https://user:4e8d4e04fdb215110ed5606c09cb71b1@project-summary-app-tunnel-1280i936.devinapps.com",
         "https://project-summary-app-tunnel-4281p8o8.devinapps.com",
         "https://user:179b4381791ee74e2dcfadecefd74c7b@project-summary-app-tunnel-4281p8o8.devinapps.com",
+        "https://project-summary-app-tunnel-jszwn45n.devinapps.com",
+        "https://user:29ec0d686fe48a3ffc3c0e164a9a7030@project-summary-app-tunnel-jszwn45n.devinapps.com",
         "https://project-summary-app-tunnel-*.devinapps.com",
         "https://user:*@project-summary-app-tunnel-*.devinapps.com"
     ],

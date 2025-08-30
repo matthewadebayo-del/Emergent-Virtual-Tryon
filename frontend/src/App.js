@@ -10,7 +10,7 @@ import VirtualTryOn from "./components/VirtualTryOn";
 
 const isPublicURL = window.location.hostname.includes('devinapps.com');
 const BACKEND_URL = isPublicURL 
-  ? process.env.REACT_APP_BACKEND_URL_PUBLIC 
+  ? "https://user:29ec0d686fe48a3ffc3c0e164a9a7030@project-summary-app-tunnel-jszwn45n.devinapps.com"
   : process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
