@@ -513,7 +513,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=[
-        "*",
         "https://project-summary-app-tunnel-zvsrw5b9.devinapps.com",
         "https://user:982a470ffb93911183d0459d63ba2e65@project-summary-app-tunnel-zvsrw5b9.devinapps.com",
         "https://project-summary-app-tunnel-iaonstrc.devinapps.com",
