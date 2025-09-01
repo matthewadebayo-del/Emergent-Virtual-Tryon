@@ -78,3 +78,13 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
+
+# Setup files that shouldn't be committed
+AI_PROVIDERS_GUIDE.md
+backend/.flake8
+backend/image_generation.py
+backend/pytest.ini
+backend/test_api.py
+backend/test_basic.py
+frontend/src/App.test.js
+frontend/yarn.lock
