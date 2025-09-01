@@ -33,7 +33,7 @@ Create production environment files:
 MONGO_URL="mongodb://your-documentdb-cluster:27017"
 DB_NAME="virtualfit_production"
 CORS_ORIGINS="https://yourdomain.com"
-EMERGENT_LLM_KEY="your-emergent-key"
+OPENAI_API_KEY="your-openai-key"
 JWT_SECRET="your-secure-jwt-secret"
 ```
 
@@ -72,7 +72,7 @@ services:
       - "8001:8001"
     environment:
       - MONGO_URL=${MONGO_URL}
-      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       - mongodb
 
@@ -139,7 +139,7 @@ eb create virtualfit-production \
 ```bash
 eb setenv \
   MONGO_URL="mongodb://admin:SecurePassword123@virtualfit-cluster.cluster-xxx.docdb.amazonaws.com:27017" \
-  EMERGENT_LLM_KEY="your-emergent-key" \
+  OPENAI_API_KEY="your-openai-key" \
   JWT_SECRET="your-jwt-secret"
 ```
 

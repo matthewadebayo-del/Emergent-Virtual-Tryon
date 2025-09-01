@@ -6,7 +6,7 @@ from datetime import datetime
 
 def test_virtual_tryon_with_fresh_key():
     """Test virtual try-on with the fresh Universal Key"""
-    base_url = "https://virtual-tryon-app.preview.emergentagent.com/api"
+    base_url = "http://localhost:8000/api"
     
     print("🔑 Testing Virtual Try-On with Fresh Universal Key")
     print("=" * 60)
