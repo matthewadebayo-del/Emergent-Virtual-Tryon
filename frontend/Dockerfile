@@ -1,12 +1,13 @@
 # Multi-stage Dockerfile for VirtualFit Frontend (React)
 
 # Build stage
-FROM node:18-alpine as build
+FROM node:20-alpine as build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+COPY yarn.lock ./
+RUN yarn install
 COPY . .
-RUN npm run build
+RUN yarn build
 
 # Production stage
 FROM nginx:alpine
