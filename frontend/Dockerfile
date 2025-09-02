@@ -4,7 +4,7 @@
 FROM node:18-alpine as build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install --only=production --legacy-peer-deps
 COPY . .
 RUN npm run build
 
