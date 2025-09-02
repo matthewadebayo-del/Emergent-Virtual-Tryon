@@ -823,6 +823,10 @@ async def root():
     return {"message": "Virtual Try-on API is running"}
 
 
+@app.get("/")
+async def health_check():
+    return {"status": "healthy", "message": "VirtualFit Backend is running"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
