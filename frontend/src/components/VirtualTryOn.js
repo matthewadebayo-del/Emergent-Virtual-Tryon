@@ -39,6 +39,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const [measurements, setMeasurements] = useState(null);
   const [countdown, setCountdown] = useState(null);
   const [isCountingDown, setIsCountingDown] = useState(false);
+  const [processingType, setProcessingType] = useState('default'); // 'default' or 'premium'
   
   const fileInputRef = useRef(null);
   const clothingInputRef = useRef(null);
@@ -241,8 +242,10 @@ const VirtualTryOn = ({ user, onLogout }) => {
       formData.append('product_id', selectedProduct?.id || '');
       formData.append('clothing_image_base64', clothingImageBase64 || '');
       formData.append('use_stored_measurements', String(useStoredMeasurements && (user.measurements || measurements)));
+      formData.append('processing_type', processingType);
 
       console.log('Sending try-on FormData with product_id:', selectedProduct?.id);
+      console.log('Processing type:', processingType);
 
       const response = await axios.post('/tryon', formData, {
         headers: {
@@ -572,6 +575,69 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 </button>
               </div>
               
+              {/* Premium/Default Processing Selection */}
+              <div className="mt-8 p-6 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg border border-purple-500/30">
+                <h3 className="text-xl font-semibold text-white mb-4 text-center">Choose Processing Quality</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <label className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                    processingType === 'default' 
+                      ? 'border-blue-500 bg-blue-500/20 shadow-lg shadow-blue-500/25' 
+                      : 'border-white/20 bg-white/5 hover:border-blue-400'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="processingType"
+                      value="default"
+                      checked={processingType === 'default'}
+                      onChange={(e) => setProcessingType(e.target.value)}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <div className="text-blue-400 mb-2">⚡</div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Default Processing</h4>
+                      <p className="text-white/70 text-sm mb-2">Fast OpenAI DALL-E 3 generation</p>
+                      <div className="text-green-400 font-medium">FREE</div>
+                    </div>
+                  </label>
+                  
+                  <label className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                    processingType === 'premium' 
+                      ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/25' 
+                      : 'border-white/20 bg-white/5 hover:border-purple-400'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="processingType"
+                      value="premium"
+                      checked={processingType === 'premium'}
+                      onChange={(e) => setProcessingType(e.target.value)}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <div className="text-purple-400 mb-2">🚀</div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Premium Processing</h4>
+                      <p className="text-white/70 text-sm mb-2">Advanced fal.ai FASHN v1.6 with Identity Preservation</p>
+                      <div className="text-purple-400 font-medium">$0.075 per generation</div>
+                    </div>
+                  </label>
+                </div>
+                
+                {processingType === 'premium' && (
+                  <div className="mt-4 p-3 bg-purple-600/20 rounded-lg border border-purple-500/50">
+                    <div className="text-purple-200 text-sm">
+                      <strong>Premium Features:</strong>
+                      <ul className="mt-2 space-y-1 text-xs">
+                        <li>• Multi-stage AI pipeline with pose detection</li>
+                        <li>• Advanced identity preservation technology</li>
+                        <li>• Segmentation-free processing</li>
+                        <li>• Physics-aware fabric deformation</li>
+                        <li>• Professional 864x1296 resolution output</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <button
                 onClick={() => setStep(cameraFirst ? 0 : 1)}
                 className="btn-secondary mt-6"
@@ -684,6 +750,69 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 </div>
               )}
 
+              {/* Premium/Default Processing Selection */}
+              <div className="mb-8 p-6 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg border border-purple-500/30">
+                <h3 className="text-xl font-semibold text-white mb-4 text-center">Choose Processing Quality</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <label className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                    processingType === 'default' 
+                      ? 'border-blue-500 bg-blue-500/20 shadow-lg shadow-blue-500/25' 
+                      : 'border-white/20 bg-white/5 hover:border-blue-400'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="processingType"
+                      value="default"
+                      checked={processingType === 'default'}
+                      onChange={(e) => setProcessingType(e.target.value)}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <div className="text-blue-400 mb-2">⚡</div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Default Processing</h4>
+                      <p className="text-white/70 text-sm mb-2">Fast OpenAI DALL-E 3 generation</p>
+                      <div className="text-green-400 font-medium">FREE</div>
+                    </div>
+                  </label>
+                  
+                  <label className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                    processingType === 'premium' 
+                      ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/25' 
+                      : 'border-white/20 bg-white/5 hover:border-purple-400'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="processingType"
+                      value="premium"
+                      checked={processingType === 'premium'}
+                      onChange={(e) => setProcessingType(e.target.value)}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <div className="text-purple-400 mb-2">🚀</div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Premium Processing</h4>
+                      <p className="text-white/70 text-sm mb-2">Advanced fal.ai FASHN v1.6 with Identity Preservation</p>
+                      <div className="text-purple-400 font-medium">$0.075 per generation</div>
+                    </div>
+                  </label>
+                </div>
+                
+                {processingType === 'premium' && (
+                  <div className="mt-4 p-3 bg-purple-600/20 rounded-lg border border-purple-500/50">
+                    <div className="text-purple-200 text-sm">
+                      <strong>Premium Features:</strong>
+                      <ul className="mt-2 space-y-1 text-xs">
+                        <li>• Multi-stage AI pipeline with pose detection</li>
+                        <li>• Advanced identity preservation technology</li>
+                        <li>• Segmentation-free processing</li>
+                        <li>• Physics-aware fabric deformation</li>
+                        <li>• Professional 864x1296 resolution output</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="text-center">
                 <button
                   onClick={startTryOn}
@@ -691,7 +820,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   className="btn-primary text-lg px-8 py-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-5 h-5 mr-2" />
-                  Start Virtual Try-On
+                  {processingType === 'premium' ? 'Start Premium Try-On' : 'Start Virtual Try-On'}
                   {selectedProduct && (
                     <span className="ml-2 text-sm">
                       with {selectedProduct.name}

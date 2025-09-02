@@ -13,6 +13,7 @@ import aiofiles
 import bcrypt
 import fal_client
 import numpy as np
+import requests
 from dotenv import load_dotenv
 from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException,
                      UploadFile)
@@ -26,6 +27,14 @@ from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
+
+# Configure fal.ai client
+FAL_KEY = os.getenv("FAL_KEY")
+if FAL_KEY:
+    os.environ["FAL_KEY"] = FAL_KEY
+    print(f"🔑 fal.ai client configured with API key")
+else:
+    print("⚠️ FAL_KEY not found, fal.ai integration will be disabled")
 
 # MongoDB connection
 mongo_url = os.environ["MONGO_URL"]
@@ -134,7 +143,7 @@ async def get_current_user(
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
+        email: Optional[str] = payload.get("sub")
         if email is None:
             raise HTTPException(
                 status_code=401, detail="Invalid authentication credentials"
@@ -331,6 +340,7 @@ async def virtual_tryon(
     use_stored_measurements: str = Form(
         "false"
     ),  # Changed to str to avoid bool parsing issues
+    processing_type: str = Form("default"),  # 'default' or 'premium'
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -346,6 +356,7 @@ async def virtual_tryon(
         # Convert string to boolean
         use_measurements = use_stored_measurements.lower() in ["true", "1", "yes"]
         print(f"Use stored measurements (parsed): {use_measurements}")
+        print(f"Processing type: {processing_type}")
 
         if not openai_client:
             print("ERROR: Image generation service not available")
@@ -483,16 +494,66 @@ async def virtual_tryon(
             "🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing"
         )
 
-        try:
-            # Configure fal.ai client (it will use OPENAI_API_KEY or require FAL_KEY)
-            print("🔑 Configuring advanced AI service...")
+        # Initialize processing method variables
+        processing_method = "Enhanced OpenAI DALL-E 3"
+        identity_preservation = "Enhanced prompting with identity preservation"
 
-            # For now, let's use a hybrid approach with enhanced prompting
-            # until we get fal.ai API key configured
-            if not clothing_item_url:
-                raise HTTPException(
-                    status_code=422, detail="No clothing item specified"
+        print(f"🎯 Processing Type Selected: {processing_type.upper()}")
+        
+        if not clothing_item_url:
+            raise HTTPException(
+                status_code=422, detail="No clothing item specified"
+            )
+
+        if processing_type == "premium" and FAL_KEY:
+            try:
+                print("🚀 PREMIUM PROCESSING: Configuring fal.ai FASHN v1.6...")
+                
+                user_image_base64 = base64.b64encode(user_image_bytes).decode('utf-8')
+                
+                print("🎨 Stage 3: Advanced Virtual Try-On using fal.ai FASHN v1.6...")
+                print("🧠 Multi-Stage Pipeline: Pose Detection → Segmentation → Garment Synthesis → Post-Processing")
+                print("🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing")
+                
+                print("🚀 Calling fal.ai FASHN v1.6 API...")
+                result = fal_client.subscribe(
+                    "fal-ai/fashn/tryon/v1.6",
+                    arguments={
+                        "model_image": f"data:image/jpeg;base64,{user_image_base64}",
+                        "garment_image": clothing_item_url,
+                        "category": "auto",
+                        "mode": "balanced"
+                    }
                 )
+                
+                print(f"📊 fal.ai API response received: {type(result)}")
+                
+                if result and 'images' in result and len(result['images']) > 0:
+                    image_url = result['images'][0]['url']
+                    print(f"🖼️ Downloading result image from: {image_url}")
+                    
+                    image_response = requests.get(image_url, timeout=30)
+                    image_response.raise_for_status()
+                    images = [image_response.content]
+                    
+                    print("✅ fal.ai FASHN v1.6 processing completed successfully!")
+                    print(f"📏 Result image size: {len(images[0])} bytes")
+                    processing_method = "fal.ai FASHN v1.6 Advanced Virtual Try-On Pipeline"
+                    identity_preservation = "Enhanced with fal.ai FASHN v1.6 multi-stage processing"
+                    
+                else:
+                    raise Exception(f"Invalid fal.ai response format: {result}")
+                    
+            except Exception as fal_error:
+                print(f"⚠️ fal.ai processing failed: {str(fal_error)}")
+                print("🔄 Falling back to enhanced OpenAI generation...")
+                processing_type = "default"  # Fall through to OpenAI processing
+        
+        if processing_type == "default" or (processing_type == "premium" and not FAL_KEY):
+            print("⚡ DEFAULT PROCESSING: Using OpenAI DALL-E 3...")
+            
+            if processing_type == "premium" and not FAL_KEY:
+                print("⚠️ FAL_KEY not configured, falling back to OpenAI for premium request")
 
             # Enhanced Virtual Try-On with Identity Preservation
             print("🎭 Generating virtual try-on with advanced identity preservation...")
@@ -535,7 +596,6 @@ This must result in the SAME PERSON wearing the new clothing item."""
             print(f"📝 Enhanced prompt created: {len(advanced_prompt)} characters")
 
             # Use advanced image generation with enhanced prompting
-            # This is a temporary solution until fal.ai integration is complete
             response = openai_client.images.generate(
                 prompt=advanced_prompt,
                 model="dall-e-3",
@@ -544,17 +604,10 @@ This must result in the SAME PERSON wearing the new clothing item."""
                 response_format="b64_json",
             )
             images = [base64.b64decode(response.data[0].b64_json)]
+            processing_method = "Enhanced OpenAI DALL-E 3"
+            identity_preservation = "Enhanced prompting with identity preservation"
 
-            print(
-                "⚠️ Note: Using enhanced OpenAI generation. "
-                "Upgrading to fal.ai FASHN for perfect identity preservation..."
-            )
-
-        except Exception as e:
-            print(f"❌ Advanced virtual try-on failed: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Virtual try-on processing failed: {str(e)}"
-            )
+            print("✅ OpenAI DALL-E 3 processing completed successfully!")
 
         # Stage 4: Post-Processing and Quality Enhancement
         print("✨ Stage 4: Post-Processing and Quality Enhancement...")
@@ -623,8 +676,8 @@ This must result in the SAME PERSON wearing the new clothing item."""
             "result_image_base64": result_image_base64,
             "size_recommendation": size_recommendation,
             "measurements_used": measurements,
-            "processing_method": "Advanced AI Virtual Try-On Pipeline",
-            "identity_preservation": "Enhanced with multi-stage processing",
+            "processing_method": processing_method,
+            "identity_preservation": identity_preservation,
             "personalization_note": (
                 f"Advanced virtual try-on created using multi-stage AI pipeline for "
                 f"{clothing_description}. Identity preservation technology applied to "
@@ -691,7 +744,7 @@ def analyze_user_image(user_image_bytes):
         }
 
 
-def determine_size_recommendation(measurements: dict, product_id: str = None) -> str:
+def determine_size_recommendation(measurements: dict, product_id: Optional[str] = None) -> str:
     """Enhanced size recommendation logic based on actual measurements"""
     try:
         # Convert measurements if they're in inches (assume if height > 100 it's in cm)
