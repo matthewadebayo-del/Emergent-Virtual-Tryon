@@ -21,7 +21,7 @@ steps:
     - '--port'
     - '8000'
     - '--set-env-vars'
-    - 'MONGO_URL=mongodb+srv://virtualfit:${_MONGODB_PASSWORD}@virtualfit-cluster.mongodb.net,DB_NAME=virtualfit_production,CORS_ORIGINS=*'
+    - 'MONGO_URL=mongodb+srv://virtualfit:${_MONGODB_PASSWORD}@virtualfit-cluster.yejz5e6.mongodb.net,DB_NAME=virtualfit_production,CORS_ORIGINS=*'
     - '--update-secrets'
     - 'OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
 
