@@ -128,7 +128,7 @@ gcloud run deploy virtualfit-backend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars="EMERGENT_LLM_KEY=your-key,GCP_PROJECT_ID=your-project-id"
+  --set-env-vars="OPENAI_API_KEY=your-key,GCP_PROJECT_ID=your-project-id"
 ```
 
 ### Step 4: Frontend Deployment (Firebase Hosting)
@@ -304,9 +304,9 @@ app.post('/tryon', async (req, res) => {
     
     const { user_image_base64, product_id } = req.body;
     
-    // Call OpenAI API using Emergent integration
-    const { OpenAIImageGeneration } = require('emergentintegrations/llm/openai/image_generation');
-    const imageGen = new OpenAIImageGeneration(process.env.EMERGENT_LLM_KEY);
+    // Call OpenAI API using standard OpenAI package
+    const { OpenAI } = require('openai');
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
     const images = await imageGen.generate_images({
       prompt: "Virtual try-on image generation",
@@ -401,7 +401,7 @@ service cloud.firestore {
 ```bash
 # Set Firebase environment variables
 firebase functions:config:set \
-  emergent.llm_key="your-emergent-key" \
+  openai.api_key="your-openai-key" \
   app.cors_origins="https://yourdomain.com"
 ```
 
