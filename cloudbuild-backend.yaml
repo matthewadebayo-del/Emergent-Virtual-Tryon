@@ -1,9 +1,9 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/virtualfit-backend:$COMMIT_SHA', './backend']
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA', './backend']
     
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/virtualfit-backend:$COMMIT_SHA']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA']
     
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
@@ -12,7 +12,7 @@ steps:
     - 'deploy'
     - 'virtualfit-backend'
     - '--image'
-    - 'gcr.io/$PROJECT_ID/virtualfit-backend:$COMMIT_SHA'
+    - 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA'
     - '--region'
     - 'us-central1'
     - '--platform'
@@ -21,14 +21,17 @@ steps:
     - '--port'
     - '8000'
     - '--set-env-vars'
-    - 'MONGO_URL=mongodb://localhost:27017,DB_NAME=virtualfit_production,CORS_ORIGINS=*'
+    - 'MONGO_URL=mongodb+srv://virtualfit:${_MONGODB_PASSWORD}@virtualfit-cluster.mongodb.net,DB_NAME=virtualfit_production,CORS_ORIGINS=*'
     - '--update-secrets'
     - 'OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
 
 images:
-  - 'gcr.io/$PROJECT_ID/virtualfit-backend:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA'
 
 options:
   logging: CLOUD_LOGGING_ONLY
   
 timeout: '1200s'
+
+substitutions:
+  _MONGODB_PASSWORD: 'virtualfit123'
