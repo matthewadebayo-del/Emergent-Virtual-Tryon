@@ -9,7 +9,7 @@ steps:
     args: ['build']
     dir: 'frontend'
     env:
-      - 'REACT_APP_BACKEND_URL=https://virtualfit-backend-$PROJECT_ID.a.run.app'
+      - 'REACT_APP_BACKEND_URL=https://virtualfit-backend-kkohgb7xuq-uc.a.run.app'
     
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/frontend:$COMMIT_SHA', './frontend']
