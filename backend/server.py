@@ -499,22 +499,24 @@ async def virtual_tryon(
         identity_preservation = "Enhanced prompting with identity preservation"
 
         print(f"🎯 Processing Type Selected: {processing_type.upper()}")
-        
+
         if not clothing_item_url:
-            raise HTTPException(
-                status_code=422, detail="No clothing item specified"
-            )
+            raise HTTPException(status_code=422, detail="No clothing item specified")
 
         if processing_type == "premium" and FAL_KEY:
             try:
                 print("🚀 PREMIUM PROCESSING: Configuring fal.ai FASHN v1.6...")
-                
-                user_image_base64 = base64.b64encode(user_image_bytes).decode('utf-8')
-                
+
+                user_image_base64 = base64.b64encode(user_image_bytes).decode("utf-8")
+
                 print("🎨 Stage 3: Advanced Virtual Try-On using fal.ai FASHN v1.6...")
-                print("🧠 Multi-Stage Pipeline: Pose Detection → Segmentation → Garment Synthesis → Post-Processing")
-                print("🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing")
-                
+                print(
+                    "🧠 Multi-Stage Pipeline: Pose Detection → Segmentation → Garment Synthesis → Post-Processing"
+                )
+                print(
+                    "🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing"
+                )
+
                 print("🚀 Calling fal.ai FASHN v1.6 API...")
                 result = fal_client.subscribe(
                     "fal-ai/fashn/tryon/v1.6",
@@ -522,38 +524,46 @@ async def virtual_tryon(
                         "model_image": f"data:image/jpeg;base64,{user_image_base64}",
                         "garment_image": clothing_item_url,
                         "category": "auto",
-                        "mode": "balanced"
-                    }
+                        "mode": "balanced",
+                    },
                 )
-                
+
                 print(f"📊 fal.ai API response received: {type(result)}")
-                
-                if result and 'images' in result and len(result['images']) > 0:
-                    image_url = result['images'][0]['url']
+
+                if result and "images" in result and len(result["images"]) > 0:
+                    image_url = result["images"][0]["url"]
                     print(f"🖼️ Downloading result image from: {image_url}")
-                    
+
                     image_response = requests.get(image_url, timeout=30)
                     image_response.raise_for_status()
                     images = [image_response.content]
-                    
+
                     print("✅ fal.ai FASHN v1.6 processing completed successfully!")
                     print(f"📏 Result image size: {len(images[0])} bytes")
-                    processing_method = "fal.ai FASHN v1.6 Advanced Virtual Try-On Pipeline"
-                    identity_preservation = "Enhanced with fal.ai FASHN v1.6 multi-stage processing"
-                    
+                    processing_method = (
+                        "fal.ai FASHN v1.6 Advanced Virtual Try-On Pipeline"
+                    )
+                    identity_preservation = (
+                        "Enhanced with fal.ai FASHN v1.6 multi-stage processing"
+                    )
+
                 else:
                     raise Exception(f"Invalid fal.ai response format: {result}")
-                    
+
             except Exception as fal_error:
                 print(f"⚠️ fal.ai processing failed: {str(fal_error)}")
                 print("🔄 Falling back to enhanced OpenAI generation...")
                 processing_type = "default"  # Fall through to OpenAI processing
-        
-        if processing_type == "default" or (processing_type == "premium" and not FAL_KEY):
+
+        if processing_type == "default" or (
+            processing_type == "premium" and not FAL_KEY
+        ):
             print("⚡ DEFAULT PROCESSING: Using OpenAI DALL-E 3...")
-            
+
             if processing_type == "premium" and not FAL_KEY:
-                print("⚠️ FAL_KEY not configured, falling back to OpenAI for premium request")
+                print(
+                    "⚠️ FAL_KEY not configured, falling back to OpenAI for premium request"
+                )
 
             # Enhanced Virtual Try-On with Identity Preservation
             print("🎭 Generating virtual try-on with advanced identity preservation...")
@@ -744,7 +754,9 @@ def analyze_user_image(user_image_bytes):
         }
 
 
-def determine_size_recommendation(measurements: dict, product_id: Optional[str] = None) -> str:
+def determine_size_recommendation(
+    measurements: dict, product_id: Optional[str] = None
+) -> str:
     """Enhanced size recommendation logic based on actual measurements"""
     try:
         # Convert measurements if they're in inches (assume if height > 100 it's in cm)
