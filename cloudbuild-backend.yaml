@@ -24,6 +24,12 @@ steps:
     - 'MONGO_URL=mongodb+srv://virtualfit:${_MONGODB_PASSWORD}@virtualfit-cluster.yejz5e6.mongodb.net,DB_NAME=virtualfit_production,CORS_ORIGINS=*'
     - '--update-secrets'
     - 'OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
+    - '--cpu'
+    - '1'
+    - '--memory'
+    - '512Mi'
+    - '--max-instances'
+    - '10'
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA'
