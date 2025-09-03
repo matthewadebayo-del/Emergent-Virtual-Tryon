@@ -868,11 +868,12 @@ async def initialize_database():
         client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
         db = client[db_name]
         logger.info("🔄 MongoDB client initialized")
+        
+        # Run database initialization in background to prevent startup blocking
+        asyncio.create_task(init_database_background())
     else:
         logger.error("❌ MONGO_URL not configured")
-        return
-    
-    asyncio.create_task(init_database_background())
+        logger.warning("⚠️ Starting without database connection")
 
 
 async def init_database_background():
@@ -885,7 +886,7 @@ async def init_database_background():
             logger.error("❌ Database not initialized")
             return
             
-        await asyncio.wait_for(db.command("ping"), timeout=10.0)
+        await asyncio.wait_for(db.command("ping"), timeout=5.0)
         logger.info("✅ MongoDB connection successful")
         
         # Initialize sample products if products collection is empty
