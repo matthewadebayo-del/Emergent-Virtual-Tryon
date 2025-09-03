@@ -907,6 +907,30 @@ async def debug_db_status():
             "mongo_url_configured": bool(mongo_url)
         }
 
+
+@app.post("/debug/manual-init")
+async def manual_database_init():
+    """Manual database initialization endpoint to debug background process"""
+    try:
+        print("🔧 MANUAL INIT: Starting manual database initialization...")
+        await init_database_background()
+        return {
+            "status": "success",
+            "message": "Database initialization completed",
+            "database": db_name,
+            "mongo_url_configured": bool(mongo_url)
+        }
+    except Exception as e:
+        print(f"🔧 MANUAL INIT ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "error": str(e),
+            "database": db_name,
+            "mongo_url_configured": bool(mongo_url)
+        }
+
 # Include the router in the main app
 app.include_router(api_router)
 
