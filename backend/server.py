@@ -28,6 +28,24 @@ from starlette.middleware.cors import CORSMiddleware
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+print("🚀 STARTING SERVER.PY - VERY FIRST LINE")
+print("🔍 DEBUGGING: About to check environment variables...")
+
+print("🔍 DEBUG: Environment variables containing 'MONGO':")
+for key, value in os.environ.items():
+    if 'MONGO' in key.upper():
+        print(f"  {key} = {repr(value)}")
+
+print("🔍 DEBUG: Environment variables containing 'DB':")
+for key, value in os.environ.items():
+    if 'DB' in key.upper():
+        print(f"  {key} = {repr(value)}")
+
+print("🔍 DEBUG: Environment variables containing 'SECRET':")
+for key, value in os.environ.items():
+    if 'SECRET' in key.upper():
+        print(f"  {key} = {repr(value[:20])}..." if len(str(value)) > 20 else f"  {key} = {repr(value)}")
+
 # Configure fal.ai client
 FAL_KEY = os.getenv("FAL_KEY")
 if FAL_KEY:
@@ -37,30 +55,56 @@ else:
     print("⚠️ FAL_KEY not found, fal.ai integration will be disabled")
 
 # MongoDB connection - defer initialization to prevent startup blocking
+print("🔍 DEBUGGING: Getting MONGO_URL from environment...")
 mongo_url = os.environ.get("MONGO_URL")
 db_name = os.environ.get("DB_NAME", "virtualfit_production")
 
-print(f"🔍 DEBUG: Raw MONGO_URL from environment: '{mongo_url}'")
+print(f"🔍 DEBUG: Raw MONGO_URL from environment: {repr(mongo_url)}")
+print(f"🔍 DEBUG: MONGO_URL type: {type(mongo_url)}")
 print(f"🔍 DEBUG: MONGO_URL length: {len(mongo_url) if mongo_url else 'None'}")
-print(f"🔍 DEBUG: MONGO_URL repr: {repr(mongo_url)}")
 
-# Validate and fix MongoDB URL format
 if mongo_url:
+    print(f"🔍 DEBUG: MONGO_URL first 50 chars: {repr(mongo_url[:50])}")
+    print(f"🔍 DEBUG: MONGO_URL last 50 chars: {repr(mongo_url[-50:])}")
+    
+    print(f"🔍 DEBUG: MONGO_URL bytes: {mongo_url.encode('utf-8')[:100]}")
+    
     # Strip any whitespace that might be causing issues
-    mongo_url = mongo_url.strip()
-    print(f"🔍 DEBUG: MONGO_URL after strip: '{mongo_url}'")
+    mongo_url_stripped = mongo_url.strip()
+    print(f"🔍 DEBUG: MONGO_URL after strip: {repr(mongo_url_stripped)}")
+    
+    if mongo_url != mongo_url_stripped:
+        print("🔧 FOUND WHITESPACE - using stripped version")
+        mongo_url = mongo_url_stripped
     
     if not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
+        print(f"🔧 MONGO_URL missing scheme prefix. Current value: {repr(mongo_url)}")
         if "@" in mongo_url and "." in mongo_url:
             mongo_url = f"mongodb+srv://{mongo_url}"
-            print("🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
+            print(f"🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
+            print(f"🔧 New MONGO_URL: {repr(mongo_url)}")
         else:
-            print(f"❌ Invalid MongoDB URL format: {mongo_url}")
-            mongo_url = None
+            print(f"❌ Invalid MongoDB URL format - cannot fix: {repr(mongo_url)}")
     else:
-        print("✅ MongoDB URL already has correct scheme")
+        print(f"✅ MongoDB URL already has correct scheme")
+        
+    if mongo_url and len(mongo_url) > 0:
+        print(f"🔍 DEBUG: MONGO_URL validation - starts with mongodb: {mongo_url.startswith(('mongodb://', 'mongodb+srv://'))}")
+        print(f"🔍 DEBUG: MONGO_URL validation - contains @: {'@' in mongo_url}")
+        print(f"🔍 DEBUG: MONGO_URL validation - contains .: {'.' in mongo_url}")
+    else:
+        print("❌ MONGO_URL is empty or None after processing")
 else:
-    print("❌ MONGO_URL environment variable not set")
+    print("❌ MONGO_URL environment variable not set or is None")
+
+print(f"🔍 DEBUG: Final MONGO_URL value: {repr(mongo_url)}")
+print("🔍 DEBUG: About to create AsyncIOMotorClient...")
+
+if not mongo_url:
+    print("❌ CRITICAL: Cannot create MongoDB client - MONGO_URL is None or empty")
+    print("❌ This will cause InvalidURI error")
+else:
+    print(f"✅ MONGO_URL is valid for client creation: {len(mongo_url)} characters")
 
 client = None
 db = None
@@ -912,9 +956,20 @@ async def init_database_background():
         
         # Initialize MongoDB client in background
         if mongo_url:
-            client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
-            db = client[db_name]
-            logger.info("🔄 MongoDB client created")
+            print(f"🔍 BACKGROUND DEBUG: About to create AsyncIOMotorClient with URL: {repr(mongo_url)}")
+            print(f"🔍 BACKGROUND DEBUG: URL length: {len(mongo_url)}")
+            print(f"🔍 BACKGROUND DEBUG: URL starts with mongodb: {mongo_url.startswith(('mongodb://', 'mongodb+srv://'))}")
+            
+            try:
+                client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
+                db = client[db_name]
+                logger.info("🔄 MongoDB client created")
+                print("✅ BACKGROUND DEBUG: AsyncIOMotorClient created successfully")
+            except Exception as e:
+                print(f"❌ BACKGROUND DEBUG: Failed to create AsyncIOMotorClient: {e}")
+                print(f"❌ BACKGROUND DEBUG: Exception type: {type(e)}")
+                print(f"❌ BACKGROUND DEBUG: MONGO_URL that caused error: {repr(mongo_url)}")
+                raise
             
             # Test database connection with timeout
             await asyncio.wait_for(db.command("ping"), timeout=5.0)
