@@ -44,9 +44,9 @@ db_name = os.environ.get("DB_NAME", "virtualfit_production")
 if mongo_url and not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
     if "@" in mongo_url and "." in mongo_url:
         mongo_url = f"mongodb+srv://{mongo_url}"
-        logger.info("🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
+        print("🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
     else:
-        logger.error(f"❌ Invalid MongoDB URL format: {mongo_url}")
+        print(f"❌ Invalid MongoDB URL format: {mongo_url}")
         mongo_url = None
 
 client = None
