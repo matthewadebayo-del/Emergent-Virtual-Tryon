@@ -69,12 +69,16 @@ if mongo_url:
     
     print(f"🔍 DEBUG: MONGO_URL bytes: {mongo_url.encode('utf-8')[:100]}")
     
-    # Strip any whitespace that might be causing issues
+    # Strip any whitespace and quotes that might be causing issues
     mongo_url_stripped = mongo_url.strip()
     print(f"🔍 DEBUG: MONGO_URL after strip: {repr(mongo_url_stripped)}")
     
+    if mongo_url_stripped.startswith('"') and mongo_url_stripped.endswith('"'):
+        mongo_url_stripped = mongo_url_stripped[1:-1]
+        print(f"🔧 FOUND SURROUNDING QUOTES - removed them: {repr(mongo_url_stripped)}")
+    
     if mongo_url != mongo_url_stripped:
-        print("🔧 FOUND WHITESPACE - using stripped version")
+        print("🔧 FOUND WHITESPACE/QUOTES - using cleaned version")
         mongo_url = mongo_url_stripped
     
     if not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
@@ -977,6 +981,8 @@ async def init_database_background():
     
     try:
         logger.info("🔄 Initializing MongoDB connection in background...")
+        print(f"🔍 BACKGROUND DEBUG: Current global client: {client}")
+        print(f"🔍 BACKGROUND DEBUG: Current global db: {db}")
         
         # Initialize MongoDB client in background
         if mongo_url:
@@ -989,6 +995,8 @@ async def init_database_background():
                 db = client[db_name]
                 logger.info("🔄 MongoDB client created")
                 print("✅ BACKGROUND DEBUG: AsyncIOMotorClient created successfully")
+                print(f"🔍 BACKGROUND DEBUG: New global client: {client}")
+                print(f"🔍 BACKGROUND DEBUG: New global db: {db}")
             except Exception as e:
                 print(f"❌ BACKGROUND DEBUG: Failed to create AsyncIOMotorClient: {e}")
                 print(f"❌ BACKGROUND DEBUG: Exception type: {type(e)}")
@@ -998,6 +1006,8 @@ async def init_database_background():
             # Test database connection with timeout
             await asyncio.wait_for(db.command("ping"), timeout=5.0)
             logger.info("✅ MongoDB connection successful")
+            print(f"🔍 BACKGROUND DEBUG: After ping - global client: {client}")
+            print(f"🔍 BACKGROUND DEBUG: After ping - global db: {db}")
         else:
             logger.error("❌ MONGO_URL not configured")
             return
