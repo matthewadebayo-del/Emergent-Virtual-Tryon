@@ -40,14 +40,27 @@ else:
 mongo_url = os.environ.get("MONGO_URL")
 db_name = os.environ.get("DB_NAME", "virtualfit_production")
 
+print(f"🔍 DEBUG: Raw MONGO_URL from environment: '{mongo_url}'")
+print(f"🔍 DEBUG: MONGO_URL length: {len(mongo_url) if mongo_url else 'None'}")
+print(f"🔍 DEBUG: MONGO_URL repr: {repr(mongo_url)}")
+
 # Validate and fix MongoDB URL format
-if mongo_url and not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
-    if "@" in mongo_url and "." in mongo_url:
-        mongo_url = f"mongodb+srv://{mongo_url}"
-        print("🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
+if mongo_url:
+    # Strip any whitespace that might be causing issues
+    mongo_url = mongo_url.strip()
+    print(f"🔍 DEBUG: MONGO_URL after strip: '{mongo_url}'")
+    
+    if not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
+        if "@" in mongo_url and "." in mongo_url:
+            mongo_url = f"mongodb+srv://{mongo_url}"
+            print("🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
+        else:
+            print(f"❌ Invalid MongoDB URL format: {mongo_url}")
+            mongo_url = None
     else:
-        print(f"❌ Invalid MongoDB URL format: {mongo_url}")
-        mongo_url = None
+        print("✅ MongoDB URL already has correct scheme")
+else:
+    print("❌ MONGO_URL environment variable not set")
 
 client = None
 db = None
