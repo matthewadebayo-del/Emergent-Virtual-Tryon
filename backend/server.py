@@ -823,11 +823,16 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def initialize_database():
     """Initialize database collections and sample data for production deployment"""
+    asyncio.create_task(init_database_background())
+
+
+async def init_database_background():
+    """Background task for database initialization to prevent startup probe failures"""
     try:
         logger.info("🔄 Initializing database collections and sample data...")
         
-        # Test database connection
-        await db.command("ping")
+        # Test database connection with timeout
+        await asyncio.wait_for(db.command("ping"), timeout=10.0)
         logger.info("✅ MongoDB connection successful")
         
         # Initialize sample products if products collection is empty
@@ -903,9 +908,10 @@ async def initialize_database():
         
         logger.info("🎉 Database initialization completed successfully")
         
+    except asyncio.TimeoutError:
+        logger.error("❌ Database initialization timed out - MongoDB may be unavailable")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {str(e)}")
-        raise
 
 
 @app.on_event("shutdown")
