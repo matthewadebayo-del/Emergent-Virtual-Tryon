@@ -863,31 +863,38 @@ async def initialize_database():
     """Initialize database collections and sample data for production deployment"""
     global client, db
     
-    # Initialize MongoDB connection during startup with timeout
+    logger.info("🚀 FastAPI application starting up...")
+    
+    # Always run database initialization in background to prevent any startup blocking
     if mongo_url:
-        client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
-        db = client[db_name]
-        logger.info("🔄 MongoDB client initialized")
-        
-        # Run database initialization in background to prevent startup blocking
+        logger.info("🔄 MongoDB URL configured, initializing connection in background...")
         asyncio.create_task(init_database_background())
     else:
         logger.error("❌ MONGO_URL not configured")
         logger.warning("⚠️ Starting without database connection")
+    
+    logger.info("✅ FastAPI startup completed - ready to serve requests")
 
 
 async def init_database_background():
     """Background task for database initialization to prevent startup probe failures"""
+    global client, db
+    
     try:
-        logger.info("🔄 Initializing database collections and sample data...")
+        logger.info("🔄 Initializing MongoDB connection in background...")
         
-        # Test database connection with timeout
-        if db is None:
-            logger.error("❌ Database not initialized")
-            return
+        # Initialize MongoDB client in background
+        if mongo_url:
+            client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
+            db = client[db_name]
+            logger.info("🔄 MongoDB client created")
             
-        await asyncio.wait_for(db.command("ping"), timeout=5.0)
-        logger.info("✅ MongoDB connection successful")
+            # Test database connection with timeout
+            await asyncio.wait_for(db.command("ping"), timeout=5.0)
+            logger.info("✅ MongoDB connection successful")
+        else:
+            logger.error("❌ MONGO_URL not configured")
+            return
         
         # Initialize sample products if products collection is empty
         product_count = await db.products.count_documents({})
