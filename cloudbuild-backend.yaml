@@ -21,9 +21,9 @@ steps:
     - '--port'
     - '8000'
     - '--set-env-vars'
-    - 'MONGO_URL=mongodb+srv://virtualfit:${_MONGODB_PASSWORD}@virtualfit-cluster.yejz5e6.mongodb.net,DB_NAME=virtualfit_production,CORS_ORIGINS=*'
+    - 'DB_NAME=virtualfit_production,CORS_ORIGINS=*'
     - '--update-secrets'
-    - 'OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
+    - 'MONGO_URL=MongoDB-Atlas:latest,OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
     - '--cpu'
     - '1'
     - '--memory'
@@ -38,6 +38,3 @@ options:
   logging: CLOUD_LOGGING_ONLY
   
 timeout: '1200s'
-
-substitutions:
-  _MONGODB_PASSWORD: 'virtualfit123'

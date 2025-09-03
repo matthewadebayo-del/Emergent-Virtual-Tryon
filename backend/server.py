@@ -827,6 +827,26 @@ async def root():
 async def health_check():
     return {"status": "healthy", "message": "VirtualFit Backend is running"}
 
+
+@app.get("/debug/db-status")
+async def debug_db_status():
+    try:
+        await db.command("ping")
+        user_count = await db.users.count_documents({})
+        return {
+            "status": "connected",
+            "database": os.environ.get("DB_NAME", "unknown"),
+            "user_count": user_count,
+            "mongo_url_configured": bool(os.environ.get("MONGO_URL"))
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "database": os.environ.get("DB_NAME", "unknown"),
+            "mongo_url_configured": bool(os.environ.get("MONGO_URL"))
+        }
+
 # Include the router in the main app
 app.include_router(api_router)
 
