@@ -231,52 +231,7 @@ async def save_measurements(
 # Product Catalog Routes
 @api_router.get("/products", response_model=List[Product])
 async def get_products():
-    # Sample product catalog
-    sample_products = [
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Classic White T-Shirt",
-            "category": "shirts",
-            "sizes": ["XS", "S", "M", "L", "XL"],
-            "image_url": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
-            "description": "Comfortable cotton white t-shirt",
-            "price": 29.99,
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Blue Denim Jeans",
-            "category": "pants",
-            "sizes": ["28", "30", "32", "34", "36"],
-            "image_url": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400",
-            "description": "Classic blue denim jeans",
-            "price": 79.99,
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Black Blazer",
-            "category": "jackets",
-            "sizes": ["XS", "S", "M", "L", "XL"],
-            "image_url": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400",
-            "description": "Professional black blazer",
-            "price": 149.99,
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Summer Dress",
-            "category": "dresses",
-            "sizes": ["XS", "S", "M", "L", "XL"],
-            "image_url": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400",
-            "description": "Light summer dress",
-            "price": 89.99,
-        },
-    ]
-
-    # Store products in database if they don't exist
-    for product in sample_products:
-        existing = await db.products.find_one({"name": product["name"]})
-        if not existing:
-            await db.products.insert_one(product)
-
+    """Get all products from the database"""
     products = await db.products.find().to_list(1000)
     return [Product(**product) for product in products]
 
@@ -863,6 +818,94 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def initialize_database():
+    """Initialize database collections and sample data for production deployment"""
+    try:
+        logger.info("🔄 Initializing database collections and sample data...")
+        
+        # Test database connection
+        await db.command("ping")
+        logger.info("✅ MongoDB connection successful")
+        
+        # Initialize sample products if products collection is empty
+        product_count = await db.products.count_documents({})
+        if product_count == 0:
+            logger.info("📦 Creating sample product catalog...")
+            sample_products = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "Classic White T-Shirt",
+                    "category": "shirts",
+                    "sizes": ["XS", "S", "M", "L", "XL"],
+                    "image_url": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
+                    "description": "Comfortable cotton white t-shirt",
+                    "price": 29.99,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "Blue Denim Jeans",
+                    "category": "pants",
+                    "sizes": ["28", "30", "32", "34", "36"],
+                    "image_url": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400",
+                    "description": "Classic blue denim jeans",
+                    "price": 79.99,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "Black Blazer",
+                    "category": "jackets",
+                    "sizes": ["XS", "S", "M", "L", "XL"],
+                    "image_url": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400",
+                    "description": "Professional black blazer",
+                    "price": 149.99,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "Summer Dress",
+                    "category": "dresses",
+                    "sizes": ["XS", "S", "M", "L", "XL"],
+                    "image_url": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400",
+                    "description": "Light summer dress",
+                    "price": 89.99,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "Navy Polo Shirt",
+                    "category": "shirts",
+                    "sizes": ["XS", "S", "M", "L", "XL"],
+                    "image_url": "https://images.unsplash.com/photo-1586790170083-2f9ceadc732d?w=400",
+                    "description": "Classic navy polo shirt",
+                    "price": 45.99,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "Khaki Chinos",
+                    "category": "pants",
+                    "sizes": ["28", "30", "32", "34", "36"],
+                    "image_url": "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=400",
+                    "description": "Comfortable khaki chino pants",
+                    "price": 65.99,
+                }
+            ]
+            
+            await db.products.insert_many(sample_products)
+            logger.info(f"✅ Created {len(sample_products)} sample products")
+        else:
+            logger.info(f"📦 Products collection already exists with {product_count} items")
+        
+        await db.users.create_index("email", unique=True)
+        await db.products.create_index("category")
+        await db.products.create_index("name")
+        logger.info("✅ Database indexes created")
+        
+        logger.info("🎉 Database initialization completed successfully")
+        
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {str(e)}")
+        raise
 
 
 @app.on_event("shutdown")
