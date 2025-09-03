@@ -861,19 +861,23 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def initialize_database():
     """Initialize database collections and sample data for production deployment"""
-    global client, db
-    
     logger.info("🚀 FastAPI application starting up...")
     
-    # Always run database initialization in background to prevent any startup blocking
+    # Run database initialization in background with delay to ensure startup completes first
     if mongo_url:
-        logger.info("🔄 MongoDB URL configured, initializing connection in background...")
-        asyncio.create_task(init_database_background())
+        logger.info("🔄 MongoDB URL configured, scheduling background initialization...")
+        asyncio.create_task(delayed_database_init())
     else:
         logger.error("❌ MONGO_URL not configured")
         logger.warning("⚠️ Starting without database connection")
     
     logger.info("✅ FastAPI startup completed - ready to serve requests")
+
+
+async def delayed_database_init():
+    """Delayed database initialization to ensure FastAPI startup completes first"""
+    await asyncio.sleep(2)
+    await init_database_background()
 
 
 async def init_database_background():
