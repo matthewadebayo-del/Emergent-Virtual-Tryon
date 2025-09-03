@@ -69,12 +69,16 @@ if mongo_url:
     
     print(f"🔍 DEBUG: MONGO_URL bytes: {mongo_url.encode('utf-8')[:100]}")
     
-    # Strip any whitespace that might be causing issues
+    # Strip any whitespace and quotes that might be causing issues
     mongo_url_stripped = mongo_url.strip()
     print(f"🔍 DEBUG: MONGO_URL after strip: {repr(mongo_url_stripped)}")
     
+    if mongo_url_stripped.startswith('"') and mongo_url_stripped.endswith('"'):
+        mongo_url_stripped = mongo_url_stripped[1:-1]
+        print(f"🔧 FOUND SURROUNDING QUOTES - removed them: {repr(mongo_url_stripped)}")
+    
     if mongo_url != mongo_url_stripped:
-        print("🔧 FOUND WHITESPACE - using stripped version")
+        print("🔧 FOUND WHITESPACE/QUOTES - using cleaned version")
         mongo_url = mongo_url_stripped
     
     if not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
