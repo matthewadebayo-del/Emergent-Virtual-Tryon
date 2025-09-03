@@ -36,10 +36,11 @@ if FAL_KEY:
 else:
     print("⚠️ FAL_KEY not found, fal.ai integration will be disabled")
 
-# MongoDB connection
-mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["DB_NAME"]]
+# MongoDB connection - defer initialization to prevent startup blocking
+mongo_url = os.environ.get("MONGO_URL")
+db_name = os.environ.get("DB_NAME", "virtualfit_production")
+client = None
+db = None
 
 # JWT Configuration
 SECRET_KEY = "your-secret-key-change-this-in-production"
@@ -140,6 +141,10 @@ def create_access_token(data: dict):
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -162,6 +167,10 @@ async def get_current_user(
 # Authentication Routes
 @api_router.post("/register", response_model=Token)
 async def register(user_data: UserCreate):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     # Check if user already exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
@@ -184,6 +193,10 @@ async def register(user_data: UserCreate):
 
 @api_router.post("/login", response_model=Token)
 async def login(login_data: UserLogin):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     user = await db.users.find_one({"email": login_data.email})
     if not user or not verify_password(login_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -194,6 +207,10 @@ async def login(login_data: UserLogin):
 
 @api_router.post("/reset-password")
 async def reset_password(request: dict):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     email = request.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
@@ -222,6 +239,10 @@ async def get_profile(current_user: User = Depends(get_current_user)):
 async def save_measurements(
     measurements: Measurements, current_user: User = Depends(get_current_user)
 ):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     await db.users.update_one(
         {"id": current_user.id}, {"$set": {"measurements": measurements.dict()}}
     )
@@ -232,6 +253,10 @@ async def save_measurements(
 @api_router.get("/products", response_model=List[Product])
 async def get_products():
     """Get all products from the database"""
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     products = await db.products.find().to_list(1000)
     return [Product(**product) for product in products]
 
@@ -758,6 +783,10 @@ def determine_size_recommendation(
 # Try-on History
 @api_router.get("/tryon-history")
 async def get_tryon_history(current_user: User = Depends(get_current_user)):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     try:
         results = await db.tryon_results.find({"user_id": current_user.id}).to_list(100)
         # Convert ObjectIds to strings and ensure all fields are serializable
@@ -786,20 +815,29 @@ async def health_check():
 @app.get("/debug/db-status")
 async def debug_db_status():
     try:
+        # Check if database is initialized
+        if db is None:
+            return {
+                "status": "error",
+                "error": "Database not initialized",
+                "database": db_name,
+                "mongo_url_configured": bool(mongo_url)
+            }
+        
         await db.command("ping")
         user_count = await db.users.count_documents({})
         return {
             "status": "connected",
-            "database": os.environ.get("DB_NAME", "unknown"),
+            "database": db_name,
             "user_count": user_count,
-            "mongo_url_configured": bool(os.environ.get("MONGO_URL"))
+            "mongo_url_configured": bool(mongo_url)
         }
     except Exception as e:
         return {
             "status": "error",
             "error": str(e),
-            "database": os.environ.get("DB_NAME", "unknown"),
-            "mongo_url_configured": bool(os.environ.get("MONGO_URL"))
+            "database": db_name,
+            "mongo_url_configured": bool(mongo_url)
         }
 
 # Include the router in the main app
@@ -823,6 +861,17 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def initialize_database():
     """Initialize database collections and sample data for production deployment"""
+    global client, db
+    
+    # Initialize MongoDB connection during startup with timeout
+    if mongo_url:
+        client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
+        db = client[db_name]
+        logger.info("🔄 MongoDB client initialized")
+    else:
+        logger.error("❌ MONGO_URL not configured")
+        return
+    
     asyncio.create_task(init_database_background())
 
 
@@ -832,6 +881,10 @@ async def init_database_background():
         logger.info("🔄 Initializing database collections and sample data...")
         
         # Test database connection with timeout
+        if db is None:
+            logger.error("❌ Database not initialized")
+            return
+            
         await asyncio.wait_for(db.command("ping"), timeout=10.0)
         logger.info("✅ MongoDB connection successful")
         
