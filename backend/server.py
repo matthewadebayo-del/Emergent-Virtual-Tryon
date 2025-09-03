@@ -28,6 +28,24 @@ from starlette.middleware.cors import CORSMiddleware
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+print("🚀 STARTING SERVER.PY - VERY FIRST LINE")
+print("🔍 DEBUGGING: About to check environment variables...")
+
+print("🔍 DEBUG: Environment variables containing 'MONGO':")
+for key, value in os.environ.items():
+    if 'MONGO' in key.upper():
+        print(f"  {key} = {repr(value)}")
+
+print("🔍 DEBUG: Environment variables containing 'DB':")
+for key, value in os.environ.items():
+    if 'DB' in key.upper():
+        print(f"  {key} = {repr(value)}")
+
+print("🔍 DEBUG: Environment variables containing 'SECRET':")
+for key, value in os.environ.items():
+    if 'SECRET' in key.upper():
+        print(f"  {key} = {repr(value[:20])}..." if len(str(value)) > 20 else f"  {key} = {repr(value)}")
+
 # Configure fal.ai client
 FAL_KEY = os.getenv("FAL_KEY")
 if FAL_KEY:
@@ -36,10 +54,60 @@ if FAL_KEY:
 else:
     print("⚠️ FAL_KEY not found, fal.ai integration will be disabled")
 
-# MongoDB connection
-mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["DB_NAME"]]
+# MongoDB connection - defer initialization to prevent startup blocking
+print("🔍 DEBUGGING: Getting MONGO_URL from environment...")
+mongo_url = os.environ.get("MONGO_URL")
+db_name = os.environ.get("DB_NAME", "virtualfit_production")
+
+print(f"🔍 DEBUG: Raw MONGO_URL from environment: {repr(mongo_url)}")
+print(f"🔍 DEBUG: MONGO_URL type: {type(mongo_url)}")
+print(f"🔍 DEBUG: MONGO_URL length: {len(mongo_url) if mongo_url else 'None'}")
+
+if mongo_url:
+    print(f"🔍 DEBUG: MONGO_URL first 50 chars: {repr(mongo_url[:50])}")
+    print(f"🔍 DEBUG: MONGO_URL last 50 chars: {repr(mongo_url[-50:])}")
+    
+    print(f"🔍 DEBUG: MONGO_URL bytes: {mongo_url.encode('utf-8')[:100]}")
+    
+    # Strip any whitespace that might be causing issues
+    mongo_url_stripped = mongo_url.strip()
+    print(f"🔍 DEBUG: MONGO_URL after strip: {repr(mongo_url_stripped)}")
+    
+    if mongo_url != mongo_url_stripped:
+        print("🔧 FOUND WHITESPACE - using stripped version")
+        mongo_url = mongo_url_stripped
+    
+    if not mongo_url.startswith(("mongodb://", "mongodb+srv://")):
+        print(f"🔧 MONGO_URL missing scheme prefix. Current value: {repr(mongo_url)}")
+        if "@" in mongo_url and "." in mongo_url:
+            mongo_url = f"mongodb+srv://{mongo_url}"
+            print(f"🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
+            print(f"🔧 New MONGO_URL: {repr(mongo_url)}")
+        else:
+            print(f"❌ Invalid MongoDB URL format - cannot fix: {repr(mongo_url)}")
+    else:
+        print(f"✅ MongoDB URL already has correct scheme")
+        
+    if mongo_url and len(mongo_url) > 0:
+        print(f"🔍 DEBUG: MONGO_URL validation - starts with mongodb: {mongo_url.startswith(('mongodb://', 'mongodb+srv://'))}")
+        print(f"🔍 DEBUG: MONGO_URL validation - contains @: {'@' in mongo_url}")
+        print(f"🔍 DEBUG: MONGO_URL validation - contains .: {'.' in mongo_url}")
+    else:
+        print("❌ MONGO_URL is empty or None after processing")
+else:
+    print("❌ MONGO_URL environment variable not set or is None")
+
+print(f"🔍 DEBUG: Final MONGO_URL value: {repr(mongo_url)}")
+print("🔍 DEBUG: About to create AsyncIOMotorClient...")
+
+if not mongo_url:
+    print("❌ CRITICAL: Cannot create MongoDB client - MONGO_URL is None or empty")
+    print("❌ This will cause InvalidURI error")
+else:
+    print(f"✅ MONGO_URL is valid for client creation: {len(mongo_url)} characters")
+
+client = None
+db = None
 
 # JWT Configuration
 SECRET_KEY = "your-secret-key-change-this-in-production"
@@ -140,6 +208,10 @@ def create_access_token(data: dict):
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -162,6 +234,10 @@ async def get_current_user(
 # Authentication Routes
 @api_router.post("/register", response_model=Token)
 async def register(user_data: UserCreate):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     # Check if user already exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
@@ -184,6 +260,10 @@ async def register(user_data: UserCreate):
 
 @api_router.post("/login", response_model=Token)
 async def login(login_data: UserLogin):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     user = await db.users.find_one({"email": login_data.email})
     if not user or not verify_password(login_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -194,6 +274,10 @@ async def login(login_data: UserLogin):
 
 @api_router.post("/reset-password")
 async def reset_password(request: dict):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     email = request.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
@@ -222,6 +306,10 @@ async def get_profile(current_user: User = Depends(get_current_user)):
 async def save_measurements(
     measurements: Measurements, current_user: User = Depends(get_current_user)
 ):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     await db.users.update_one(
         {"id": current_user.id}, {"$set": {"measurements": measurements.dict()}}
     )
@@ -232,6 +320,10 @@ async def save_measurements(
 @api_router.get("/products", response_model=List[Product])
 async def get_products():
     """Get all products from the database"""
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     products = await db.products.find().to_list(1000)
     return [Product(**product) for product in products]
 
@@ -758,6 +850,10 @@ def determine_size_recommendation(
 # Try-on History
 @api_router.get("/tryon-history")
 async def get_tryon_history(current_user: User = Depends(get_current_user)):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
     try:
         results = await db.tryon_results.find({"user_id": current_user.id}).to_list(100)
         # Convert ObjectIds to strings and ensure all fields are serializable
@@ -786,20 +882,29 @@ async def health_check():
 @app.get("/debug/db-status")
 async def debug_db_status():
     try:
+        # Check if database is initialized
+        if db is None:
+            return {
+                "status": "error",
+                "error": "Database not initialized",
+                "database": db_name,
+                "mongo_url_configured": bool(mongo_url)
+            }
+        
         await db.command("ping")
         user_count = await db.users.count_documents({})
         return {
             "status": "connected",
-            "database": os.environ.get("DB_NAME", "unknown"),
+            "database": db_name,
             "user_count": user_count,
-            "mongo_url_configured": bool(os.environ.get("MONGO_URL"))
+            "mongo_url_configured": bool(mongo_url)
         }
     except Exception as e:
         return {
             "status": "error",
             "error": str(e),
-            "database": os.environ.get("DB_NAME", "unknown"),
-            "mongo_url_configured": bool(os.environ.get("MONGO_URL"))
+            "database": db_name,
+            "mongo_url_configured": bool(mongo_url)
         }
 
 # Include the router in the main app
@@ -823,17 +928,55 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def initialize_database():
     """Initialize database collections and sample data for production deployment"""
-    asyncio.create_task(init_database_background())
+    logger.info("🚀 FastAPI application starting up...")
+    
+    # Run database initialization in background with delay to ensure startup completes first
+    if mongo_url:
+        logger.info("🔄 MongoDB URL configured, scheduling background initialization...")
+        asyncio.create_task(delayed_database_init())
+    else:
+        logger.error("❌ MONGO_URL not configured")
+        logger.warning("⚠️ Starting without database connection")
+    
+    logger.info("✅ FastAPI startup completed - ready to serve requests")
+
+
+async def delayed_database_init():
+    """Delayed database initialization to ensure FastAPI startup completes first"""
+    await asyncio.sleep(2)
+    await init_database_background()
 
 
 async def init_database_background():
     """Background task for database initialization to prevent startup probe failures"""
+    global client, db
+    
     try:
-        logger.info("🔄 Initializing database collections and sample data...")
+        logger.info("🔄 Initializing MongoDB connection in background...")
         
-        # Test database connection with timeout
-        await asyncio.wait_for(db.command("ping"), timeout=10.0)
-        logger.info("✅ MongoDB connection successful")
+        # Initialize MongoDB client in background
+        if mongo_url:
+            print(f"🔍 BACKGROUND DEBUG: About to create AsyncIOMotorClient with URL: {repr(mongo_url)}")
+            print(f"🔍 BACKGROUND DEBUG: URL length: {len(mongo_url)}")
+            print(f"🔍 BACKGROUND DEBUG: URL starts with mongodb: {mongo_url.startswith(('mongodb://', 'mongodb+srv://'))}")
+            
+            try:
+                client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
+                db = client[db_name]
+                logger.info("🔄 MongoDB client created")
+                print("✅ BACKGROUND DEBUG: AsyncIOMotorClient created successfully")
+            except Exception as e:
+                print(f"❌ BACKGROUND DEBUG: Failed to create AsyncIOMotorClient: {e}")
+                print(f"❌ BACKGROUND DEBUG: Exception type: {type(e)}")
+                print(f"❌ BACKGROUND DEBUG: MONGO_URL that caused error: {repr(mongo_url)}")
+                raise
+            
+            # Test database connection with timeout
+            await asyncio.wait_for(db.command("ping"), timeout=5.0)
+            logger.info("✅ MongoDB connection successful")
+        else:
+            logger.error("❌ MONGO_URL not configured")
+            return
         
         # Initialize sample products if products collection is empty
         product_count = await db.products.count_documents({})
@@ -916,4 +1059,5 @@ async def init_database_background():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    if client:
+        client.close()

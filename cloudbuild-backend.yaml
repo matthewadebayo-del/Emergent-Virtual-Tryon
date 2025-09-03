@@ -23,7 +23,7 @@ steps:
     - '--set-env-vars'
     - 'DB_NAME=virtualfit_production,CORS_ORIGINS=*'
     - '--update-secrets'
-    - 'MONGO_URL=MongoDB-Atlas:latest,OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
+    - 'MONGO_URL=MongoDB-Atlas:2,OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
     - '--cpu'
     - '1'
     - '--memory'
