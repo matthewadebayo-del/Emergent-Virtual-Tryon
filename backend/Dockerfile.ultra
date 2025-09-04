@@ -41,11 +41,16 @@ RUN pip cache purge && \
 # Ultra-minimal production stage
 FROM python:3.12-slim AS production
 
-# Install only critical runtime libraries
+# Install critical runtime libraries including OpenGL support (Debian Trixie compatible)
 RUN apt-get update && apt-get install -y \
+    libgl1 \
     libgl1-mesa-dri \
     libglib2.0-0 \
     libgomp1 \
+    libglu1-mesa \
+    libxrender1 \
+    libxext6 \
+    libx11-6 \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /tmp/* \
     && rm -rf /var/tmp/* \
@@ -68,6 +73,8 @@ ENV ENABLE_AI_ENHANCEMENT=true
 ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV STARTUP_TIMEOUT=300
+ENV HEALTH_CHECK_TIMEOUT=60
 
 EXPOSE 8000
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]

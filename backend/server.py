@@ -26,44 +26,9 @@ from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+from src.core.model_manager import model_manager
 
-# Initialize 3D virtual try-on module variables
-BodyReconstructor = None
-GarmentFitter = None
-PhotorealisticRenderer = None
-AIEnhancer = None
-
-# Initialize 3D virtual try-on components
-body_reconstructor = None
-garment_fitter = None
-renderer = None
-ai_enhancer = None
-
-try:
-    from src.core.ai_enhancement import AIEnhancer
-    from src.core.body_reconstruction import BodyReconstructor
-    from src.core.garment_fitting import GarmentFitter
-    from src.core.rendering import PhotorealisticRenderer
-
-    # Initialize instances with environment-based configuration
-    body_reconstructor = BodyReconstructor()
-    garment_fitter = GarmentFitter()
-    renderer = PhotorealisticRenderer()
-    ai_enhancer = AIEnhancer()  # Will check ENABLE_AI_ENHANCEMENT internally
-
-    print("✅ 3D virtual try-on modules imported and initialized successfully")
-except ImportError as e:
-    print(f"⚠️ 3D virtual try-on modules not available: {e}")
-    BodyReconstructor = None
-    GarmentFitter = None
-    PhotorealisticRenderer = None
-    AIEnhancer = None
-except Exception as e:
-    print(f"⚠️ 3D virtual try-on initialization failed: {e}")
-    body_reconstructor = None
-    garment_fitter = None
-    renderer = None
-    ai_enhancer = None
+print("✅ 3D virtual try-on modules configured for lazy loading")
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -179,27 +144,7 @@ security = HTTPBearer()
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=openai_api_key) if openai_api_key else None
 
-# Initialize 3D virtual try-on components
-body_reconstructor = None
-garment_fitter = None
-renderer = None
-ai_enhancer = None
-
-try:
-    if BodyReconstructor and GarmentFitter and PhotorealisticRenderer and AIEnhancer:
-        body_reconstructor = BodyReconstructor()
-        garment_fitter = GarmentFitter()
-        renderer = PhotorealisticRenderer()
-        ai_enhancer = AIEnhancer()
-        print("✅ 3D Virtual Try-On pipeline initialized successfully")
-    else:
-        print("⚠️ 3D Virtual Try-On modules not available")
-except Exception as e:
-    print(f"⚠️ 3D Virtual Try-On initialization failed: {e}")
-    body_reconstructor = None
-    garment_fitter = None
-    renderer = None
-    ai_enhancer = None
+print("✅ 3D Virtual Try-On pipeline configured for lazy loading")
 
 
 # Data Models
@@ -448,7 +393,7 @@ async def extract_measurements(
         print(f"Decoded image size: {len(image_bytes)} bytes")
 
         # Use 3D body reconstruction for measurement extraction
-        if body_reconstructor is None:
+        if model_manager.get_body_reconstructor() is None:
             print("⚠️ 3D body reconstruction not available, using fallback")
             simulated_measurements = {
                 "height": round(165 + (hash(user_image_base64[:50]) % 30), 1),
@@ -472,7 +417,9 @@ async def extract_measurements(
         else:
             print("🎯 Using AI-based measurement extraction with MediaPipe")
 
-            body_result = body_reconstructor.process_image_bytes(image_bytes)
+            body_result = model_manager.get_body_reconstructor().process_image_bytes(
+                image_bytes
+            )
             body_measurements = body_result["measurements"]
 
             simulated_measurements = {
@@ -514,7 +461,9 @@ async def extract_measurements(
         measurement_data["confidence_score"] = confidence_score
         measurement_data["individual_confidences"] = individual_confidences
         measurement_data["extraction_method"] = (
-            "ai_computer_vision" if body_reconstructor else "simulated"
+            "ai_computer_vision"
+            if model_manager.get_body_reconstructor() is not None
+            else "simulated"
         )
 
         await db.users.update_one(
@@ -526,7 +475,9 @@ async def extract_measurements(
             "confidence_score": confidence_score,
             "individual_confidences": individual_confidences,
             "extraction_method": (
-                "ai_computer_vision" if body_reconstructor else "simulated"
+                "ai_computer_vision"
+                if model_manager.get_body_reconstructor() is not None
+                else "simulated"
             ),
             "message": "Measurements extracted and saved successfully",
         }
@@ -804,7 +755,7 @@ async def virtual_tryon(
                     "for premium request"
                 )
 
-            if body_reconstructor is None:
+            if model_manager.get_body_reconstructor() is None:
                 print("❌ 3D pipeline not available, cannot process request")
                 raise HTTPException(
                     status_code=500, detail="3D virtual try-on service not available"
@@ -812,7 +763,11 @@ async def virtual_tryon(
 
             try:
                 print("🎭 Stage 1: 3D Body Reconstruction...")
-                body_result = body_reconstructor.process_image_bytes(user_image_bytes)
+                body_result = (
+                    model_manager.get_body_reconstructor().process_image_bytes(
+                        user_image_bytes
+                    )
+                )
                 body_mesh = body_result["body_mesh"]
                 body_measurements = body_result["measurements"]
 
@@ -836,7 +791,7 @@ async def virtual_tryon(
                             elif "dress" in product["name"].lower():
                                 garment_subtype = "dress_shirt"
 
-                fitted_garment = garment_fitter.fit_garment_to_body(
+                fitted_garment = model_manager.get_garment_fitter().fit_garment_to_body(
                     body_mesh, garment_type, garment_subtype
                 )
 
@@ -846,7 +801,7 @@ async def virtual_tryon(
                 with tempfile.NamedTemporaryFile(
                     suffix=".png", delete=False
                 ) as temp_render:
-                    rendered_path = renderer.render_scene(
+                    rendered_path = model_manager.get_renderer().render_scene(
                         body_mesh,
                         fitted_garment,
                         temp_render.name,
@@ -859,7 +814,7 @@ async def virtual_tryon(
 
                 print("🎭 Stage 4: AI Enhancement...")
                 original_image = Image.open(io.BytesIO(user_image_bytes))
-                enhanced_image = ai_enhancer.enhance_realism(
+                enhanced_image = model_manager.get_ai_enhancer().enhance_realism(
                     rendered_image, original_image
                 )
 
@@ -987,6 +942,12 @@ async def virtual_tryon_3d(
 ):
     """3D Virtual Try-On API endpoint for e-commerce integration"""
 
+    # Check if 3D modules are available via lazy loading
+    body_reconstructor = model_manager.get_body_reconstructor()
+    garment_fitter = model_manager.get_garment_fitter()
+    renderer = model_manager.get_renderer()
+    ai_enhancer = model_manager.get_ai_enhancer()
+
     if not all([body_reconstructor, garment_fitter, renderer, ai_enhancer]):
         raise HTTPException(status_code=503, detail="3D pipeline not available")
 
@@ -994,18 +955,20 @@ async def virtual_tryon_3d(
         user_image_bytes = await user_image.read()
 
         # Stage 1: Body Reconstruction
-        body_result = body_reconstructor.process_image_bytes(user_image_bytes)
+        body_result = model_manager.get_body_reconstructor().process_image_bytes(
+            user_image_bytes
+        )
         body_mesh = body_result["body_mesh"]
 
         # Stage 2: Garment Fitting
-        fitted_garment = garment_fitter.fit_garment_to_body(
+        fitted_garment = model_manager.get_garment_fitter().fit_garment_to_body(
             body_mesh, garment_type, "default"
         )
 
         # Stage 3: Rendering
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
             color_tuple = tuple(map(float, fabric_color.split(",")))
-            rendered_path = renderer.render_scene(
+            rendered_path = model_manager.get_renderer().render_scene(
                 body_mesh,
                 fitted_garment,
                 temp_file.name,
@@ -1017,7 +980,9 @@ async def virtual_tryon_3d(
 
         # Stage 4: AI Enhancement
         original_image = Image.open(io.BytesIO(user_image_bytes))
-        enhanced_image = ai_enhancer.enhance_realism(rendered_image, original_image)
+        enhanced_image = model_manager.get_ai_enhancer().enhance_realism(
+            rendered_image, original_image
+        )
 
         # Convert to base64
         with io.BytesIO() as output:
@@ -1050,6 +1015,12 @@ async def batch_virtual_tryon_api(
     # Validate API key (implement your own validation logic)
     if not api_key or len(api_key) < 10:
         raise HTTPException(status_code=401, detail="Invalid API key")
+
+    # Check if 3D modules are available via lazy loading
+    body_reconstructor = model_manager.get_body_reconstructor()
+    garment_fitter = model_manager.get_garment_fitter()
+    renderer = model_manager.get_renderer()
+    ai_enhancer = model_manager.get_ai_enhancer()
 
     if not all([body_reconstructor, garment_fitter, renderer, ai_enhancer]):
         raise HTTPException(status_code=503, detail="3D pipeline not available")
@@ -1121,11 +1092,13 @@ async def get_system_status():
     return {
         "system_status": "operational",
         "features": {
-            "3d_body_reconstruction": body_reconstructor is not None,
-            "physics_garment_fitting": garment_fitter is not None,
-            "photorealistic_rendering": renderer is not None,
-            "ai_enhancement": ai_enhancer is not None,
-            "measurement_extraction": body_reconstructor is not None,
+            "3d_body_reconstruction": model_manager.get_body_reconstructor()
+            is not None,
+            "physics_garment_fitting": model_manager.get_garment_fitter() is not None,
+            "photorealistic_rendering": model_manager.get_renderer() is not None,
+            "ai_enhancement": model_manager.get_ai_enhancer() is not None,
+            "measurement_extraction": model_manager.get_body_reconstructor()
+            is not None,
         },
         "api_version": "1.0",
         "supported_image_formats": ["PNG", "JPEG", "JPG"],
@@ -1149,12 +1122,14 @@ async def extract_measurements_api(
     try:
         image_bytes = await image.read()
 
-        if body_reconstructor is None:
+        if model_manager.get_body_reconstructor() is None:
             raise HTTPException(
                 status_code=503, detail="Measurement extraction service not available"
             )
 
-        body_result = body_reconstructor.process_image_bytes(image_bytes)
+        body_result = model_manager.get_body_reconstructor().process_image_bytes(
+            image_bytes
+        )
         measurements = body_result["measurements"]
 
         # Convert to inches for API response
@@ -1186,6 +1161,12 @@ async def virtual_tryon_batch(
 ):
     """Batch virtual try-on API for e-commerce integration"""
 
+    # Check if 3D modules are available via lazy loading
+    body_reconstructor = model_manager.get_body_reconstructor()
+    garment_fitter = model_manager.get_garment_fitter()
+    renderer = model_manager.get_renderer()
+    ai_enhancer = model_manager.get_ai_enhancer()
+
     if not all([body_reconstructor, garment_fitter, renderer, ai_enhancer]):
         raise HTTPException(status_code=503, detail="3D pipeline not available")
 
@@ -1195,7 +1176,9 @@ async def virtual_tryon_batch(
         product_list = json.loads(products)
         user_image_bytes = await user_image.read()
 
-        body_result = body_reconstructor.process_image_bytes(user_image_bytes)
+        body_result = model_manager.get_body_reconstructor().process_image_bytes(
+            user_image_bytes
+        )
         body_mesh = body_result["body_mesh"]
         original_image = Image.open(io.BytesIO(user_image_bytes))
 
@@ -1203,14 +1186,14 @@ async def virtual_tryon_batch(
 
         for product in product_list:
             try:
-                fitted_garment = garment_fitter.fit_garment_to_body(
+                fitted_garment = model_manager.get_garment_fitter().fit_garment_to_body(
                     body_mesh, product.get("type", "shirt"), "default"
                 )
 
                 with tempfile.NamedTemporaryFile(
                     suffix=".png", delete=False
                 ) as temp_file:
-                    rendered_path = renderer.render_scene(
+                    rendered_path = model_manager.get_renderer().render_scene(
                         body_mesh,
                         fitted_garment,
                         temp_file.name,
@@ -1219,7 +1202,7 @@ async def virtual_tryon_batch(
                     )
                     rendered_image = Image.open(rendered_path)
 
-                enhanced_image = ai_enhancer.enhance_realism(
+                enhanced_image = model_manager.get_ai_enhancer().enhance_realism(
                     rendered_image, original_image
                 )
 
@@ -1497,11 +1480,11 @@ async def init_database_background():
                     f"🔍 Creating AsyncIOMotorClient with URL: " f"{mongo_url[:50]}..."
                 )
 
-                client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=10000)
+                client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
                 db = client[db_name]
 
-                # Test database connection with timeout
-                await asyncio.wait_for(db.command("ping"), timeout=10.0)
+                # Test database connection with reduced timeout
+                await asyncio.wait_for(db.command("ping"), timeout=5.0)
                 logger.info("✅ MongoDB connection successful")
                 break
 
