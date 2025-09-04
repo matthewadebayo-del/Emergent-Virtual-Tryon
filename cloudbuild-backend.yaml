@@ -33,7 +33,6 @@ steps:
     - '--timeout'
     - '900'
     - '--cpu-boost'
-    - '--startup-cpu-boost'
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA'
