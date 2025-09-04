@@ -86,13 +86,22 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        } 
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          } 
+        });
+      } catch (error) {
+        console.warn('Failed with ideal constraints, trying basic constraints:', error);
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user' } 
+        });
+      }
+      
       setCameraStream(stream);
       setIsCameraActive(true);
       if (videoRef.current) {
@@ -100,7 +109,17 @@ const VirtualTryOn = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error('Failed to start camera:', error);
-      alert('Failed to access camera. Please ensure you have given camera permissions.');
+      let errorMessage = 'Failed to access camera. ';
+      if (error.name === 'NotFoundError') {
+        errorMessage += 'No camera device found. Please ensure you have a camera connected.';
+      } else if (error.name === 'NotAllowedError') {
+        errorMessage += 'Camera access denied. Please allow camera permissions and try again.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage += 'Camera not supported in this environment.';
+      } else {
+        errorMessage += 'Please ensure you have given camera permissions and try again.';
+      }
+      alert(errorMessage);
     }
   };
 
@@ -127,13 +146,29 @@ const VirtualTryOn = ({ user, onLogout }) => {
           setTimeout(() => {
             const canvas = canvasRef.current;
             const video = videoRef.current;
+            
+            if (!canvas || !video || video.videoWidth === 0 || video.videoHeight === 0) {
+              console.error('Canvas or video not ready for capture');
+              alert('Camera not ready. Please ensure camera is active and try again.');
+              setIsCountingDown(false);
+              setCountdown(null);
+              return;
+            }
+            
             const context = canvas.getContext('2d');
-
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0);
 
             canvas.toBlob((blob) => {
+              if (!blob) {
+                console.error('Failed to create blob from canvas');
+                alert('Failed to capture photo. Please try again.');
+                setIsCountingDown(false);
+                setCountdown(null);
+                return;
+              }
+              
               const reader = new FileReader();
               reader.onload = (e) => {
                 const base64 = e.target.result;
@@ -372,7 +407,10 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       ref={videoRef}
                       autoPlay
                       playsInline
+                      muted
                       className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                      onLoadedMetadata={() => console.log('Video metadata loaded')}
+                      onError={(e) => console.error('Video error:', e)}
                     />
                     <canvas ref={canvasRef} className="hidden" />
                     <div className="flex space-x-4 justify-center">
@@ -884,12 +922,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
                           <div className="bg-blue-600/20 rounded p-3 mt-3">
                             <h5 className="text-blue-200 font-medium mb-2">Processing Pipeline:</h5>
                             <div className="grid grid-cols-2 gap-2 text-xs text-blue-200/80">
-                              <div>✅ Photo Analysis & Segmentation</div>
-                              <div>✅ Pose Estimation & Mapping</div>
-                              <div>✅ Identity Preservation</div>
-                              <div>✅ Garment Integration</div>
-                              <div>✅ Realistic Blending</div>
-                              <div>✅ Quality Enhancement</div>
+                              <div>✓ Photo Analysis & Segmentation</div>
+                              <div>✓ Pose Estimation & Mapping</div>
+                              <div>✓ Identity Preservation</div>
+                              <div>✓ Garment Integration</div>
+                              <div>✓ Realistic Blending</div>
+                              <div>✓ Quality Enhancement</div>
                             </div>
                           </div>
                         )}
