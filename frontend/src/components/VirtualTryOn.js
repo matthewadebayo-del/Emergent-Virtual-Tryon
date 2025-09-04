@@ -197,7 +197,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 
                 saveCapturedImageToProfile(base64);
                 
-                setStep(2); // Skip to input mode selection
+                setStep(1.5); // Go to measurement adjustment step
                 setIsCountingDown(false);
                 setCountdown(null);
               };
@@ -524,6 +524,105 @@ const VirtualTryOn = ({ user, onLogout }) => {
         )}
 
         {/* Step 1: User Photo Upload (Upload Mode) */}
+        {step === 1.5 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-white mb-4">Review Your Measurements</h2>
+              <p className="text-gray-300 mb-6">
+                We've estimated your measurements from your photo. Please review and adjust if needed before proceeding.
+              </p>
+            </div>
+
+            {userImagePreview && (
+              <div className="flex justify-center mb-6">
+                <img 
+                  src={userImagePreview} 
+                  alt="Captured photo" 
+                  className="max-w-xs rounded-lg shadow-lg"
+                />
+              </div>
+            )}
+
+            <div className="bg-gray-800/50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Estimated Measurements</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Height (cm)</label>
+                  <input
+                    type="number"
+                    value={measurements.height?.toFixed(0) || ''}
+                    onChange={(e) => setMeasurements({...measurements, height: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Weight (kg)</label>
+                  <input
+                    type="number"
+                    value={measurements.weight?.toFixed(0) || ''}
+                    onChange={(e) => setMeasurements({...measurements, weight: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Chest (cm)</label>
+                  <input
+                    type="number"
+                    value={measurements.chest?.toFixed(0) || ''}
+                    onChange={(e) => setMeasurements({...measurements, chest: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Waist (cm)</label>
+                  <input
+                    type="number"
+                    value={measurements.waist?.toFixed(0) || ''}
+                    onChange={(e) => setMeasurements({...measurements, waist: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Hips (cm)</label>
+                  <input
+                    type="number"
+                    value={measurements.hips?.toFixed(0) || ''}
+                    onChange={(e) => setMeasurements({...measurements, hips: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Shoulder Width (cm)</label>
+                  <input
+                    type="number"
+                    value={measurements.shoulder_width?.toFixed(0) || ''}
+                    onChange={(e) => setMeasurements({...measurements, shoulder_width: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setStep(1)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
+              >
+                Retake Photo
+              </button>
+              <button
+                onClick={() => {
+                  saveMeasurementsToBackend(measurements);
+                  setStep(2);
+                }}
+                className="flex-1 btn-primary"
+              >
+                Continue with These Measurements
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 1 && (
           <div className="max-w-2xl mx-auto">
             <div className="card text-center">
