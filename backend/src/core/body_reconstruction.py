@@ -1,24 +1,42 @@
 from typing import Any, Dict, Tuple
 
 import cv2
-import mediapipe as mp
 import numpy as np
-import trimesh
+
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    print("⚠️ MediaPipe not available, using basic measurement extraction")
+    MEDIAPIPE_AVAILABLE = False
+    mp = None
+
+try:
+    import trimesh
+    TRIMESH_AVAILABLE = True
+except ImportError:
+    print("⚠️ Trimesh not available, using basic mesh generation")
+    TRIMESH_AVAILABLE = False
+    trimesh = None
 
 
 class BodyReconstructor:
     """3D Body reconstruction using MediaPipe + SMPL-X"""
 
     def __init__(self):
-        self.mp_pose = mp.solutions.pose.Pose(
-            static_image_mode=True,
-            model_complexity=2,
-            enable_segmentation=True,
-            min_detection_confidence=0.7,
-        )
-        self.mp_hands = mp.solutions.hands.Hands(
-            static_image_mode=True, max_num_hands=2, min_detection_confidence=0.7
-        )
+        if MEDIAPIPE_AVAILABLE:
+            self.mp_pose = mp.solutions.pose.Pose(
+                static_image_mode=True,
+                model_complexity=2,
+                enable_segmentation=True,
+                min_detection_confidence=0.7,
+            )
+            self.mp_hands = mp.solutions.hands.Hands(
+                static_image_mode=True, max_num_hands=2, min_detection_confidence=0.7
+            )
+        else:
+            self.mp_pose = None
+            self.mp_hands = None
 
         self.smpl_model = self._load_smpl_model()
 

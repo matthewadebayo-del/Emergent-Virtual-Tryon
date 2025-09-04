@@ -4,8 +4,14 @@ import tempfile
 from typing import Tuple
 
 import numpy as np
-import trimesh
 from PIL import Image
+
+try:
+    import trimesh
+    TRIMESH_AVAILABLE = True
+except ImportError:
+    print("⚠️ Trimesh not available, using basic rendering fallback")
+    TRIMESH_AVAILABLE = False
 
 
 class PhotorealisticRenderer:
@@ -43,8 +49,8 @@ class PhotorealisticRenderer:
 
     def render_scene(
         self,
-        body_mesh: trimesh.Trimesh,
-        garment_mesh: trimesh.Trimesh,
+        body_mesh,
+        garment_mesh,
         output_path: str,
         fabric_type: str = "cotton",
         fabric_color: Tuple[float, float, float] = (0.2, 0.3, 0.8),
@@ -62,8 +68,8 @@ class PhotorealisticRenderer:
 
     def _render_with_blender(
         self,
-        body_mesh: trimesh.Trimesh,
-        garment_mesh: trimesh.Trimesh,
+        body_mesh,
+        garment_mesh,
         output_path: str,
         fabric_type: str,
         fabric_color: Tuple[float, float, float],
@@ -72,6 +78,12 @@ class PhotorealisticRenderer:
         temp_files = []
 
         try:
+            if body_mesh is None or garment_mesh is None:
+                print("⚠️ Mesh data not available, using fallback rendering")
+                return self._render_enhanced_fallback(
+                    body_mesh, garment_mesh, output_path, fabric_color
+                )
+
             with tempfile.NamedTemporaryFile(suffix=".obj", delete=False) as body_file:
                 body_mesh.export(body_file.name)
                 body_path = body_file.name
@@ -122,8 +134,8 @@ class PhotorealisticRenderer:
 
     def _render_enhanced_fallback(
         self,
-        body_mesh: trimesh.Trimesh,
-        garment_mesh: trimesh.Trimesh,
+        body_mesh,
+        garment_mesh,
         output_path: str,
         fabric_color: Tuple[float, float, float],
     ) -> str:
@@ -131,23 +143,29 @@ class PhotorealisticRenderer:
         print("🎨 Using enhanced fallback rendering")
 
         try:
-            combined_mesh = trimesh.util.concatenate([body_mesh, garment_mesh])
+            if TRIMESH_AVAILABLE:
+                combined_mesh = trimesh.util.concatenate([body_mesh, garment_mesh])
 
-            scene = trimesh.Scene([combined_mesh])
-            scene.camera.resolution = [1024, 1024]
-            scene.camera.fov = [60, 60]
+                scene = trimesh.Scene([combined_mesh])
+                scene.camera.resolution = [1024, 1024]
+                scene.camera.fov = [60, 60]
 
-            scene.camera_transform = trimesh.transformations.compose_matrix(
-                translate=[0, -3, 1.5], angles=[np.radians(15), 0, 0]
-            )
+                scene.camera_transform = trimesh.transformations.compose_matrix(
+                    translate=[0, -3, 1.5], angles=[np.radians(15), 0, 0]
+                )
 
-            png_data = scene.save_image(resolution=[1024, 1024], visible=True)
+                png_data = scene.save_image(resolution=[1024, 1024], visible=True)
 
-            with open(output_path, "wb") as f:
-                f.write(png_data)
+                with open(output_path, "wb") as f:
+                    f.write(png_data)
 
-            print(f"✅ Enhanced fallback rendering complete: {output_path}")
-            return output_path
+                print(f"✅ Enhanced fallback rendering complete: {output_path}")
+                return output_path
+            else:
+                print("⚠️ Trimesh not available, creating basic placeholder")
+                placeholder = Image.new("RGB", (1024, 1024), color=fabric_color)
+                placeholder.save(output_path)
+                return output_path
 
         except Exception as e:
             print(f"⚠️ Enhanced fallback rendering failed: {e}")

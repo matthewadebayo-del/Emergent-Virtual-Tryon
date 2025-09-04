@@ -1,0 +1,28 @@
+# Minimal Dockerfile for VirtualFit Backend (~3GB)
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libgl1-mesa-dri \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install minimal requirements
+COPY requirements.minimal.txt .
+RUN pip install --no-cache-dir -r requirements.minimal.txt
+
+# Copy application code
+COPY . .
+
+# Set environment for minimal mode
+ENV ENABLE_3D_FEATURES=false
+ENV ENABLE_AI_ENHANCEMENT=false
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]

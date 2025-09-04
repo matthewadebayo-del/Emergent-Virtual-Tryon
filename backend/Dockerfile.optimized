@@ -1,0 +1,52 @@
+# Multi-stage Dockerfile for VirtualFit Backend (Optimized for size)
+FROM python:3.12-slim as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    pkg-config \
+    gcc \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements.optimized.txt .
+RUN pip install --no-cache-dir -r requirements.optimized.txt
+
+# Production stage
+FROM python:3.12-slim as production
+
+# Install only runtime dependencies (fixed for Debian trixie)
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-dri \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Install optimized requirements directly in production stage
+COPY requirements.optimized.txt .
+RUN pip install --no-cache-dir -r requirements.optimized.txt
+
+# Copy application code
+COPY . .
+
+# Create environment variable for optional dependencies
+ENV ENABLE_3D_FEATURES=false
+ENV ENABLE_AI_ENHANCEMENT=false
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
