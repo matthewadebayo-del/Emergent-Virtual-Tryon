@@ -48,8 +48,13 @@ const Dashboard = ({ user, onLogout }) => {
   const handleMeasurementSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    
+    const heightFeet = parseFloat(formData.get('height_feet')) || 0;
+    const heightInches = parseFloat(formData.get('height_inches')) || 0;
+    const totalHeightInches = (heightFeet * 12) + heightInches;
+    
     const measurementData = {
-      height: parseFloat(formData.get('height')),
+      height: totalHeightInches,
       weight: parseFloat(formData.get('weight')),
       chest: parseFloat(formData.get('chest')),
       waist: parseFloat(formData.get('waist')),
@@ -155,6 +160,21 @@ const Dashboard = ({ user, onLogout }) => {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {user.captured_image && (
+            <Link to="/tryon?mode=apparel-selection" className="card hover-lift">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500">
+                  <Shirt className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-white">Select Apparel</h3>
+                  <p className="text-white/70">Choose clothes with your saved photo</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
+            </Link>
+          )}
+          
           <button
             onClick={startCameraCapture}
             className="card hover-lift text-left"
@@ -284,27 +304,45 @@ const Dashboard = ({ user, onLogout }) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-white/80 text-sm font-medium mb-2">
-                    Height (cm)
+                    Height (feet & inches)
                   </label>
-                  <input
-                    type="number"
-                    name="height"
-                    defaultValue={measurements?.height || ''}
-                    className="input-field"
-                    placeholder="170"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      name="height_feet"
+                      defaultValue={measurements?.height ? Math.floor(measurements.height / 12) : ''}
+                      className="input-field flex-1"
+                      placeholder="5"
+                      min="3"
+                      max="8"
+                      required
+                    />
+                    <span className="text-white/60 self-center">ft</span>
+                    <input
+                      type="number"
+                      name="height_inches"
+                      defaultValue={measurements?.height ? Math.round(measurements.height % 12) : ''}
+                      className="input-field flex-1"
+                      placeholder="8"
+                      min="0"
+                      max="11"
+                      required
+                    />
+                    <span className="text-white/60 self-center">in</span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-white/80 text-sm font-medium mb-2">
-                    Weight (kg)
+                    Weight (lbs)
                   </label>
                   <input
                     type="number"
                     name="weight"
                     defaultValue={measurements?.weight || ''}
                     className="input-field"
-                    placeholder="70"
+                    placeholder="150"
+                    min="80"
+                    max="400"
                     required
                   />
                 </div>
@@ -312,27 +350,33 @@ const Dashboard = ({ user, onLogout }) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-white/80 text-sm font-medium mb-2">
-                    Chest (cm)
+                    Chest (inches)
                   </label>
                   <input
                     type="number"
                     name="chest"
                     defaultValue={measurements?.chest || ''}
                     className="input-field"
-                    placeholder="90"
+                    placeholder="36"
+                    min="28"
+                    max="60"
+                    step="0.5"
                     required
                   />
                 </div>
                 <div>
                   <label className="block text-white/80 text-sm font-medium mb-2">
-                    Waist (cm)
+                    Waist (inches)
                   </label>
                   <input
                     type="number"
                     name="waist"
                     defaultValue={measurements?.waist || ''}
                     className="input-field"
-                    placeholder="75"
+                    placeholder="32"
+                    min="24"
+                    max="50"
+                    step="0.5"
                     required
                   />
                 </div>
@@ -340,27 +384,33 @@ const Dashboard = ({ user, onLogout }) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-white/80 text-sm font-medium mb-2">
-                    Hips (cm)
+                    Hips (inches)
                   </label>
                   <input
                     type="number"
                     name="hips"
                     defaultValue={measurements?.hips || ''}
                     className="input-field"
-                    placeholder="95"
+                    placeholder="38"
+                    min="28"
+                    max="55"
+                    step="0.5"
                     required
                   />
                 </div>
                 <div>
                   <label className="block text-white/80 text-sm font-medium mb-2">
-                    Shoulder Width (cm)
+                    Shoulder Width (inches)
                   </label>
                   <input
                     type="number"
                     name="shoulder_width"
                     defaultValue={measurements?.shoulder_width || ''}
                     className="input-field"
-                    placeholder="45"
+                    placeholder="18"
+                    min="14"
+                    max="24"
+                    step="0.5"
                     required
                   />
                 </div>
