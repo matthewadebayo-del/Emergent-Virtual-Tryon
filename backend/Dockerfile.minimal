@@ -14,12 +14,15 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.minimal.txt .
 RUN pip install --no-cache-dir -r requirements.minimal.txt
 
-# Copy application code
-COPY . .
+# Copy only essential application files
+COPY server.py .
+COPY src/ ./src/
+COPY .env .
 
 # Set environment for minimal mode
-ENV ENABLE_3D_FEATURES=false
+ENV ENABLE_3D_FEATURES=true
 ENV ENABLE_AI_ENHANCEMENT=false
+ENV PYTHONPATH=/app
 
 # Expose port
 EXPOSE 8000
