@@ -67,6 +67,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
       console.log('Video srcObject:', videoRef.current.srcObject);
       console.log('Video readyState:', videoRef.current.readyState);
       console.log('Video paused:', videoRef.current.paused);
+      console.log('Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
     }
   }, [isCameraActive]);
 
@@ -117,6 +118,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
         videoRef.current.srcObject = stream;
         console.log('Video stream assigned:', stream);
         console.log('Video element:', videoRef.current);
+        console.log('Stream tracks:', stream.getTracks());
         videoRef.current.play().catch(e => console.log('Video play failed:', e));
       } else {
         console.error('Video ref not available when trying to assign stream');
