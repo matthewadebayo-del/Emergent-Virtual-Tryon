@@ -21,8 +21,15 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const cameraFirst = queryParams.get('mode') === 'camera-first';
+  const apparelSelection = queryParams.get('mode') === 'apparel-selection';
   
-  const [step, setStep] = useState(cameraFirst ? 0 : 1); // Start with camera setup if camera-first
+  const getInitialStep = () => {
+    if (cameraFirst) return 0;
+    if (apparelSelection && user.captured_image) return 2;
+    return 1;
+  };
+  
+  const [step, setStep] = useState(getInitialStep());// Start with camera setup if camera-first
   const [userImage, setUserImage] = useState(null);
   const [userImagePreview, setUserImagePreview] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -48,10 +55,21 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   useEffect(() => {
     fetchProducts();
-    if (cameraFirst) {
+    
+    // Check if user has measurements
+    if (user.measurements) {
+      setMeasurements(user.measurements);
+    }
+
+    if (apparelSelection && user.captured_image) {
+      setUserImage(user.captured_image);
+      setUserImagePreview(user.captured_image);
+    }
+
+    if (cameraFirst && step === 0) {
       startCamera();
     }
-  }, [cameraFirst]);
+  }, [cameraFirst, apparelSelection, user.captured_image]);
 
   useEffect(() => {
     return () => {
