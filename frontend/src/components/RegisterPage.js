@@ -41,7 +41,7 @@ const RegisterPage = ({ onLogin }) => {
     }
 
     try {
-      const response = await axios.post('/api/register', {
+      const response = await axios.post('/register', {
         email: formData.email,
         password: formData.password,
         full_name: formData.full_name
@@ -51,7 +51,7 @@ const RegisterPage = ({ onLogin }) => {
       
       // Get user profile
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      const profileResponse = await axios.get('/api/profile');
+      const profileResponse = await axios.get('/profile');
       
       onLogin(access_token, profileResponse.data);
     } catch (error) {

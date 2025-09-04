@@ -30,7 +30,7 @@ function App() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await axios.get('/api/profile');
+      const response = await axios.get('/profile');
       setUser(response.data);
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
