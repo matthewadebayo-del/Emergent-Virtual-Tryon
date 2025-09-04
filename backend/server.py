@@ -1178,7 +1178,7 @@ async def extract_measurements_api(
         )
 
 
-@api_router.post("/api/v1/tryon/batch")
+@api_router.post("/api/v1/tryon/batch-upload")
 async def virtual_tryon_batch(
     user_image: UploadFile = File(...),
     products: str = Form(...),  # JSON string of product list

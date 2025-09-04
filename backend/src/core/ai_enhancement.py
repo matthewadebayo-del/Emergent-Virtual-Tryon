@@ -75,9 +75,7 @@ class AIEnhancer:
     ) -> Image.Image:
         """Enhance rendered image to match original photo style"""
         if self.img2img_pipe is None:
-            print(
-                "⚠️ Stable Diffusion not available, returning original rendered image"
-            )
+            print("⚠️ Stable Diffusion not available, returning original rendered image")
             return rendered_image
 
         try:
