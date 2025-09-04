@@ -77,13 +77,19 @@ const VirtualTryOn = ({ user, onLogout }) => {
       console.log('Video srcObject:', videoRef.current.srcObject);
       console.log('Video readyState:', videoRef.current.readyState);
       console.log('Video paused:', videoRef.current.paused);
+      console.log('Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+      
+      if (videoRef.current.paused && videoRef.current.srcObject) {
+        console.log('Video is paused, attempting to play...');
+        videoRef.current.play().catch(e => console.log('Force play failed:', e));
+      }
     }
   }, [isCameraActive]);
 
   const fetchProducts = async () => {
     try {
       console.log('Fetching products...');
-      const response = await axios.get('/products');
+      const response = await axios.get('/api/products');
       console.log('Products response:', response.data);
       setProducts(response.data);
     } catch (error) {
@@ -239,7 +245,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const saveMeasurementsToBackend = async (measurementData) => {
     try {
-      await axios.post('/measurements', measurementData);
+      await axios.post('/api/measurements', measurementData);
       console.log('Measurements saved automatically');
     } catch (error) {
       console.error('Failed to save measurements:', error);
@@ -248,7 +254,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const saveCapturedImageToProfile = async (imageBase64) => {
     try {
-      await axios.post('/save_captured_image', {
+      await axios.post('/api/save_captured_image', {
         image_base64: imageBase64,
         measurements: measurements
       });
@@ -321,7 +327,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
       console.log('Sending try-on FormData with product_id:', selectedProduct?.id);
       console.log('Processing type:', processingType);
 
-      const response = await axios.post('/tryon', formData, {
+      const response = await axios.post('/api/tryon', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -1066,12 +1072,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
                           <div className="bg-blue-600/20 rounded p-3 mt-3">
                             <h5 className="text-blue-200 font-medium mb-2">Processing Pipeline:</h5>
                             <div className="grid grid-cols-2 gap-2 text-xs text-blue-200/80">
-                              <div>✓ Photo Analysis & Segmentation</div>
-                              <div>✓ Pose Estimation & Mapping</div>
-                              <div>✓ Identity Preservation</div>
-                              <div>✓ Garment Integration</div>
-                              <div>✓ Realistic Blending</div>
-                              <div>✓ Quality Enhancement</div>
+                              <div>Photo Analysis & Segmentation</div>
+                              <div>Pose Estimation & Mapping</div>
+                              <div>Identity Preservation</div>
+                              <div>Garment Integration</div>
+                              <div>Realistic Blending</div>
+                              <div>Quality Enhancement</div>
                             </div>
                           </div>
                         )}

@@ -657,24 +657,35 @@ async def virtual_tryon(
             # Create ultra-detailed prompt for identity preservation
             advanced_prompt = f"""PHOTOREALISTIC VIRTUAL TRY-ON - IDENTITY PRESERVATION CRITICAL:
 
-TASK: Transform the person in the reference photo to wear: {clothing_description}
+TASK: Create a virtual try-on image showing the EXACT SAME PERSON from the reference photo wearing: {clothing_description}
 
-IDENTITY PRESERVATION (MANDATORY):
-- EXACT same person: facial features, skin tone, ethnicity, hair style/color
-- EXACT same body proportions and posture
-- EXACT same lighting conditions and photo quality
-- ONLY change: clothing item to {clothing_description}
+IDENTITY PRESERVATION (MANDATORY - NO EXCEPTIONS):
+- EXACT same facial features: eyes, nose, mouth, jawline, cheekbones
+- EXACT same skin tone, ethnicity, and complexion
+- EXACT same hair style, color, and texture
+- EXACT same body proportions, height, and build
+- EXACT same posture and stance as original photo
+- EXACT same lighting direction, intensity, and color temperature
+- EXACT same background and environment
+- ONLY change: replace existing clothing with {clothing_description}
 
-TECHNICAL REQUIREMENTS:
-- Body measurements: height {measurements.get('height', 170)}cm, chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
-- Clothing must fit naturally on their specific body shape
-- Realistic fabric physics: proper draping, wrinkles, shadows
-- Maintain original photo's lighting and background
-- Professional photography quality output
+TECHNICAL SPECIFICATIONS:
+- Person measurements: height {measurements.get('height', 170)}cm, chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
+- Clothing must fit naturally according to these specific body measurements
+- Realistic fabric behavior: proper draping, natural wrinkles, appropriate shadows
+- Maintain original photo's depth of field and focus
+- Professional photography quality with sharp details
+- Seamless integration between person and new clothing
 
-CRITICAL: This person must look EXACTLY like themselves wearing the new clothing. No changes to face, body shape, or appearance except the clothing item.
+CRITICAL CONSTRAINTS:
+- NO facial modifications whatsoever
+- NO body shape alterations
+- NO lighting changes
+- NO background modifications
+- NO pose adjustments
+- The person must be 100% recognizable as the same individual
 
-Generate a photorealistic image of this SAME PERSON wearing {clothing_description}."""
+OUTPUT: A photorealistic image of this IDENTICAL PERSON wearing {clothing_description}, maintaining perfect identity preservation while showing realistic clothing integration."""
 
             print(f"📝 Enhanced prompt created: {len(advanced_prompt)} characters")
 
