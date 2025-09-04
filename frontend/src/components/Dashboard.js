@@ -29,7 +29,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const fetchDashboardData = async () => {
     try {
-      const historyResponse = await axios.get('/tryon-history');
+      const historyResponse = await axios.get('/api/tryon-history');
       setTryonHistory(historyResponse.data);
       
       if (user.measurements) {
@@ -58,7 +58,7 @@ const Dashboard = ({ user, onLogout }) => {
     };
 
     try {
-      await axios.post('/measurements', measurementData);
+      await axios.post('/api/measurements', measurementData);
       setMeasurements(measurementData);
       setShowMeasurements(false);
       setIsFirstTime(false);

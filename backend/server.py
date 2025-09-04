@@ -144,6 +144,7 @@ class User(BaseModel):
     full_name: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     measurements: Optional[dict] = None
+    captured_images: Optional[List[dict]] = None
 
 
 class UserCreate(BaseModel):
@@ -323,6 +324,33 @@ async def save_measurements(
         {"id": current_user.id}, {"$set": {"measurements": measurements.dict()}}
     )
     return {"message": "Measurements saved successfully"}
+
+@api_router.post("/save_captured_image")
+async def save_captured_image(
+    image_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+        
+    try:
+        image_record = {
+            "image_base64": image_data.get("image_base64"),
+            "captured_at": datetime.utcnow(),
+            "measurements": image_data.get("measurements"),
+            "image_type": "camera_capture"
+        }
+        
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$push": {"captured_images": image_record}}
+        )
+        
+        return {"message": "Image saved to profile successfully", "image_id": str(image_record["captured_at"])}
+    except Exception as e:
+        print(f"Error saving captured image: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save captured image")
 
 
 # Product Catalog Routes
@@ -544,11 +572,13 @@ async def virtual_tryon(
                     status_code=422, detail="Invalid clothing image format"
                 )
 
-        # Stage 3: Advanced Virtual Try-On using fal.ai FASHN
-        print("🎨 Stage 3: Advanced AI Virtual Try-On Processing...")
-        print(
-            "🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing"
-        )
+        # Stage 3: AI Virtual Try-On Processing
+        if processing_type == "premium" and FAL_KEY:
+            print("🎨 Stage 3: Premium AI Virtual Try-On Processing...")
+            print("🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing")
+        else:
+            print("🎨 Stage 3: Standard AI Virtual Try-On Processing...")
+            print("🧠 Using OpenAI DALL-E 3 with enhanced prompting")
 
         # Initialize processing method variables
         processing_method = "Enhanced OpenAI DALL-E 3"
@@ -625,39 +655,37 @@ async def virtual_tryon(
             print("🎭 Generating virtual try-on with advanced identity preservation...")
 
             # Create ultra-detailed prompt for identity preservation
-            advanced_prompt = f"""ADVANCED VIRTUAL TRY-ON INSTRUCTION:
+            advanced_prompt = f"""PHOTOREALISTIC VIRTUAL TRY-ON - IDENTITY PRESERVATION CRITICAL:
 
-CRITICAL IDENTITY PRESERVATION REQUIREMENTS:
-- This is a VIRTUAL TRY-ON task, NOT image generation
-- PRESERVE the exact person from the reference photo: face, skin tone, ethnicity, body shape, hair
-- ONLY change their clothing to show them wearing: {clothing_description}
-- Maintain their natural body proportions: height {measurements.get('height', 170)}cm,
-  chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
-- Keep the same lighting, background, and photo quality as the original
-- The person should look EXACTLY like themselves, just wearing different clothes
+TASK: Create a virtual try-on image showing the EXACT SAME PERSON from the reference photo wearing: {clothing_description}
 
-GARMENT INTEGRATION SPECIFICATIONS:
-- Clothing item: {clothing_description}
-- Fit the garment naturally on their specific body shape and measurements
-- Apply realistic fabric physics: proper draping, wrinkles, and shadows
-- Ensure clothing fits according to their measurements
-- Maintain realistic lighting that matches the original photo
-- Preserve depth perception and natural shadows
+IDENTITY PRESERVATION (MANDATORY - NO EXCEPTIONS):
+- EXACT same facial features: eyes, nose, mouth, jawline, cheekbones
+- EXACT same skin tone, ethnicity, and complexion
+- EXACT same hair style, color, and texture
+- EXACT same body proportions, height, and build
+- EXACT same posture and stance as original photo
+- EXACT same lighting direction, intensity, and color temperature
+- EXACT same background and environment
+- ONLY change: replace existing clothing with {clothing_description}
 
-QUALITY REQUIREMENTS:
-- Ultra-high resolution output (1024x1536 portrait)
-- Photorealistic quality matching original photo
-- Seamless integration between person and clothing
-- Professional photography appearance
-- Natural lighting and shadow consistency
+TECHNICAL SPECIFICATIONS:
+- Person measurements: height {measurements.get('height', 170)}cm, chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
+- Clothing must fit naturally according to these specific body measurements
+- Realistic fabric behavior: proper draping, natural wrinkles, appropriate shadows
+- Maintain original photo's depth of field and focus
+- Professional photography quality with sharp details
+- Seamless integration between person and new clothing
 
-TECHNICAL CONSTRAINTS:
-- NO changes to facial features, skin tone, or ethnicity
-- NO changes to body shape or proportions beyond clothing fit
-- NO background alterations unless necessary for realism
-- PRESERVE original photo's lighting conditions and style
+CRITICAL CONSTRAINTS:
+- NO facial modifications whatsoever
+- NO body shape alterations
+- NO lighting changes
+- NO background modifications
+- NO pose adjustments
+- The person must be 100% recognizable as the same individual
 
-This must result in the SAME PERSON wearing the new clothing item."""
+OUTPUT: A photorealistic image of this IDENTICAL PERSON wearing {clothing_description}, maintaining perfect identity preservation while showing realistic clothing integration."""
 
             print(f"📝 Enhanced prompt created: {len(advanced_prompt)} characters")
 

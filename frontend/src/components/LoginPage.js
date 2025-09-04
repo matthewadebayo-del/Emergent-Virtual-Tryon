@@ -29,12 +29,12 @@ const LoginPage = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await axios.post('/login', formData);
+      const response = await axios.post('/api/login', formData);
       const { access_token } = response.data;
       
       // Get user profile
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      const profileResponse = await axios.get('/profile');
+      const profileResponse = await axios.get('/api/profile');
       
       onLogin(access_token, profileResponse.data);
     } catch (error) {
@@ -49,7 +49,7 @@ const LoginPage = ({ onLogin }) => {
     setResetMessage('');
 
     try {
-      await axios.post('/reset-password', { email: resetEmail });
+      await axios.post('/api/reset-password', { email: resetEmail });
       setResetMessage('Password reset instructions have been sent to your email.');
     } catch (error) {
       setResetMessage('Error sending reset email. Please try again.');
