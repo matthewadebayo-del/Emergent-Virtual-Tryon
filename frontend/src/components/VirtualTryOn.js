@@ -71,6 +71,15 @@ const VirtualTryOn = ({ user, onLogout }) => {
     }
   }, [isCameraActive]);
 
+  useEffect(() => {
+    if (isCameraActive && videoRef.current) {
+      console.log('Camera active, checking video element...');
+      console.log('Video srcObject:', videoRef.current.srcObject);
+      console.log('Video readyState:', videoRef.current.readyState);
+      console.log('Video paused:', videoRef.current.paused);
+    }
+  }, [isCameraActive]);
+
   const fetchProducts = async () => {
     try {
       console.log('Fetching products...');
