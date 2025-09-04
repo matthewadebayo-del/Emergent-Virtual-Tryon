@@ -147,15 +147,32 @@ const VirtualTryOn = ({ user, onLogout }) => {
       
       setCameraStream(stream);
       setIsCameraActive(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        console.log('Video stream assigned:', stream);
-        console.log('Video element:', videoRef.current);
-        console.log('Stream tracks:', stream.getTracks());
-        videoRef.current.play().catch(e => console.log('Video play failed:', e));
-      } else {
-        console.error('Video ref not available when trying to assign stream');
-      }
+      
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          console.log('Video stream assigned:', stream);
+          console.log('Video element:', videoRef.current);
+          console.log('Stream tracks:', stream.getTracks());
+          console.log('Stream active:', stream.active);
+          
+          videoRef.current.play()
+            .then(() => {
+              console.log('Video playing successfully');
+              console.log('Video dimensions after play:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+            })
+            .catch(e => {
+              console.error('Video play failed:', e);
+              if (videoRef.current && videoRef.current.srcObject) {
+                videoRef.current.load();
+                videoRef.current.play().catch(err => console.error('Video restart failed:', err));
+              }
+            });
+        } else {
+          console.error('Video ref not available when trying to assign stream');
+        }
+      }, 100);
+      
     } catch (error) {
       console.error('Failed to start camera:', error);
       let errorMessage = 'Failed to access camera. ';
@@ -284,18 +301,43 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const handleImageUpload = (file, type) => {
     if (file) {
+      console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+      
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64 = e.target.result;
+        console.log('File read successfully, base64 length:', base64.length);
+        console.log('Base64 preview:', base64.substring(0, 100) + '...');
+        
         if (type === 'user') {
           setUserImage(base64);
           setUserImagePreview(base64);
+          console.log('User image preview set:', !!base64);
         } else if (type === 'clothing') {
           setClothingImage(base64);
           setClothingImagePreview(base64);
+          console.log('Clothing image preview set:', !!base64);
         }
       };
+      
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
+        alert('Failed to read the selected file. Please try again.');
+      };
+      
       reader.readAsDataURL(file);
+    } else {
+      console.log('No file provided to handleImageUpload');
     }
   };
 
@@ -472,14 +514,33 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       playsInline
                       muted
                       className="w-full max-w-md mx-auto rounded-lg shadow-lg"
-                      style={{ minHeight: '300px', backgroundColor: '#1a1a1a' }}
+                      style={{ 
+                        minHeight: '300px', 
+                        backgroundColor: '#1a1a1a',
+                        width: '100%',
+                        maxWidth: '400px',
+                        height: 'auto',
+                        objectFit: 'cover'
+                      }}
                       onLoadedMetadata={() => {
                         console.log('Video metadata loaded');
                         console.log('Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+                        console.log('Video srcObject:', videoRef.current?.srcObject);
                       }}
-                      onError={(e) => console.error('Video error:', e)}
-                      onCanPlay={() => console.log('Video can play')}
-                      onPlaying={() => console.log('Video is playing')}
+                      onError={(e) => {
+                        console.error('Video error:', e);
+                        console.error('Video element:', videoRef.current);
+                      }}
+                      onCanPlay={() => {
+                        console.log('Video can play');
+                        console.log('Video readyState:', videoRef.current?.readyState);
+                      }}
+                      onPlaying={() => {
+                        console.log('Video is playing');
+                        console.log('Video paused:', videoRef.current?.paused);
+                      }}
+                      onLoadStart={() => console.log('Video load start')}
+                      onWaiting={() => console.log('Video waiting')}
                     />
                     <canvas ref={canvasRef} className="hidden" />
                     <div className="flex space-x-4 justify-center">
@@ -546,9 +607,9 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     <span className="text-green-200 font-medium">Measurements Extracted</span>
                   </div>
                   <div className="text-green-200 text-sm">
-                    Height: {measurements.height?.toFixed(0)}cm, 
-                    Chest: {measurements.chest?.toFixed(0)}cm, 
-                    Waist: {measurements.waist?.toFixed(0)}cm
+                    Height: {measurements.height?.toFixed(2)}cm, 
+                    Chest: {measurements.chest?.toFixed(2)}cm, 
+                    Waist: {measurements.waist?.toFixed(2)}cm
                   </div>
                 </div>
               )}
@@ -583,7 +644,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Height (cm)</label>
                   <input
                     type="number"
-                    value={measurements.height?.toFixed(0) || ''}
+                    value={measurements.height?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, height: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
                   />
@@ -592,7 +653,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Weight (kg)</label>
                   <input
                     type="number"
-                    value={measurements.weight?.toFixed(0) || ''}
+                    value={measurements.weight?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, weight: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
                   />
@@ -601,7 +662,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Chest (cm)</label>
                   <input
                     type="number"
-                    value={measurements.chest?.toFixed(0) || ''}
+                    value={measurements.chest?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, chest: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
                   />
@@ -610,7 +671,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Waist (cm)</label>
                   <input
                     type="number"
-                    value={measurements.waist?.toFixed(0) || ''}
+                    value={measurements.waist?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, waist: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
                   />
@@ -619,7 +680,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Hips (cm)</label>
                   <input
                     type="number"
-                    value={measurements.hips?.toFixed(0) || ''}
+                    value={measurements.hips?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, hips: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
                   />
@@ -628,7 +689,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Shoulder Width (cm)</label>
                   <input
                     type="number"
-                    value={measurements.shoulder_width?.toFixed(0) || ''}
+                    value={measurements.shoulder_width?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, shoulder_width: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
                   />
@@ -690,6 +751,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     src={userImagePreview} 
                     alt="Your photo" 
                     className="max-h-96 mx-auto rounded-lg shadow-lg"
+                    onLoad={() => console.log('User image preview loaded successfully')}
+                    onError={(e) => {
+                      console.error('User image preview failed to load:', e);
+                      console.error('Image src:', userImagePreview?.substring(0, 100));
+                    }}
+                    style={{ maxWidth: '100%', height: 'auto' }}
                   />
                   <div className="flex space-x-4 justify-center">
                     <button
@@ -722,7 +789,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     <CheckCircle className="w-5 h-5 text-green-400" />
                     <span className="text-green-200 font-medium">Measurements available</span>
                   </div>
-                  <label className="flex items-center justify-center space-x-3">
+                  <label className="flex items-center justify-center space-x-3 mb-4">
                     <input
                       type="checkbox"
                       checked={useStoredMeasurements}
@@ -731,6 +798,17 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     />
                     <span className="text-green-200">Use my measurements for better accuracy</span>
                   </label>
+                  
+                  {user.captured_image && (
+                    <div className="text-center">
+                      <button
+                        onClick={() => setStep(2)}
+                        className="btn-primary"
+                      >
+                        Skip Photo - Use Saved Image
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -742,6 +820,16 @@ const VirtualTryOn = ({ user, onLogout }) => {
           <div className="max-w-4xl mx-auto">
             <div className="card text-center">
               <h2 className="text-2xl font-bold text-white mb-6">How would you like to try on clothes?</h2>
+              
+              {user.captured_image && (
+                <div className="mb-6 p-4 bg-blue-500/20 rounded-lg">
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <CheckCircle className="w-5 h-5 text-blue-400" />
+                    <span className="text-blue-200 font-medium">Using your saved photo</span>
+                  </div>
+                  <p className="text-blue-200/80 text-sm">We'll use your previously captured image for the virtual try-on</p>
+                </div>
+              )}
               
               <div className="grid md:grid-cols-3 gap-6">
                 <button
