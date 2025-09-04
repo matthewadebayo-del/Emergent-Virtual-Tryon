@@ -195,6 +195,8 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 // Auto-extract measurements (simulated)
                 extractMeasurementsFromImage();
                 
+                saveCapturedImageToProfile(base64);
+                
                 setStep(2); // Skip to input mode selection
                 setIsCountingDown(false);
                 setCountdown(null);
@@ -232,6 +234,18 @@ const VirtualTryOn = ({ user, onLogout }) => {
       console.log('Measurements saved automatically');
     } catch (error) {
       console.error('Failed to save measurements:', error);
+    }
+  };
+
+  const saveCapturedImageToProfile = async (imageBase64) => {
+    try {
+      await axios.post('/save_captured_image', {
+        image_base64: imageBase64,
+        measurements: measurements
+      });
+      console.log('Captured image saved to profile');
+    } catch (error) {
+      console.error('Failed to save captured image:', error);
     }
   };
 

@@ -325,6 +325,33 @@ async def save_measurements(
     )
     return {"message": "Measurements saved successfully"}
 
+@api_router.post("/save_captured_image")
+async def save_captured_image(
+    image_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    # Check if database is initialized
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+        
+    try:
+        image_record = {
+            "image_base64": image_data.get("image_base64"),
+            "captured_at": datetime.utcnow(),
+            "measurements": image_data.get("measurements"),
+            "image_type": "camera_capture"
+        }
+        
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$push": {"captured_images": image_record}}
+        )
+        
+        return {"message": "Image saved to profile successfully", "image_id": str(image_record["captured_at"])}
+    except Exception as e:
+        print(f"Error saving captured image: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save captured image")
+
 
 # Product Catalog Routes
 @api_router.get("/products", response_model=List[Product])
