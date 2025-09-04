@@ -5,6 +5,7 @@ import numpy as np
 
 try:
     import mediapipe as mp
+
     MEDIAPIPE_AVAILABLE = True
 except ImportError:
     print("⚠️ MediaPipe not available, using basic measurement extraction")
@@ -13,6 +14,7 @@ except ImportError:
 
 try:
     import trimesh
+
     TRIMESH_AVAILABLE = True
 except ImportError:
     print("⚠️ Trimesh not available, using basic mesh generation")
@@ -43,9 +45,7 @@ class BodyReconstructor:
     def _load_smpl_model(self):
         """Load SMPL-X model with fallback"""
         try:
-            print(
-                "⚠️ SMPL-X model not available, using basic mesh generation"
-            )
+            print("⚠️ SMPL-X model not available, using basic mesh generation")
             return None
         except Exception as e:
             print(f"⚠️ Failed to load SMPL-X model: {e}")

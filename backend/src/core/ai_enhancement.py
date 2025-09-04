@@ -1,5 +1,5 @@
-from typing import Any, Dict
 import os
+from typing import Any, Dict
 
 import cv2
 import numpy as np
@@ -9,6 +9,7 @@ try:
     import torch
     from diffusers import (StableDiffusionImg2ImgPipeline,
                            StableDiffusionInpaintPipeline)
+
     AI_ENHANCEMENT_AVAILABLE = True
 except ImportError:
     print("⚠️ AI enhancement dependencies not available (torch, diffusers)")
@@ -20,13 +21,13 @@ class AIEnhancer:
 
     def __init__(self, device: str = None):
         self.enabled = os.getenv("ENABLE_AI_ENHANCEMENT", "false").lower() == "true"
-        
+
         if not AI_ENHANCEMENT_AVAILABLE or not self.enabled:
             print("⚠️ AI enhancement disabled or dependencies unavailable")
             self.img2img_pipe = None
             self.inpaint_pipe = None
             return
-            
+
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self._load_models()
 
@@ -36,7 +37,7 @@ class AIEnhancer:
             self.img2img_pipe = None
             self.inpaint_pipe = None
             return
-            
+
         try:
             self.img2img_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
                 "stabilityai/stable-diffusion-2-1",

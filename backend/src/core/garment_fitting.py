@@ -4,6 +4,7 @@ import numpy as np
 
 try:
     import trimesh
+
     TRIMESH_AVAILABLE = True
 except ImportError:
     print("⚠️ Trimesh not available, using basic garment fitting")
@@ -12,6 +13,7 @@ except ImportError:
 
 try:
     import pybullet as p
+
     PYBULLET_AVAILABLE = True
 except ImportError:
     print("⚠️ PyBullet not available, using basic garment fitting")
@@ -59,7 +61,7 @@ class GarmentFitter:
         if not TRIMESH_AVAILABLE or trimesh is None:
             print("⚠️ Trimesh not available, returning basic template")
             return None
-            
+
         body = trimesh.creation.cylinder(radius=0.25, height=0.6, sections=32)
 
         sleeve_left = trimesh.creation.cylinder(radius=0.08, height=0.25, sections=16)

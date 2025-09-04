@@ -1,5 +1,6 @@
-# Multi-stage Dockerfile for VirtualFit Backend (Optimized for size)
-FROM python:3.12-slim as builder
+# Optimized Dockerfile for VirtualFit Backend (~8GB target)
+# Multi-stage build to reduce final image size while preserving ALL 3D functionality
+FROM python:3.12-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,18 +15,23 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.production.txt .
-RUN pip install --no-cache-dir -r requirements.production.txt
+# Copy optimized requirements and install Python dependencies
+COPY requirements.optimized.txt .
+RUN pip install --no-cache-dir -r requirements.optimized.txt
 
 # Production stage - minimal runtime image
-FROM python:3.12-slim as production
+FROM python:3.12-slim AS production
 
-# Install only essential runtime dependencies
+# Install essential runtime dependencies with enhanced OpenGL support
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-dri \
+    libgl1 \
     libglib2.0-0 \
     libgomp1 \
+    libglu1-mesa \
+    libxrender1 \
+    libxext6 \
+    libsm6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

@@ -8,6 +8,7 @@ from PIL import Image
 
 try:
     import trimesh
+
     TRIMESH_AVAILABLE = True
 except ImportError:
     print("⚠️ Trimesh not available, using basic rendering fallback")
@@ -31,9 +32,7 @@ class PhotorealisticRenderer:
                 timeout=10,
             )
             if result.returncode == 0:
-                print(
-                    "✅ Blender available for photorealistic rendering"
-                )
+                print("✅ Blender available for photorealistic rendering")
                 return True
         except (
             subprocess.TimeoutExpired,
@@ -42,9 +41,7 @@ class PhotorealisticRenderer:
         ):
             pass
 
-        print(
-            "⚠️ Blender not available, using enhanced fallback rendering"
-        )
+        print("⚠️ Blender not available, using enhanced fallback rendering")
         return False
 
     def render_scene(

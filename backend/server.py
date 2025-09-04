@@ -13,7 +13,6 @@ from typing import Dict, List, Optional
 import aiofiles
 import bcrypt
 import fal_client
-import numpy as np
 import requests
 from dotenv import load_dotenv
 from fastapi import (APIRouter, Depends, FastAPI, File, Form, Header,
@@ -46,11 +45,11 @@ try:
     from src.core.garment_fitting import GarmentFitter
     from src.core.rendering import PhotorealisticRenderer
 
-    # Initialize instances
+    # Initialize instances with environment-based configuration
     body_reconstructor = BodyReconstructor()
     garment_fitter = GarmentFitter()
     renderer = PhotorealisticRenderer()
-    ai_enhancer = AIEnhancer()
+    ai_enhancer = AIEnhancer()  # Will check ENABLE_AI_ENHANCEMENT internally
 
     print("✅ 3D virtual try-on modules imported and initialized successfully")
 except ImportError as e:
@@ -95,7 +94,7 @@ for key, value in os.environ.items():
 FAL_KEY = os.getenv("FAL_KEY")
 if FAL_KEY:
     os.environ["FAL_KEY"] = FAL_KEY
-    print(f"🔑 fal.ai client configured with API key")
+    print("🔑 fal.ai client configured with API key")
 else:
     print("⚠️ FAL_KEY not found, fal.ai integration will be disabled")
 
@@ -130,15 +129,15 @@ if mongo_url:
         print(f"🔧 MONGO_URL missing scheme prefix. Current value: {repr(mongo_url)}")
         if "@" in mongo_url and "." in mongo_url:
             mongo_url = f"mongodb+srv://{mongo_url}"
-            print(f"🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
+            print("🔧 Fixed MongoDB URL format by adding mongodb+srv:// prefix")
             print(f"🔧 New MONGO_URL: {repr(mongo_url)}")
         else:
             print(f"❌ Invalid MongoDB URL format - cannot fix: {repr(mongo_url)}")
     else:
-        print(f"✅ MongoDB URL already has correct scheme")
+        print("✅ MongoDB URL already has correct scheme")
 
     if mongo_url and len(mongo_url) > 0:
-        mongodb_schemes = ('mongodb://', 'mongodb+srv://')
+        mongodb_schemes = ("mongodb://", "mongodb+srv://")
         starts_with_mongodb = mongo_url.startswith(mongodb_schemes)
         print(
             f"🔍 DEBUG: MONGO_URL validation - starts with mongodb: "
@@ -441,7 +440,7 @@ async def extract_measurements(
 ):
     """Extract body measurements from user image using AI computer vision"""
     try:
-        print(f"=== AI-Based Measurement Extraction ===")
+        print("=== AI-Based Measurement Extraction ===")
         print(f"User: {current_user.email}")
         print(f"Image length: {len(user_image_base64)}")
 
@@ -576,7 +575,7 @@ async def virtual_tryon(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        print(f"=== Try-on request DEBUG ===")
+        print("=== Try-on request DEBUG ===")
         print(f"User: {current_user.email}")
         print(f"Product ID: {product_id}")
         print(
@@ -910,10 +909,10 @@ async def virtual_tryon(
         result_image_base64 = base64.b64encode(images[0]).decode("utf-8")
         size_recommendation = determine_size_recommendation(measurements, product_id)
 
-        print(f"✅ ADVANCED VIRTUAL TRY-ON COMPLETE!")
+        print("✅ ADVANCED VIRTUAL TRY-ON COMPLETE!")
         print(f"👔 Clothing: {clothing_description}")
         print(f"📏 Size Recommendation: {size_recommendation}")
-        print(f"🎯 Identity Preservation: Enhanced prompting applied")
+        print("🎯 Identity Preservation: Enhanced prompting applied")
         print(f"💾 Result Size: {len(result_image_base64)} characters (base64)")
 
         if not images or len(images) == 0:
@@ -1495,8 +1494,7 @@ async def init_database_background():
             # Initialize MongoDB client
             if mongo_url:
                 logger.info(
-                    f"🔍 Creating AsyncIOMotorClient with URL: "
-                    f"{mongo_url[:50]}..."
+                    f"🔍 Creating AsyncIOMotorClient with URL: " f"{mongo_url[:50]}..."
                 )
 
                 client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=10000)
@@ -1513,8 +1511,7 @@ async def init_database_background():
 
         except Exception as e:
             logger.error(
-                f"❌ Database initialization attempt {attempt + 1} failed: "
-                f"{str(e)}"
+                f"❌ Database initialization attempt {attempt + 1} failed: " f"{str(e)}"
             )
             if attempt < max_retries - 1:
                 logger.info(f"⏳ Retrying in {retry_delay} seconds...")
