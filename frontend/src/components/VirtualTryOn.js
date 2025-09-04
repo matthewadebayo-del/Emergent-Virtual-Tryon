@@ -107,7 +107,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const fetchProducts = async () => {
     try {
       console.log('Fetching products...');
-      const response = await axios.get('/api/products');
+      const response = await axios.get('/products');
       console.log('Products response:', response.data);
       setProducts(response.data);
     } catch (error) {
@@ -263,7 +263,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const saveMeasurementsToBackend = async (measurementData) => {
     try {
-      await axios.post('/api/measurements', measurementData);
+      await axios.post('/measurements', measurementData);
       console.log('Measurements saved automatically');
     } catch (error) {
       console.error('Failed to save measurements:', error);
@@ -272,7 +272,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const saveCapturedImageToProfile = async (imageBase64) => {
     try {
-      await axios.post('/api/save_captured_image', {
+      await axios.post('/save_captured_image', {
         image_base64: imageBase64,
         measurements: measurements
       });
@@ -345,7 +345,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
       console.log('Sending try-on FormData with product_id:', selectedProduct?.id);
       console.log('Processing type:', processingType);
 
-      const response = await axios.post('/api/tryon', formData, {
+      const response = await axios.post('/tryon', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
