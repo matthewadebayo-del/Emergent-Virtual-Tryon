@@ -80,6 +80,45 @@ yarn start
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
 
+## 🐳 Docker Deployment Options
+
+### Minimal Deployment (~3GB)
+- Basic virtual try-on functionality
+- No AI enhancement or physics simulation
+- Suitable for development and basic testing
+```bash
+docker build -f backend/Dockerfile.minimal -t virtualfit-backend-minimal .
+```
+
+### Production Deployment (~5GB)  
+- Complete 3D virtual try-on with CPU-optimized PyTorch
+- MediaPipe body reconstruction, physics simulation, and AI enhancement
+- Recommended for production deployment (Cloud Run compatible)
+```bash
+docker build -f backend/Dockerfile.production -t virtualfit-backend-production .
+```
+
+### Optimized Deployment (~8GB)  
+- Core 3D features with conditional AI loading
+- MediaPipe body reconstruction and basic rendering
+- Alternative for moderate resource environments
+```bash
+docker build -f backend/Dockerfile.optimized -t virtualfit-backend-optimized .
+```
+
+### Full Deployment (~20GB)
+- All features including GPU-optimized PyTorch and development tools
+- Complete 3D virtual try-on with maximum performance
+- Requires high-memory environments
+```bash
+docker build -f backend/Dockerfile -t virtualfit-backend-full .
+```
+
+### Environment Variables
+Control feature availability with these environment variables:
+- `ENABLE_AI_ENHANCEMENT=true/false` - Controls Stable Diffusion loading
+- `ENABLE_3D_FEATURES=true/false` - Controls advanced 3D features
+
 ## 📖 Testing Guide
 
 For comprehensive testing instructions, see [LOCALHOST_TESTING_GUIDE.md](./LOCALHOST_TESTING_GUIDE.md).

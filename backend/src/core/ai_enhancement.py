@@ -1,22 +1,43 @@
+import os
 from typing import Any, Dict
 
 import cv2
 import numpy as np
-import torch
-from diffusers import (StableDiffusionImg2ImgPipeline,
-                       StableDiffusionInpaintPipeline)
 from PIL import Image
+
+try:
+    import torch
+    from diffusers import (StableDiffusionImg2ImgPipeline,
+                           StableDiffusionInpaintPipeline)
+
+    AI_ENHANCEMENT_AVAILABLE = True
+except ImportError:
+    print("⚠️ AI enhancement dependencies not available (torch, diffusers)")
+    AI_ENHANCEMENT_AVAILABLE = False
 
 
 class AIEnhancer:
     """AI enhancement using Stable Diffusion with advanced style matching"""
 
-    def __init__(self, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
-        self.device = device
+    def __init__(self, device: str = None):
+        self.enabled = os.getenv("ENABLE_AI_ENHANCEMENT", "false").lower() == "true"
+
+        if not AI_ENHANCEMENT_AVAILABLE or not self.enabled:
+            print("⚠️ AI enhancement disabled or dependencies unavailable")
+            self.img2img_pipe = None
+            self.inpaint_pipe = None
+            return
+
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self._load_models()
 
     def _load_models(self):
         """Load Stable Diffusion models"""
+        if not AI_ENHANCEMENT_AVAILABLE:
+            self.img2img_pipe = None
+            self.inpaint_pipe = None
+            return
+
         try:
             self.img2img_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
                 "stabilityai/stable-diffusion-2-1",
@@ -54,9 +75,7 @@ class AIEnhancer:
     ) -> Image.Image:
         """Enhance rendered image to match original photo style"""
         if self.img2img_pipe is None:
-            print(
-                "⚠️ Stable Diffusion not available, returning original rendered image"
-            )
+            print("⚠️ Stable Diffusion not available, returning original rendered image")
             return rendered_image
 
         try:

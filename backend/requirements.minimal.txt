@@ -1,0 +1,25 @@
+# Minimal requirements for core virtual try-on functionality (~3GB image)
+fastapi==0.110.1
+uvicorn==0.25.0
+python-dotenv>=1.0.1
+pymongo==4.5.0
+pydantic>=2.6.4
+email-validator>=2.2.0
+pyjwt>=2.10.1
+passlib>=1.7.4
+motor==3.3.1
+python-jose>=3.3.0
+requests>=2.31.0
+python-multipart>=0.0.9
+openai>=1.0.0
+bcrypt>=4.0.1
+pillow>=10.0.0
+fal-client
+aiofiles
+numpy>=1.26.0
+
+# Essential 3D dependencies (lightweight versions)
+mediapipe==0.10.21
+opencv-python-headless==4.8.1.78
+trimesh==4.0.5
+scipy==1.11.4

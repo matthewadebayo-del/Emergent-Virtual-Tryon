@@ -1,7 +1,15 @@
 from typing import Any, Dict
 
 import numpy as np
-import trimesh
+
+try:
+    import trimesh
+
+    TRIMESH_AVAILABLE = True
+except ImportError:
+    print("⚠️ Trimesh not available, using basic garment fitting")
+    TRIMESH_AVAILABLE = False
+    trimesh = None
 
 try:
     import pybullet as p
@@ -10,6 +18,7 @@ try:
 except ImportError:
     print("⚠️ PyBullet not available, using basic garment fitting")
     PYBULLET_AVAILABLE = False
+    p = None
 
 
 class GarmentFitter:
@@ -19,7 +28,7 @@ class GarmentFitter:
         self.garment_templates = self._create_garment_templates()
         self.physics_client = None
 
-        if PYBULLET_AVAILABLE:
+        if PYBULLET_AVAILABLE and p is not None:
             try:
                 self.physics_client = p.connect(p.DIRECT)
                 p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
@@ -47,8 +56,12 @@ class GarmentFitter:
         }
         return templates
 
-    def _create_enhanced_tshirt_template(self) -> trimesh.Trimesh:
+    def _create_enhanced_tshirt_template(self):
         """Create detailed t-shirt template with better geometry"""
+        if not TRIMESH_AVAILABLE or trimesh is None:
+            print("⚠️ Trimesh not available, returning basic template")
+            return None
+
         body = trimesh.creation.cylinder(radius=0.25, height=0.6, sections=32)
 
         sleeve_left = trimesh.creation.cylinder(radius=0.08, height=0.25, sections=16)

@@ -1,0 +1,102 @@
+# Optimized Dockerfile for VirtualFit Backend (~6GB target)
+# Aggressive multi-stage build to reduce final image size while preserving ALL 3D functionality
+FROM python:3.12-slim AS builder
+
+# Install minimal build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    pkg-config \
+    gcc \
+    g++ \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies in stages to manage disk space
+COPY requirements.optimized.txt .
+
+# Install core dependencies first with NumPy 1.x compatibility
+RUN pip install --no-cache-dir --no-deps \
+    "numpy>=1.21.0,<2.0.0" \
+    fastapi==0.110.1 \
+    uvicorn==0.25.0 \
+    python-dotenv \
+    pymongo==4.5.0 \
+    pydantic \
+    email-validator \
+    pyjwt \
+    passlib \
+    motor==3.3.1 \
+    python-jose \
+    requests \
+    python-multipart \
+    openai \
+    bcrypt \
+    pillow \
+    fal-client \
+    aiofiles
+
+# Install 3D dependencies
+RUN pip install --no-cache-dir --no-deps \
+    mediapipe==0.10.21 \
+    opencv-python-headless==4.8.1.78 \
+    trimesh==4.0.5 \
+    scipy==1.11.4 \
+    pybullet==3.2.7
+
+# Install AI dependencies (CPU-only)
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.2.0+cpu \
+    torchvision==0.17.0+cpu
+
+# Install remaining AI dependencies with dependencies
+RUN pip install --no-cache-dir \
+    transformers==4.35.2 \
+    diffusers==0.24.0
+
+# Clean up build artifacts
+RUN pip cache purge && \
+    find /usr/local/lib/python3.12/site-packages -name "*.pyc" -delete && \
+    find /usr/local/lib/python3.12/site-packages -name "__pycache__" -type d -exec rm -rf {} + || true
+
+# Production stage - minimal runtime image
+FROM python:3.12-slim AS production
+
+# Install only essential runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-dri \
+    libglib2.0-0 \
+    libgomp1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python packages from builder stage
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy only essential application files
+COPY server.py .
+COPY src/ ./src/
+COPY .env .
+
+# Set environment variables for production
+ENV ENABLE_3D_FEATURES=true
+ENV ENABLE_AI_ENHANCEMENT=true
+ENV PYTHONPATH=/app
+ENV MONGO_URL=""
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
