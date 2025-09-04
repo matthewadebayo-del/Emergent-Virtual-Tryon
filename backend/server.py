@@ -544,11 +544,13 @@ async def virtual_tryon(
                     status_code=422, detail="Invalid clothing image format"
                 )
 
-        # Stage 3: Advanced Virtual Try-On using fal.ai FASHN
-        print("🎨 Stage 3: Advanced AI Virtual Try-On Processing...")
-        print(
-            "🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing"
-        )
+        # Stage 3: AI Virtual Try-On Processing
+        if processing_type == "premium" and FAL_KEY:
+            print("🎨 Stage 3: Premium AI Virtual Try-On Processing...")
+            print("🧠 Using fal.ai FASHN v1.6 with Identity Preservation & Segmentation-Free Processing")
+        else:
+            print("🎨 Stage 3: Standard AI Virtual Try-On Processing...")
+            print("🧠 Using OpenAI DALL-E 3 with enhanced prompting")
 
         # Initialize processing method variables
         processing_method = "Enhanced OpenAI DALL-E 3"
@@ -625,39 +627,26 @@ async def virtual_tryon(
             print("🎭 Generating virtual try-on with advanced identity preservation...")
 
             # Create ultra-detailed prompt for identity preservation
-            advanced_prompt = f"""ADVANCED VIRTUAL TRY-ON INSTRUCTION:
+            advanced_prompt = f"""PHOTOREALISTIC VIRTUAL TRY-ON - IDENTITY PRESERVATION CRITICAL:
 
-CRITICAL IDENTITY PRESERVATION REQUIREMENTS:
-- This is a VIRTUAL TRY-ON task, NOT image generation
-- PRESERVE the exact person from the reference photo: face, skin tone, ethnicity, body shape, hair
-- ONLY change their clothing to show them wearing: {clothing_description}
-- Maintain their natural body proportions: height {measurements.get('height', 170)}cm,
-  chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
-- Keep the same lighting, background, and photo quality as the original
-- The person should look EXACTLY like themselves, just wearing different clothes
+TASK: Transform the person in the reference photo to wear: {clothing_description}
 
-GARMENT INTEGRATION SPECIFICATIONS:
-- Clothing item: {clothing_description}
-- Fit the garment naturally on their specific body shape and measurements
-- Apply realistic fabric physics: proper draping, wrinkles, and shadows
-- Ensure clothing fits according to their measurements
-- Maintain realistic lighting that matches the original photo
-- Preserve depth perception and natural shadows
+IDENTITY PRESERVATION (MANDATORY):
+- EXACT same person: facial features, skin tone, ethnicity, hair style/color
+- EXACT same body proportions and posture
+- EXACT same lighting conditions and photo quality
+- ONLY change: clothing item to {clothing_description}
 
-QUALITY REQUIREMENTS:
-- Ultra-high resolution output (1024x1536 portrait)
-- Photorealistic quality matching original photo
-- Seamless integration between person and clothing
-- Professional photography appearance
-- Natural lighting and shadow consistency
+TECHNICAL REQUIREMENTS:
+- Body measurements: height {measurements.get('height', 170)}cm, chest {measurements.get('chest', 90)}cm, waist {measurements.get('waist', 75)}cm
+- Clothing must fit naturally on their specific body shape
+- Realistic fabric physics: proper draping, wrinkles, shadows
+- Maintain original photo's lighting and background
+- Professional photography quality output
 
-TECHNICAL CONSTRAINTS:
-- NO changes to facial features, skin tone, or ethnicity
-- NO changes to body shape or proportions beyond clothing fit
-- NO background alterations unless necessary for realism
-- PRESERVE original photo's lighting conditions and style
+CRITICAL: This person must look EXACTLY like themselves wearing the new clothing. No changes to face, body shape, or appearance except the clothing item.
 
-This must result in the SAME PERSON wearing the new clothing item."""
+Generate a photorealistic image of this SAME PERSON wearing {clothing_description}."""
 
             print(f"📝 Enhanced prompt created: {len(advanced_prompt)} characters")
 

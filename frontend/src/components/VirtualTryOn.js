@@ -61,6 +61,15 @@ const VirtualTryOn = ({ user, onLogout }) => {
     };
   }, [cameraStream]);
 
+  useEffect(() => {
+    if (isCameraActive && videoRef.current) {
+      console.log('Camera active, checking video element...');
+      console.log('Video srcObject:', videoRef.current.srcObject);
+      console.log('Video readyState:', videoRef.current.readyState);
+      console.log('Video paused:', videoRef.current.paused);
+    }
+  }, [isCameraActive]);
+
   const fetchProducts = async () => {
     try {
       console.log('Fetching products...');
@@ -106,6 +115,11 @@ const VirtualTryOn = ({ user, onLogout }) => {
       setIsCameraActive(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        console.log('Video stream assigned:', stream);
+        console.log('Video element:', videoRef.current);
+        videoRef.current.play().catch(e => console.log('Video play failed:', e));
+      } else {
+        console.error('Video ref not available when trying to assign stream');
       }
     } catch (error) {
       console.error('Failed to start camera:', error);
@@ -409,8 +423,14 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       playsInline
                       muted
                       className="w-full max-w-md mx-auto rounded-lg shadow-lg"
-                      onLoadedMetadata={() => console.log('Video metadata loaded')}
+                      style={{ minHeight: '300px', backgroundColor: '#1a1a1a' }}
+                      onLoadedMetadata={() => {
+                        console.log('Video metadata loaded');
+                        console.log('Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+                      }}
                       onError={(e) => console.error('Video error:', e)}
+                      onCanPlay={() => console.log('Video can play')}
+                      onPlaying={() => console.log('Video is playing')}
                     />
                     <canvas ref={canvasRef} className="hidden" />
                     <div className="flex space-x-4 justify-center">
@@ -940,6 +960,29 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   </div>
                 )}
               </div>
+
+              {processingType === 'default' && (
+                <div className="bg-yellow-500/20 rounded-lg p-4 mt-4 border border-yellow-500/50">
+                  <div className="flex items-start space-x-3">
+                    <div className="text-yellow-400 mt-1">💡</div>
+                    <div>
+                      <h4 className="text-yellow-200 font-semibold mb-2">Want Better Results?</h4>
+                      <p className="text-yellow-200/90 text-sm mb-3">
+                        For more realistic virtual try-on with advanced identity preservation, try our Premium processing powered by fal.ai FASHN v1.6.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setProcessingType('premium');
+                          setStep(3);
+                        }}
+                        className="btn-primary text-sm"
+                      >
+                        Try Premium Processing
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-center space-x-4">
                 <button
