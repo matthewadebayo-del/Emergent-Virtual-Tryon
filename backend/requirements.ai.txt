@@ -1,0 +1,15 @@
+# AI enhancement dependencies - installed separately to ensure CPU-only
+# These are installed in Dockerfile with explicit CPU-only flags
+
+# CPU-only PyTorch (no CUDA)
+torch==2.2.0+cpu
+torchvision==0.17.0+cpu
+
+# Stable Diffusion dependencies (minimal versions)
+diffusers==0.24.0
+transformers==4.35.2
+accelerate==0.24.1
+
+# Note: These must be installed with:
+# pip install --index-url https://download.pytorch.org/whl/cpu torch==2.2.0+cpu torchvision==0.17.0+cpu
+# pip install diffusers==0.24.0 transformers==4.35.2 accelerate==0.24.1

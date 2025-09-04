@@ -1,0 +1,80 @@
+# Ultra-optimized Dockerfile for VirtualFit Backend (<1GB target)
+# Extreme optimization while preserving ALL 3D virtual try-on functionality
+FROM python:3.12-slim AS builder
+
+# Install only essential build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    pkg-config \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements files
+COPY requirements.optimized.txt requirements.ai.txt ./
+
+# Stage 1: Install core dependencies (no AI)
+RUN pip install --no-cache-dir -r requirements.optimized.txt
+
+# Stage 2: Install CPU-only PyTorch (critical: avoid CUDA)
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.2.0+cpu \
+    torchvision==0.17.0+cpu
+
+# Stage 3: Install AI dependencies (minimal versions)
+RUN pip install --no-cache-dir \
+    diffusers==0.24.0 \
+    transformers==4.35.2 \
+    accelerate==0.24.1
+
+# Aggressive cleanup of build artifacts and caches
+RUN pip cache purge && \
+    find /usr/local/lib/python3.12/site-packages -name "*.pyc" -delete && \
+    find /usr/local/lib/python3.12/site-packages -name "__pycache__" -type d -exec rm -rf {} + || true && \
+    find /usr/local/lib/python3.12/site-packages -name "*.pyo" -delete && \
+    find /usr/local/lib/python3.12/site-packages -name "tests" -type d -exec rm -rf {} + || true && \
+    find /usr/local/lib/python3.12/site-packages -name "test" -type d -exec rm -rf {} + || true
+
+# Ultra-minimal production stage
+FROM python:3.12-slim AS production
+
+# Install critical runtime libraries including OpenGL support (Debian Trixie compatible)
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libgl1-mesa-dri \
+    libglib2.0-0 \
+    libgomp1 \
+    libglu1-mesa \
+    libxrender1 \
+    libxext6 \
+    libx11-6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/* \
+    && rm -rf /var/cache/*
+
+WORKDIR /app
+
+# Copy only Python packages (no build tools)
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/
+
+# Copy minimal application files
+COPY server.py .
+COPY src/ ./src/
+COPY .env .
+
+# Production environment
+ENV ENABLE_3D_FEATURES=true
+ENV ENABLE_AI_ENHANCEMENT=true
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV STARTUP_TIMEOUT=300
+ENV HEALTH_CHECK_TIMEOUT=60
+
+EXPOSE 8000
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]

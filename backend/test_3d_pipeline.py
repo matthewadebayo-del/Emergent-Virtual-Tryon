@@ -78,7 +78,7 @@ def test_3d_pipeline():
         
         # Stage 1: Body Reconstruction
         print("\n3. Testing body reconstruction...")
-        body_result = body_reconstructor.process_image_bytes(image_bytes)
+        body_result = model_manager.get_body_reconstructor().process_image_bytes(image_bytes)
         body_mesh = body_result['body_mesh']
         measurements = body_result['measurements']
         print(f"✅ Body mesh created with {len(body_mesh.vertices)} vertices")
@@ -86,7 +86,7 @@ def test_3d_pipeline():
         
         # Stage 2: Garment Fitting
         print("\n4. Testing garment fitting...")
-        fitted_garment = garment_fitter.fit_garment_to_body(
+        fitted_garment = model_manager.get_garment_fitter().fit_garment_to_body(
             body_mesh, "shirts", "t_shirt"
         )
         print(f"✅ Garment fitted with {len(fitted_garment.vertices)} vertices")
@@ -94,7 +94,7 @@ def test_3d_pipeline():
         # Stage 3: Rendering
         print("\n5. Testing rendering...")
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
-            rendered_path = renderer.render_scene(
+            rendered_path = model_manager.get_renderer().render_scene(
                 body_mesh, fitted_garment, temp_file.name,
                 fabric_type="cotton",
                 fabric_color=(0.2, 0.3, 0.8)
@@ -109,7 +109,7 @@ def test_3d_pipeline():
         # Stage 4: AI Enhancement
         print("\n6. Testing AI enhancement...")
         rendered_image = Image.open(rendered_path)
-        enhanced_image = ai_enhancer.enhance_realism(rendered_image, test_image)
+        enhanced_image = model_manager.get_ai_enhancer().enhance_realism(rendered_image, test_image)
         print(f"✅ AI enhancement complete: {enhanced_image.size}")
         
         print("\n" + "=" * 50)

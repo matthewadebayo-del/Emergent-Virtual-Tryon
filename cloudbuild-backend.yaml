@@ -1,6 +1,6 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA', './backend']
+    args: ['build', '-f', './backend/Dockerfile.ultra', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA', './backend']
     
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA']
@@ -21,18 +21,19 @@ steps:
     - '--port'
     - '8000'
     - '--set-env-vars'
-    - 'DB_NAME=virtualfit_production,CORS_ORIGINS=*'
+    - 'DB_NAME=virtualfit_production,CORS_ORIGINS=*,STARTUP_TIMEOUT=300,HEALTH_CHECK_TIMEOUT=60'
     - '--update-secrets'
     - 'MONGO_URL=MongoDB-Atlas:2,OPENAI_API_KEY=openai-api-key:latest,FAL_KEY=fal-api-key:latest'
     - '--cpu'
-    - '1'
+    - '2'
     - '--memory'
-    - '512Mi'
+    - '2Gi'
     - '--max-instances'
     - '10'
     - '--timeout'
-    - '300'
+    - '900'
     - '--cpu-boost'
+    - '--startup-cpu-boost'
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA'
@@ -40,4 +41,4 @@ images:
 options:
   logging: CLOUD_LOGGING_ONLY
   
-timeout: '1200s'
+timeout: '3600s'
