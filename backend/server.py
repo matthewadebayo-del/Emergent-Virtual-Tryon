@@ -156,6 +156,7 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     measurements: Optional[dict] = None
     captured_image: Optional[str] = None
+    captured_images: Optional[List[dict]] = None
 
 
 class UserCreate(BaseModel):
