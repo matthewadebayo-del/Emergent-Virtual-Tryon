@@ -254,18 +254,36 @@ async def get_current_user(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: Optional[str] = payload.get("sub")
         if email is None:
+            logger.error("JWT token missing 'sub' field")
             raise HTTPException(
                 status_code=401, detail="Invalid authentication credentials"
             )
-    except JWTError:
+        logger.info(f"🔍 JWT validation successful for email: {email}")
+    except JWTError as e:
+        logger.error(f"JWT validation failed: {e}")
         raise HTTPException(
             status_code=401, detail="Invalid authentication credentials"
         )
 
     user = await db.users.find_one({"email": email})
     if user is None:
+        logger.error(f"❌ User not found in database: {email}")
+        # Check if any users exist at all
+        user_count = await db.users.count_documents({})
+        logger.error(f"📊 Total users in database: {user_count}")
         raise HTTPException(status_code=401, detail="User not found")
-    return User(**user)
+
+    logger.info(f"✅ User found in database: {email}")
+    logger.info(f"🔍 User record fields: {list(user.keys())}")
+    
+    try:
+        user_obj = User(**user)
+        logger.info(f"✅ User object created successfully for: {email}")
+        return user_obj
+    except Exception as e:
+        logger.error(f"❌ Failed to create User object for {email}: {e}")
+        logger.error(f"🔍 User record structure: {user}")
+        raise HTTPException(status_code=401, detail="User record incompatible")
 
 
 # Authentication Routes
@@ -301,11 +319,27 @@ async def login(login_data: UserLogin):
     if db is None:
         raise HTTPException(status_code=503, detail="Database not available")
 
+    logger.info(f"🔍 Login attempt for email: {login_data.email}")
+    
     user = await db.users.find_one({"email": login_data.email})
-    if not user or not verify_password(login_data.password, user["password_hash"]):
+    if not user:
+        logger.error(f"❌ User not found during login: {login_data.email}")
+        # Check if any users exist at all
+        user_count = await db.users.count_documents({})
+        logger.error(f"📊 Total users in database: {user_count}")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    logger.info(f"✅ User found during login: {login_data.email}")
+    logger.info(f"🔍 User record fields: {list(user.keys())}")
+    
+    if not verify_password(login_data.password, user["password_hash"]):
+        logger.error(f"❌ Password verification failed for: {login_data.email}")
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    logger.info(f"✅ Password verification successful for: {login_data.email}")
 
     access_token = create_access_token(data={"sub": user["email"]})
+    logger.info(f"✅ JWT token created for: {login_data.email}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -1439,10 +1473,31 @@ async def debug_db_status():
 
         await db.command("ping")
         user_count = await db.users.count_documents({})
+        
+        sample_users = []
+        async for user in db.users.find({}, {"email": 1, "full_name": 1, "_id": 0}).limit(3):
+            sample_users.append(user)
+        
+        user_structures = []
+        async for user in db.users.find({}).limit(5):
+            user_structure = {
+                "email": user.get("email", "MISSING"),
+                "has_password_hash": "password_hash" in user,
+                "has_full_name": "full_name" in user,
+                "has_measurements": "measurements" in user,
+                "has_captured_image": "captured_image" in user,
+                "has_captured_images": "captured_images" in user,
+                "has_created_at": "created_at" in user,
+                "all_fields": list(user.keys())
+            }
+            user_structures.append(user_structure)
+        
         return {
             "status": "connected",
             "database": db_name,
             "user_count": user_count,
+            "sample_users": sample_users,
+            "user_structures": user_structures,
             "mongo_url_configured": bool(mongo_url),
         }
     except Exception as e:
