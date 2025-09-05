@@ -322,6 +322,18 @@ const VirtualTryOn = ({ user, onLogout }) => {
         console.log('File read successfully, base64 length:', base64.length);
         console.log('Base64 preview:', base64.substring(0, 100) + '...');
         
+        if (!base64 || !base64.startsWith('data:')) {
+          console.error('Invalid base64 data format');
+          alert('Failed to process the selected file. Please try a different image.');
+          return;
+        }
+        
+        if (isHeic && !base64.includes('data:image/')) {
+          console.error('HEIC file processing failed');
+          alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
+          return;
+        }
+        
         if (type === 'user') {
           setUserImage(base64);
           setUserImagePreview(base64);
@@ -1174,8 +1186,15 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       src={`data:image/png;base64,${tryonResult.result_image_base64}`}
                       alt="Try-on result" 
                       className="w-full max-h-96 object-contain rounded-lg shadow-lg"
+                      onLoad={() => {
+                        console.log('Try-on result image loaded successfully');
+                        console.log('Image dimensions loaded');
+                      }}
                       onError={(e) => {
                         console.error('Failed to load try-on result image');
+                        console.error('Base64 data length:', tryonResult.result_image_base64?.length);
+                        console.error('Base64 preview:', tryonResult.result_image_base64?.substring(0, 100));
+                        console.error('Image src:', e.target.src.substring(0, 100));
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'block';
                       }}
@@ -1183,6 +1202,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   ) : (
                     <div className="w-full max-h-96 bg-gray-700 rounded-lg shadow-lg flex items-center justify-center">
                       <p className="text-white/60">Processing failed - no result image available</p>
+                      <p className="text-white/40 text-sm mt-2">Check console for debugging information</p>
                     </div>
                   )}
                   <div className="w-full max-h-96 bg-gray-700 rounded-lg shadow-lg flex items-center justify-center" style={{display: 'none'}}>

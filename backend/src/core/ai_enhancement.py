@@ -9,10 +9,11 @@ try:
     import torch
     from diffusers import (StableDiffusionImg2ImgPipeline,
                            StableDiffusionInpaintPipeline)
-
     AI_ENHANCEMENT_AVAILABLE = True
-except ImportError:
-    print("⚠️ AI enhancement dependencies not available (torch, diffusers)")
+    print("✅ AI enhancement dependencies loaded successfully")
+except ImportError as e:
+    print(f"⚠️ AI enhancement dependencies not available: {e}")
+    print("⚠️ Virtual try-on will use basic 3D rendering without AI enhancement")
     AI_ENHANCEMENT_AVAILABLE = False
 
 

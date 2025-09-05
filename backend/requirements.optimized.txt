@@ -17,7 +17,7 @@ python-multipart==0.0.9
 aiofiles==24.1.0
 
 # AI and image processing (essential only)
-openai==1.99.9
+# openai==1.99.9  # Removed - moved to 3D hybrid approach
 pillow==10.0.0
 fal-client==0.7.0
 
@@ -29,5 +29,11 @@ pybullet==3.2.7
 scipy==1.11.4
 numpy==1.26.4
 
-# Note: PyTorch and AI enhancement dependencies moved to separate install step
-# to ensure CPU-only installation without CUDA libraries
+# AI enhancement dependencies (CPU-optimized)
+torch --index-url https://download.pytorch.org/whl/cpu
+torchvision --index-url https://download.pytorch.org/whl/cpu  
+diffusers==0.30.0
+transformers>=4.30.0
+accelerate>=0.20.0
+
+# Note: PyTorch and AI enhancement dependencies for CPU-only installation
