@@ -136,28 +136,66 @@ class PhotorealisticRenderer:
         output_path: str,
         fabric_color: Tuple[float, float, float],
     ) -> str:
-        """Enhanced fallback rendering with better quality"""
+        """Enhanced fallback rendering with better quality and debugging"""
         print("🎨 Using enhanced fallback rendering")
 
         try:
+            if body_mesh is None:
+                print("⚠️ Body mesh is None, creating placeholder")
+                placeholder = Image.new("RGB", (1024, 1024), color=(200, 180, 160))
+                placeholder.save(output_path)
+                return output_path
+                
+            if garment_mesh is None:
+                print("⚠️ Garment mesh is None, creating placeholder")
+                placeholder = Image.new("RGB", (1024, 1024), color=fabric_color)
+                placeholder.save(output_path)
+                return output_path
+
             if TRIMESH_AVAILABLE:
+                print(f"Body mesh: {len(body_mesh.vertices)} vertices, {len(body_mesh.faces)} faces")
+                print(f"Garment mesh: {len(garment_mesh.vertices)} vertices, {len(garment_mesh.faces)} faces")
+                
+                if len(body_mesh.vertices) == 0 or len(garment_mesh.vertices) == 0:
+                    print("⚠️ Empty mesh detected, creating placeholder")
+                    placeholder = Image.new("RGB", (1024, 1024), color=fabric_color)
+                    placeholder.save(output_path)
+                    return output_path
+
                 combined_mesh = trimesh.util.concatenate([body_mesh, garment_mesh])
+                print(f"Combined mesh: {len(combined_mesh.vertices)} vertices, {len(combined_mesh.faces)} faces")
 
                 scene = trimesh.Scene([combined_mesh])
                 scene.camera.resolution = [1024, 1024]
                 scene.camera.fov = [60, 60]
 
                 scene.camera_transform = trimesh.transformations.compose_matrix(
-                    translate=[0, -3, 1.5], angles=[np.radians(15), 0, 0]
+                    translate=[0, -2.5, 1.2], angles=[np.radians(10), 0, 0]
                 )
+
+                scene.lights = [
+                    trimesh.scene.lighting.DirectionalLight(
+                        direction=[0, -1, -1], intensity=1.0
+                    ),
+                    trimesh.scene.lighting.DirectionalLight(
+                        direction=[1, -1, 0], intensity=0.5
+                    )
+                ]
 
                 png_data = scene.save_image(resolution=[1024, 1024], visible=True)
 
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                
                 with open(output_path, "wb") as f:
                     f.write(png_data)
 
-                print(f"✅ Enhanced fallback rendering complete: {output_path}")
-                return output_path
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                    print(f"✅ Enhanced fallback rendering complete: {output_path}")
+                    return output_path
+                else:
+                    print("⚠️ Rendered file is empty or missing")
+                    raise Exception("Rendered file is empty")
+
             else:
                 print("⚠️ Trimesh not available, creating basic placeholder")
                 placeholder = Image.new("RGB", (1024, 1024), color=fabric_color)
@@ -166,7 +204,7 @@ class PhotorealisticRenderer:
 
         except Exception as e:
             print(f"⚠️ Enhanced fallback rendering failed: {e}")
-            placeholder = Image.new("RGB", (1024, 1024), color=(128, 128, 128))
+            placeholder = Image.new("RGB", (1024, 1024), color=(220, 200, 180))  # Light skin tone
             placeholder.save(output_path)
             return output_path
 
@@ -178,97 +216,151 @@ class PhotorealisticRenderer:
         fabric_type: str,
         fabric_color: Tuple[float, float, float],
     ) -> str:
-        """Create enhanced Blender Python script for photorealistic rendering"""
+        """Create enhanced Blender Python script with comprehensive debugging"""
         return f"""
 import bpy
 import bmesh
+import os
 from mathutils import Vector
 
-bpy.ops.wm.read_factory_settings(use_empty=True)
+print("=== Starting Blender Debug Render ===")
 
-bpy.context.scene.render.engine = 'CYCLES'
-bpy.context.scene.render.resolution_x = 1024
-bpy.context.scene.render.resolution_y = 1024
-bpy.context.scene.render.resolution_percentage = 100
+try:
+    print("Clearing scene...")
+    bpy.ops.wm.read_factory_settings(use_empty=True)
 
-bpy.context.scene.cycles.samples = 128
-bpy.context.scene.cycles.use_denoising = True
+    print("Setting render engine to Cycles...")
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.render.resolution_x = 1024
+    bpy.context.scene.render.resolution_y = 1024
+    bpy.context.scene.render.resolution_percentage = 100
 
-bpy.ops.import_scene.obj(filepath="{body_path}")
-body_obj = bpy.context.selected_objects[0]
-body_obj.name = "body"
+    bpy.context.scene.cycles.samples = 64
+    bpy.context.scene.cycles.use_denoising = True
+    
+    bpy.context.scene.cycles.device = 'CPU'
+    print("Using CPU rendering for stability")
 
-bpy.ops.import_scene.obj(filepath="{garment_path}")
-garment_obj = bpy.context.selected_objects[0]
-garment_obj.name = "garment"
+    print(f"Importing body mesh from: {body_path}")
+    if os.path.exists("{body_path}"):
+        bpy.ops.import_scene.obj(filepath="{body_path}")
+        if bpy.context.selected_objects:
+            body_obj = bpy.context.selected_objects[0]
+            body_obj.name = "body"
+            print(f"✅ Body mesh imported: {{len(body_obj.data.vertices)}} vertices")
+        else:
+            print("❌ No body object selected after import")
+            raise Exception("Body import failed")
+    else:
+        print(f"❌ Body file not found: {body_path}")
+        raise Exception("Body file missing")
 
-skin_mat = bpy.data.materials.new(name="Skin")
-skin_mat.use_nodes = True
-skin_nodes = skin_mat.node_tree.nodes
-skin_nodes.clear()
+    print(f"Importing garment mesh from: {garment_path}")
+    if os.path.exists("{garment_path}"):
+        bpy.ops.import_scene.obj(filepath="{garment_path}")
+        if bpy.context.selected_objects:
+            garment_obj = bpy.context.selected_objects[0]
+            garment_obj.name = "garment"
+            print(f"✅ Garment mesh imported: {{len(garment_obj.data.vertices)}} vertices")
+        else:
+            print("❌ No garment object selected after import")
+            raise Exception("Garment import failed")
+    else:
+        print(f"❌ Garment file not found: {garment_path}")
+        raise Exception("Garment file missing")
 
-skin_bsdf = skin_nodes.new(type='ShaderNodeBsdfPrincipled')
-skin_bsdf.inputs['Base Color'].default_value = (0.8, 0.7, 0.6, 1.0)
-skin_bsdf.inputs['Subsurface'].default_value = 0.15
-skin_bsdf.inputs['Subsurface Color'].default_value = (0.9, 0.8, 0.7, 1.0)
-skin_bsdf.inputs['Roughness'].default_value = 0.4
+    print("Creating simple materials...")
+    
+    skin_mat = bpy.data.materials.new(name="DebugSkin")
+    skin_mat.use_nodes = True
+    skin_nodes = skin_mat.node_tree.nodes
+    skin_nodes.clear()
+    
+    skin_emission = skin_nodes.new(type='ShaderNodeEmission')
+    skin_emission.inputs['Color'].default_value = (0.8, 0.7, 0.6, 1.0)
+    skin_emission.inputs['Strength'].default_value = 0.8
+    
+    skin_output = skin_nodes.new(type='ShaderNodeOutputMaterial')
+    skin_mat.node_tree.links.new(skin_emission.outputs['Emission'], skin_output.inputs['Surface'])
 
-skin_output = skin_nodes.new(type='ShaderNodeOutputMaterial')
-skin_mat.node_tree.links.new(skin_bsdf.outputs['BSDF'], skin_output.inputs['Surface'])
+    fabric_mat = bpy.data.materials.new(name="DebugFabric")
+    fabric_mat.use_nodes = True
+    fabric_nodes = fabric_mat.node_tree.nodes
+    fabric_nodes.clear()
+    
+    fabric_emission = fabric_nodes.new(type='ShaderNodeEmission')
+    fabric_emission.inputs['Color'].default_value = ({fabric_color[0]}, {fabric_color[1]}, {fabric_color[2]}, 1.0)
+    fabric_emission.inputs['Strength'].default_value = 1.0
+    
+    fabric_output = fabric_nodes.new(type='ShaderNodeOutputMaterial')
+    fabric_mat.node_tree.links.new(fabric_emission.outputs['Emission'], fabric_output.inputs['Surface'])
 
-fabric_mat = bpy.data.materials.new(name="Fabric")
-fabric_mat.use_nodes = True
-fabric_nodes = fabric_mat.node_tree.nodes
-fabric_nodes.clear()
+    body_obj.data.materials.append(skin_mat)
+    garment_obj.data.materials.append(fabric_mat)
+    print("✅ Materials applied")
 
-fabric_bsdf = fabric_nodes.new(type='ShaderNodeBsdfPrincipled')
-fabric_bsdf.inputs['Base Color'].default_value = (
-    {fabric_color[0]}, {fabric_color[1]}, {fabric_color[2]}, 1.0
-)
+    body_obj.location = (0, 0, 0)
+    garment_obj.location = (0, 0, 0)
 
-if "{fabric_type}" == "cotton":
-    fabric_bsdf.inputs['Roughness'].default_value = 0.8
-    fabric_bsdf.inputs['Sheen'].default_value = 0.1
-elif "{fabric_type}" == "silk":
-    fabric_bsdf.inputs['Roughness'].default_value = 0.3
-    fabric_bsdf.inputs['Sheen'].default_value = 0.8
-elif "{fabric_type}" == "denim":
-    fabric_bsdf.inputs['Roughness'].default_value = 0.9
-    fabric_bsdf.inputs['Metallic'].default_value = 0.05
-else:
-    fabric_bsdf.inputs['Roughness'].default_value = 0.7
+    print("Setting up lighting...")
+    bpy.ops.object.light_add(type='SUN', location=(0, 0, 5))
+    sun = bpy.context.active_object
+    sun.data.energy = 3
+    print("✅ Sun light added")
 
-fabric_output = fabric_nodes.new(type='ShaderNodeOutputMaterial')
-fabric_mat.node_tree.links.new(
-    fabric_bsdf.outputs['BSDF'], fabric_output.inputs['Surface']
-)
+    print("Setting up camera...")
+    bpy.ops.object.camera_add(location=(0, -3, 1))
+    camera = bpy.context.active_object
+    camera.rotation_euler = (1.1, 0, 0)
+    bpy.context.scene.camera = camera
+    print("✅ Camera positioned")
 
-body_obj.data.materials.append(skin_mat)
-garment_obj.data.materials.append(fabric_mat)
+    print("Validating scene...")
+    objects = bpy.context.scene.objects
+    print(f"Scene objects: {{[obj.name for obj in objects]}}")
+    
+    if not bpy.context.scene.camera:
+        raise Exception("No camera in scene")
+    
+    output_dir = os.path.dirname("{output_path}")
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Output directory: {{output_dir}}")
 
-bpy.ops.object.light_add(type='AREA', location=(2, -2, 3))
-key_light = bpy.context.active_object
-key_light.data.energy = 100
-key_light.data.size = 2
+    bpy.context.scene.render.filepath = "{output_path}"
+    print(f"Render output: {output_path}")
 
-bpy.ops.object.light_add(type='AREA', location=(-1, -2, 2))
-fill_light = bpy.context.active_object
-fill_light.data.energy = 50
-fill_light.data.size = 1.5
+    print("Starting render...")
+    bpy.ops.render.render(write_still=True)
+    
+    if os.path.exists("{output_path}"):
+        file_size = os.path.getsize("{output_path}")
+        print(f"✅ Render complete! File size: {{file_size}} bytes")
+    else:
+        print("❌ Render failed - output file not found")
+        raise Exception("Render output missing")
 
-bpy.ops.object.light_add(type='AREA', location=(0, 2, 2))
-rim_light = bpy.context.active_object
-rim_light.data.energy = 30
-rim_light.data.size = 1
-
-bpy.ops.object.camera_add(location=(0, -3, 1.5))
-camera = bpy.context.active_object
-camera.rotation_euler = (1.1, 0, 0)
-bpy.context.scene.camera = camera
-
-camera.data.lens = 50
-camera.data.sensor_width = 36
-
-bpy.context.scene.render.filepath = "{output_path}"
-bpy.ops.render.render(write_still=True)
+except Exception as e:
+    print(f"❌ Blender script failed: {{e}}")
+    
+    debug_blend = "{output_path}".replace('.png', '_debug.blend')
+    bpy.ops.wm.save_as_mainfile(filepath=debug_blend)
+    print(f"Debug blend file saved: {{debug_blend}}")
+    
+    import bpy
+    bpy.context.scene.render.resolution_x = 1024
+    bpy.context.scene.render.resolution_y = 1024
+    
+    bpy.ops.mesh.primitive_cube_add()
+    cube = bpy.context.active_object
+    
+    mat = bpy.data.materials.new(name="FallbackMaterial")
+    mat.use_nodes = True
+    mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = ({fabric_color[0]}, {fabric_color[1]}, {fabric_color[2]}, 1)
+    cube.data.materials.append(mat)
+    
+    bpy.context.scene.render.filepath = "{output_path}"
+    bpy.ops.render.render(write_still=True)
+    print("Fallback render created")
+    
+    raise
 """

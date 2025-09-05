@@ -264,12 +264,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const extractMeasurementsFromImage = () => {
     // Simulated measurement extraction - in production, this would use AI
     const simulatedMeasurements = {
-      height: 170 + Math.random() * 20,
-      weight: 65 + Math.random() * 15,
-      chest: 85 + Math.random() * 15,
-      waist: 70 + Math.random() * 15,
-      hips: 90 + Math.random() * 15,
-      shoulder_width: 40 + Math.random() * 10
+      height: Math.round((67 + Math.random() * 8) * 100) / 100, // 67-75 inches (5'7" - 6'3")
+      weight: Math.round((140 + Math.random() * 40) * 100) / 100, // 140-180 lbs
+      chest: Math.round((34 + Math.random() * 8) * 100) / 100, // 34-42 inches
+      waist: Math.round((28 + Math.random() * 8) * 100) / 100, // 28-36 inches
+      hips: Math.round((36 + Math.random() * 8) * 100) / 100, // 36-44 inches
+      shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100 // 16-20 inches
     };
     
     setMeasurements(simulatedMeasurements);
@@ -610,9 +610,9 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     <span className="text-green-200 font-medium">Measurements Extracted</span>
                   </div>
                   <div className="text-green-200 text-sm">
-                    Height: {measurements.height?.toFixed(2)}cm, 
-                    Chest: {measurements.chest?.toFixed(2)}cm, 
-                    Waist: {measurements.waist?.toFixed(2)}cm
+                    Height: {measurements.height?.toFixed(2)}", 
+                    Chest: {measurements.chest?.toFixed(2)}", 
+                    Waist: {measurements.waist?.toFixed(2)}"
                   </div>
                 </div>
               )}
@@ -644,57 +644,75 @@ const VirtualTryOn = ({ user, onLogout }) => {
               <h3 className="text-lg font-semibold text-white mb-4">Estimated Measurements</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Height (cm)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Height (inches)</label>
                   <input
                     type="number"
                     value={measurements.height?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, height: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                    step="0.5"
+                    min="60"
+                    max="84"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Weight (kg)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
                   <input
                     type="number"
                     value={measurements.weight?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, weight: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                    step="0.5"
+                    min="100"
+                    max="300"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Chest (cm)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Chest (inches)</label>
                   <input
                     type="number"
                     value={measurements.chest?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, chest: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                    step="0.5"
+                    min="28"
+                    max="50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Waist (cm)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Waist (inches)</label>
                   <input
                     type="number"
                     value={measurements.waist?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, waist: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                    step="0.5"
+                    min="24"
+                    max="44"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Hips (cm)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Hips (inches)</label>
                   <input
                     type="number"
                     value={measurements.hips?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, hips: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                    step="0.5"
+                    min="30"
+                    max="50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Shoulder Width (cm)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Shoulder Width (inches)</label>
                   <input
                     type="number"
                     value={measurements.shoulder_width?.toFixed(2) || ''}
                     onChange={(e) => setMeasurements({...measurements, shoulder_width: parseFloat(e.target.value)})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                    step="0.5"
+                    min="14"
+                    max="24"
                   />
                 </div>
               </div>
@@ -1151,11 +1169,25 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Virtual Try-On</h3>
-                  <img 
-                    src={`data:image/png;base64,${tryonResult.result_image_base64}`}
-                    alt="Try-on result" 
-                    className="w-full max-h-96 object-contain rounded-lg shadow-lg"
-                  />
+                  {tryonResult.result_image_base64 ? (
+                    <img 
+                      src={`data:image/png;base64,${tryonResult.result_image_base64}`}
+                      alt="Try-on result" 
+                      className="w-full max-h-96 object-contain rounded-lg shadow-lg"
+                      onError={(e) => {
+                        console.error('Failed to load try-on result image');
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full max-h-96 bg-gray-700 rounded-lg shadow-lg flex items-center justify-center">
+                      <p className="text-white/60">Processing failed - no result image available</p>
+                    </div>
+                  )}
+                  <div className="w-full max-h-96 bg-gray-700 rounded-lg shadow-lg flex items-center justify-center" style={{display: 'none'}}>
+                    <p className="text-white/60">Failed to load result image</p>
+                  </div>
                 </div>
               </div>
 

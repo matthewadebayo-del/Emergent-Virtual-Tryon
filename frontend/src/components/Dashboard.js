@@ -160,15 +160,22 @@ const Dashboard = ({ user, onLogout }) => {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {user.captured_image && (
-            <Link to="/tryon?mode=apparel-selection" className="card hover-lift">
+          {(user.captured_image || (measurements && Object.keys(measurements).length > 0)) && (
+            <Link to="/tryon" className="card hover-lift">
               <div className="flex items-center space-x-4">
                 <div className="p-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500">
                   <Shirt className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-white">Select Apparel</h3>
-                  <p className="text-white/70">Choose clothes with your saved photo</p>
+                  <h3 className="text-xl font-semibold text-white">Virtual Try-On</h3>
+                  <p className="text-white/70">
+                    {user.captured_image && measurements 
+                      ? "Try clothes with your saved data" 
+                      : user.captured_image 
+                        ? "Try clothes with your saved photo"
+                        : "Try clothes with your measurements"
+                    }
+                  </p>
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
