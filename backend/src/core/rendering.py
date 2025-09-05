@@ -44,6 +44,52 @@ class PhotorealisticRenderer:
         print("⚠️ Blender not available, using enhanced fallback rendering")
         return False
 
+    def render_scene_debug(
+        self,
+        body_mesh,
+        garment_mesh,
+        output_path: str,
+        fabric_type: str = "cotton",
+        fabric_color: Tuple[float, float, float] = (0.2, 0.3, 0.8),
+    ) -> str:
+        """Debug version of render_scene with extensive logging"""
+        print("=== Starting Debug Render ===")
+        print(f"Body mesh: {body_mesh}")
+        print(f"Garment mesh: {garment_mesh}")
+        print(f"Output path: {output_path}")
+        print(f"Fabric type: {fabric_type}")
+        print(f"Fabric color: {fabric_color}")
+        
+        try:
+            if body_mesh is None:
+                print("❌ Body mesh is None")
+                raise ValueError("Body mesh is None")
+            if garment_mesh is None:
+                print("❌ Garment mesh is None")
+                raise ValueError("Garment mesh is None")
+                
+            print(f"✅ Body mesh: {len(body_mesh.vertices)} vertices, {len(body_mesh.faces)} faces")
+            print(f"✅ Garment mesh: {len(garment_mesh.vertices)} vertices, {len(garment_mesh.faces)} faces")
+            
+            if self.blender_available:
+                print("Using Blender rendering for debug")
+                return self._render_with_blender(
+                    body_mesh, garment_mesh, output_path, fabric_type, fabric_color
+                )
+            else:
+                print("Using enhanced fallback rendering for debug")
+                return self._render_enhanced_fallback(
+                    body_mesh, garment_mesh, output_path, fabric_color
+                )
+                
+        except Exception as e:
+            print(f"❌ Debug render failed: {e}")
+            from PIL import Image
+            placeholder = Image.new("RGB", (512, 512), color=(int(fabric_color[0]*255), int(fabric_color[1]*255), int(fabric_color[2]*255)))
+            placeholder.save(output_path)
+            print(f"✅ Fallback debug image created: {output_path}")
+            return output_path
+
     def render_scene(
         self,
         body_mesh,

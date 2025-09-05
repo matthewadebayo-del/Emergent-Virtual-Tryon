@@ -20,7 +20,7 @@ from fastapi import (APIRouter, Depends, FastAPI, File, Form, Header,
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from motor.motor_asyncio import AsyncIOMotorClient
-from openai import OpenAI
+# from openai import OpenAI  # Removed - moved to 3D hybrid approach
 from PIL import Image
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -140,9 +140,9 @@ api_router = APIRouter(prefix="/api")
 
 security = HTTPBearer()
 
-# Initialize OpenAI Image Generation
-openai_api_key = os.environ.get("OPENAI_API_KEY")
-openai_client = OpenAI(api_key=openai_api_key) if openai_api_key else None
+# OpenAI Image Generation removed - using 3D hybrid approach
+# openai_api_key = os.environ.get("OPENAI_API_KEY")
+# openai_client = OpenAI(api_key=openai_api_key) if openai_api_key else None
 
 print("✅ 3D Virtual Try-On pipeline configured for lazy loading")
 
@@ -221,19 +221,57 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 def convert_heic_to_jpeg(image_data: bytes) -> bytes:
-    """Convert HEIC image data to JPEG format"""
+    """Convert HEIC image data to JPEG using comprehensive HEIC processor"""
     try:
-        image = Image.open(io.BytesIO(image_data))
+        from src.utils.heic_processor import HEICProcessor
+        import tempfile
+        import os
         
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
+        with tempfile.NamedTemporaryFile(suffix='.heic', delete=False) as tmp_file:
+            tmp_file.write(image_data)
+            tmp_path = tmp_file.name
         
-        output = io.BytesIO()
-        image.save(output, format='JPEG', quality=90)
-        return output.getvalue()
+        try:
+            processor = HEICProcessor()
+            
+            # Check if it's actually a HEIC file
+            if not processor.is_heic_file(tmp_path):
+                print("File is not HEIC, returning original data")
+                return image_data
+            
+            # Convert HEIC to JPEG
+            converted_path = processor.convert_heic(tmp_path)
+            
+            if converted_path and os.path.exists(converted_path):
+                with open(converted_path, 'rb') as f:
+                    jpeg_data = f.read()
+                
+                print("✅ HEIC image converted to JPEG using HEICProcessor")
+                
+                if converted_path != tmp_path:
+                    os.unlink(converted_path)
+                
+                return jpeg_data
+            else:
+                print("⚠️ HEIC conversion failed, returning original data")
+                return image_data
+                
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            
     except Exception as e:
-        print(f"Failed to convert HEIC image: {e}")
-        raise HTTPException(status_code=400, detail="Failed to process HEIC image")
+        print(f"❌ HEIC conversion failed: {e}")
+        try:
+            image = Image.open(io.BytesIO(image_data))
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            output = io.BytesIO()
+            image.save(output, format='JPEG', quality=90)
+            return output.getvalue()
+        except Exception as fallback_error:
+            print(f"❌ Fallback conversion also failed: {fallback_error}")
+            raise HTTPException(status_code=400, detail="Failed to process image file")
 
 
 def create_access_token(data: dict):
@@ -628,11 +666,8 @@ async def virtual_tryon(
         print(f"Use stored measurements (parsed): {use_measurements}")
         print(f"Processing type: {processing_type}")
 
-        if not openai_client:
-            print("ERROR: Image generation service not available")
-            raise HTTPException(
-                status_code=500, detail="Image generation service not available"
-            )
+        # OpenAI client check removed - using 3D hybrid approach
+        # Proceed with 3D virtual try-on processing
 
         # Validate inputs
         if not user_image_base64:
@@ -767,10 +802,10 @@ async def virtual_tryon(
             )
         else:
             print("🎨 Stage 3: Standard AI Virtual Try-On Processing...")
-            print("🧠 Using OpenAI DALL-E 3 with enhanced prompting")
+            print("🧠 Using 3D Hybrid Virtual Try-On Processing")
 
         # Initialize processing method variables
-        processing_method = "Enhanced OpenAI DALL-E 3"
+        processing_method = "3D Hybrid Virtual Try-On (MediaPipe + Blender + Stable Diffusion)"
         identity_preservation = "Enhanced prompting with identity preservation"
 
         print(f"🎯 Processing Type Selected: {processing_type.upper()}")
@@ -829,8 +864,8 @@ async def virtual_tryon(
 
             except Exception as fal_error:
                 print(f"⚠️ fal.ai processing failed: {str(fal_error)}")
-                print("🔄 Falling back to enhanced OpenAI generation...")
-                processing_type = "default"  # Fall through to OpenAI processing
+                print("🔄 Falling back to 3D hybrid processing...")
+                processing_type = "default"  # Fall through to 3D hybrid processing
 
         if processing_type == "default" or (
             processing_type == "premium" and not FAL_KEY
@@ -1532,6 +1567,55 @@ async def manual_database_init():
             "error": str(e),
             "database": db_name,
             "mongo_url_configured": bool(mongo_url),
+        }
+
+@app.post("/debug/test-render")
+async def test_render_pipeline():
+    """Test basic rendering pipeline"""
+    try:
+        from src.core.rendering import PhotorealisticRenderer
+        import tempfile
+        import os
+        
+        renderer = PhotorealisticRenderer()
+        
+        import trimesh
+        body_mesh = trimesh.creation.box(extents=[1, 2, 0.3])
+        garment_mesh = trimesh.creation.box(extents=[1.1, 2.1, 0.1])
+        
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            output_path = tmp.name
+        
+        try:
+            result_path = renderer.render_scene(
+                body_mesh, garment_mesh, output_path,
+                fabric_type="cotton", fabric_color=(0.2, 0.3, 0.8)
+            )
+            
+            # Check if file exists and has content
+            if os.path.exists(result_path):
+                file_size = os.path.getsize(result_path)
+                return {
+                    "status": "success",
+                    "message": "Basic render test completed",
+                    "output_path": result_path,
+                    "file_size": file_size
+                }
+            else:
+                return {
+                    "status": "error",
+                    "error": "Render output file not created"
+                }
+                
+        finally:
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+                
+    except Exception as e:
+        print(f"Debug render test failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
         }
 
 
