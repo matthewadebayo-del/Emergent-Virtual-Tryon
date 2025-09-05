@@ -66,7 +66,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
       setUserImagePreview(user.captured_image);
     }
 
-    if (cameraFirst && step === 0) {
+    if ((cameraFirst || (!user.captured_image && step === 0)) && step === 0) {
       startCamera();
     }
   }, [cameraFirst, apparelSelection, user.captured_image]);
@@ -303,8 +303,11 @@ const VirtualTryOn = ({ user, onLogout }) => {
     if (file) {
       console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
       
-      if (!file.type.startsWith('image/')) {
-        alert('Please select a valid image file');
+      const fileName = file.name.toLowerCase();
+      const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif');
+      
+      if (!file.type.startsWith('image/') && !isHeic) {
+        alert('Please select a valid image file (including HEIC format)');
         return;
       }
       

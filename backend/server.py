@@ -219,6 +219,22 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
 
+def convert_heic_to_jpeg(image_data: bytes) -> bytes:
+    """Convert HEIC image data to JPEG format"""
+    try:
+        image = Image.open(io.BytesIO(image_data))
+        
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        output = io.BytesIO()
+        image.save(output, format='JPEG', quality=90)
+        return output.getvalue()
+    except Exception as e:
+        print(f"Failed to convert HEIC image: {e}")
+        raise HTTPException(status_code=400, detail="Failed to process HEIC image")
+
+
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -346,15 +362,37 @@ async def save_captured_image(
         raise HTTPException(status_code=503, detail="Database not available")
 
     try:
+        image_base64 = image_data.get("image_base64")
+        
+        if image_base64:
+            try:
+                image_bytes = base64.b64decode(image_base64.split(',')[1] if ',' in image_base64 else image_base64)
+                
+                # Check if it's HEIC format by trying to open with PIL
+                try:
+                    img = Image.open(io.BytesIO(image_bytes))
+                    if img.format == 'HEIC':
+                        # Convert HEIC to JPEG
+                        converted_bytes = convert_heic_to_jpeg(image_bytes)
+                        image_base64 = "data:image/jpeg;base64," + base64.b64encode(converted_bytes).decode()
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"Error processing image format: {e}")
+        
         image_record = {
-            "image_base64": image_data.get("image_base64"),
+            "image_base64": image_base64,
             "captured_at": datetime.utcnow(),
             "measurements": image_data.get("measurements"),
             "image_type": "camera_capture",
         }
 
         await db.users.update_one(
-            {"id": current_user.id}, {"$push": {"captured_images": image_record}}
+            {"id": current_user.id}, 
+            {
+                "$push": {"captured_images": image_record},
+                "$set": {"captured_image": image_base64}
+            }
         )
 
         return {
@@ -389,7 +427,22 @@ async def extract_measurements(
         print(f"User: {current_user.email}")
         print(f"Image length: {len(user_image_base64)}")
 
-        image_bytes = base64.b64decode(user_image_base64)
+        try:
+            # Check if it's base64 encoded HEIC by trying to decode and detect format
+            image_bytes = base64.b64decode(user_image_base64)
+            
+            try:
+                img = Image.open(io.BytesIO(image_bytes))
+                if img.format == 'HEIC':
+                    # Convert HEIC to JPEG
+                    image_bytes = convert_heic_to_jpeg(image_bytes)
+                    print("Converted HEIC image to JPEG")
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"Error processing image format: {e}")
+            image_bytes = base64.b64decode(user_image_base64)
+        
         print(f"Decoded image size: {len(image_bytes)} bytes")
 
         # Use 3D body reconstruction for measurement extraction

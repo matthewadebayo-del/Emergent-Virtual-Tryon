@@ -103,9 +103,9 @@ class ModelManager:
             start_time = time.time()
 
             try:
-                from src.core.rendering import Renderer
+                from src.core.rendering import PhotorealisticRenderer
 
-                self._models["renderer"] = Renderer()
+                self._models["renderer"] = PhotorealisticRenderer()
 
                 load_time = time.time() - start_time
                 logger.info(f"✅ 3D renderer loaded in {load_time:.2f}s")
