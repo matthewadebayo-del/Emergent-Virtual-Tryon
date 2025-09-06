@@ -26,6 +26,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const getInitialStep = () => {
     if (cameraFirst) return 0;
     if (apparelSelection && user.captured_image) return 2;
+    if (user.measurements || user.captured_image) return 2;
     return 1;
   };
   
@@ -66,10 +67,15 @@ const VirtualTryOn = ({ user, onLogout }) => {
       setUserImagePreview(user.captured_image);
     }
 
+    if (user.captured_image && !userImage) {
+      setUserImage(user.captured_image);
+      setUserImagePreview(user.captured_image);
+    }
+
     if ((cameraFirst || (!user.captured_image && step === 0)) && step === 0) {
       startCamera();
     }
-  }, [cameraFirst, apparelSelection, user.captured_image]);
+  }, [cameraFirst, apparelSelection, user.captured_image, user.measurements]);
 
   useEffect(() => {
     return () => {
@@ -140,9 +146,16 @@ const VirtualTryOn = ({ user, onLogout }) => {
         });
       } catch (error) {
         console.warn('Failed with ideal constraints, trying basic constraints:', error);
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'user' } 
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'user' } 
+          });
+        } catch (fallbackError) {
+          console.warn('Failed with user-facing camera, trying any camera:', fallbackError);
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: true 
+          });
+        }
       }
       
       setCameraStream(stream);
@@ -186,6 +199,8 @@ const VirtualTryOn = ({ user, onLogout }) => {
         errorMessage += 'Please ensure you have given camera permissions and try again.';
       }
       alert(errorMessage);
+      setIsCameraActive(false);
+      setCameraStream(null);
     }
   };
 
@@ -338,17 +353,13 @@ const VirtualTryOn = ({ user, onLogout }) => {
         console.log('HEIC file read, base64 length:', base64.length);
         console.log('Base64 preview:', base64.substring(0, 100) + '...');
         
-        if (!base64 || !base64.startsWith('data:')) {
-          console.error('Invalid HEIC base64 data format');
+        if (!base64 || base64.length < 100) {
+          console.error('HEIC file processing failed - invalid data format');
           alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
           return;
         }
         
-        if (!base64.includes('data:image/')) {
-          console.error('HEIC file processing failed - invalid image data');
-          alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
-          return;
-        }
+        console.log('HEIC file processed successfully, sending to backend for conversion');
         
         if (type === 'user') {
           setUserImage(base64);
@@ -866,32 +877,34 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 className="hidden"
               />
 
-              {(user.measurements || measurements) && (
+              {(user.measurements || measurements || user.captured_image) && (
                 <div className="mt-6 p-4 bg-green-500/20 rounded-lg">
                   <div className="flex items-center justify-center space-x-2 mb-2">
                     <CheckCircle className="w-5 h-5 text-green-400" />
-                    <span className="text-green-200 font-medium">Measurements available</span>
+                    <span className="text-green-200 font-medium">
+                      {user.captured_image ? "Saved photo available" : "Measurements available"}
+                    </span>
                   </div>
-                  <label className="flex items-center justify-center space-x-3 mb-4">
-                    <input
-                      type="checkbox"
-                      checked={useStoredMeasurements}
-                      onChange={(e) => setUseStoredMeasurements(e.target.checked)}
-                      className="rounded border-green-400 text-green-600 focus:ring-green-500"
-                    />
-                    <span className="text-green-200">Use my measurements for better accuracy</span>
-                  </label>
-                  
-                  {user.captured_image && (
-                    <div className="text-center">
-                      <button
-                        onClick={() => setStep(2)}
-                        className="btn-primary"
-                      >
-                        Skip Photo - Use Saved Image
-                      </button>
-                    </div>
+                  {(user.measurements || measurements) && (
+                    <label className="flex items-center justify-center space-x-3 mb-4">
+                      <input
+                        type="checkbox"
+                        checked={useStoredMeasurements}
+                        onChange={(e) => setUseStoredMeasurements(e.target.checked)}
+                        className="rounded border-green-400 text-green-600 focus:ring-green-500"
+                      />
+                      <span className="text-green-200">Use my measurements for better accuracy</span>
+                    </label>
                   )}
+                  
+                  <div className="text-center">
+                    <button
+                      onClick={() => setStep(2)}
+                      className="btn-primary"
+                    >
+                      {user.captured_image ? "Skip Photo - Use Saved Image" : "Skip Photo - Use Measurements Only"}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1245,8 +1258,32 @@ const VirtualTryOn = ({ user, onLogout }) => {
                         console.error('Base64 data length:', tryonResult.result_image_base64?.length);
                         console.error('Base64 preview:', tryonResult.result_image_base64?.substring(0, 100));
                         console.error('Image src:', e.target.src.substring(0, 100));
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
+                        console.error('Full tryonResult object:', tryonResult);
+                        
+                        try {
+                          const base64Data = tryonResult.result_image_base64;
+                          if (base64Data && base64Data.length > 0) {
+                            console.log('Base64 data appears valid, length:', base64Data.length);
+                            const byteCharacters = atob(base64Data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                              byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            const blob = new Blob([byteArray], {type: 'image/png'});
+                            const blobUrl = URL.createObjectURL(blob);
+                            console.log('Created blob URL as fallback:', blobUrl);
+                            e.target.src = blobUrl;
+                          } else {
+                            console.error('Base64 data is empty or invalid');
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }
+                        } catch (blobError) {
+                          console.error('Failed to create blob URL fallback:', blobError);
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }
                       }}
                     />
                   ) : (
