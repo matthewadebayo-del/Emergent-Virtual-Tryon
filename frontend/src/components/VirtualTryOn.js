@@ -353,7 +353,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
         console.log('HEIC file read, base64 length:', base64.length);
         console.log('Base64 preview:', base64.substring(0, 100) + '...');
         
-        if (!base64 || base64.length < 100) {
+        if (!base64 || !base64.startsWith('data:')) {
           console.error('HEIC file processing failed - invalid data format');
           alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
           return;
@@ -1330,8 +1330,8 @@ const VirtualTryOn = ({ user, onLogout }) => {
                           <div className="bg-blue-600/20 rounded p-3 mt-3">
                             <h5 className="text-blue-200 font-medium mb-2">Processing Pipeline:</h5>
                             <div className="grid grid-cols-2 gap-2 text-xs text-blue-200/80">
-                              <div>Photo Analysis & Segmentation</div>
-                              <div>Pose Estimation & Mapping</div>
+                              <div>Photo Analysis &amp; Segmentation</div>
+                              <div>Pose Estimation &amp; Mapping</div>
                               <div>Identity Preservation</div>
                               <div>Garment Integration</div>
                               <div>Realistic Blending</div>
