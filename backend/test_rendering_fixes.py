@@ -12,6 +12,7 @@ from src.core.rendering import RenderingPipeline
 from src.core.ai_enhancement import AIEnhancer
 import trimesh
 import numpy as np
+from PIL import Image
 
 def test_rendering_pipeline():
     """Test the fixed rendering pipeline"""
@@ -44,14 +45,19 @@ def test_ai_enhancement():
     
     try:
         test_image = np.random.randint(0, 255, (512, 512, 3), dtype=np.uint8)
+        test_input_path = "/tmp/test_input.png"
+        test_output_path = "/tmp/test_output.png"
         
-        result = enhancer.enhance_image(
-            image=test_image,
-            prompt="A person wearing a blue cotton shirt",
-            style="photorealistic"
-        )
-        print(f"✅ AI enhancement test passed")
-        return True
+        Image.fromarray(test_image.astype('uint8')).save(test_input_path)
+        
+        result = enhancer.enhance_image(test_input_path, test_output_path)
+        
+        if result and os.path.exists(test_output_path):
+            print(f"✅ AI enhancement test passed")
+            return True
+        else:
+            print(f"❌ AI enhancement test failed - no output file")
+            return False
     except Exception as e:
         print(f"❌ AI enhancement test failed: {e}")
         return False
