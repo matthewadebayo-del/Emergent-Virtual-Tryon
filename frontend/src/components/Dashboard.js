@@ -262,12 +262,12 @@ const Dashboard = ({ user, onLogout }) => {
               Your Measurements
             </h3>
             <div className="grid md:grid-cols-3 gap-4 text-white/80">
-              <div>Height: {measurements.height}" ({(measurements.height * 2.54).toFixed(2)} cm)</div>
-              <div>Weight: {measurements.weight} lbs ({(measurements.weight / 2.205).toFixed(2)} kg)</div>
-              <div>Chest: {measurements.chest}" ({(measurements.chest * 2.54).toFixed(2)} cm)</div>
-              <div>Waist: {measurements.waist}" ({(measurements.waist * 2.54).toFixed(2)} cm)</div>
-              <div>Hips: {measurements.hips}" ({(measurements.hips * 2.54).toFixed(2)} cm)</div>
-              <div>Shoulder Width: {measurements.shoulder_width}" ({(measurements.shoulder_width * 2.54).toFixed(2)} cm)</div>
+              <div>Height: {measurements.height.toFixed(2)}" ({(measurements.height * 2.54).toFixed(2)} cm)</div>
+              <div>Weight: {measurements.weight.toFixed(2)} lbs ({(measurements.weight / 2.205).toFixed(2)} kg)</div>
+              <div>Chest: {measurements.chest.toFixed(2)}" ({(measurements.chest * 2.54).toFixed(2)} cm)</div>
+              <div>Waist: {measurements.waist.toFixed(2)}" ({(measurements.waist * 2.54).toFixed(2)} cm)</div>
+              <div>Hips: {measurements.hips.toFixed(2)}" ({(measurements.hips * 2.54).toFixed(2)} cm)</div>
+              <div>Shoulder Width: {measurements.shoulder_width.toFixed(2)}" ({(measurements.shoulder_width * 2.54).toFixed(2)} cm)</div>
             </div>
           </div>
         )}

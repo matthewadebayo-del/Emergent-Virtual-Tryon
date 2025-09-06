@@ -27,6 +27,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 from src.core.model_manager import model_manager
+from src.utils.heic_processor import heic_processor
 
 print("✅ 3D virtual try-on modules configured for lazy loading")
 
