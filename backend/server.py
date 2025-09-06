@@ -770,10 +770,10 @@ async def virtual_tryon(
             )
         else:
             print("🎨 Stage 3: Standard AI Virtual Try-On Processing...")
-            print("🧠 Using OpenAI DALL-E 3 with enhanced prompting")
+            print("🧠 Using 3D hybrid pipeline with photorealistic rendering")
 
         # Initialize processing method variables
-        processing_method = "Enhanced OpenAI DALL-E 3"
+        processing_method = "3D Hybrid Pipeline"
         identity_preservation = "Enhanced prompting with identity preservation"
 
         print(f"🎯 Processing Type Selected: {processing_type.upper()}")

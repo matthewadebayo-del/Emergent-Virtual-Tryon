@@ -175,10 +175,10 @@ class PhotorealisticRenderer:
 
                 scene.lights = [
                     trimesh.scene.lighting.DirectionalLight(
-                        direction=[0, -1, -1], intensity=1.0
+                        intensity=1.0
                     ),
                     trimesh.scene.lighting.DirectionalLight(
-                        direction=[1, -1, 0], intensity=0.5
+                        intensity=0.5
                     )
                 ]
 
