@@ -304,7 +304,8 @@ const VirtualTryOn = ({ user, onLogout }) => {
       console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
       
       const fileName = file.name.toLowerCase();
-      const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif');
+      const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif') || 
+                     file.type === 'image/heic' || file.type === 'image/heif';
       
       if (!file.type.startsWith('image/') && !isHeic) {
         alert('Please select a valid image file (including HEIC format)');
@@ -315,33 +316,94 @@ const VirtualTryOn = ({ user, onLogout }) => {
         alert('File size must be less than 10MB');
         return;
       }
+
+      if (isHeic) {
+        console.log('HEIC file detected, processing with enhanced validation...');
+        handleHeicFile(file, type);
+      } else {
+        handleStandardImageFile(file, type);
+      }
+    } else {
+      console.log('No file provided to handleImageUpload');
+    }
+  };
+
+  const handleHeicFile = async (file, type) => {
+    try {
+      console.log('Processing HEIC file with enhanced validation...');
       
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64 = e.target.result;
-        console.log('File read successfully, base64 length:', base64.length);
+        console.log('HEIC file read, base64 length:', base64.length);
         console.log('Base64 preview:', base64.substring(0, 100) + '...');
+        
+        if (!base64 || !base64.startsWith('data:')) {
+          console.error('Invalid HEIC base64 data format');
+          alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
+          return;
+        }
+        
+        if (!base64.includes('data:image/')) {
+          console.error('HEIC file processing failed - invalid image data');
+          alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
+          return;
+        }
         
         if (type === 'user') {
           setUserImage(base64);
           setUserImagePreview(base64);
-          console.log('User image preview set:', !!base64);
+          console.log('HEIC user image set successfully');
         } else if (type === 'clothing') {
           setClothingImage(base64);
           setClothingImagePreview(base64);
-          console.log('Clothing image preview set:', !!base64);
+          console.log('HEIC clothing image set successfully');
         }
       };
       
       reader.onerror = (error) => {
-        console.error('FileReader error:', error);
-        alert('Failed to read the selected file. Please try again.');
+        console.error('HEIC file reading failed:', error);
+        alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
       };
       
       reader.readAsDataURL(file);
-    } else {
-      console.log('No file provided to handleImageUpload');
+      
+    } catch (error) {
+      console.error('HEIC processing failed:', error);
+      alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
     }
+  };
+
+  const handleStandardImageFile = (file, type) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target.result;
+      console.log('File read successfully, base64 length:', base64.length);
+      console.log('Base64 preview:', base64.substring(0, 100) + '...');
+      
+      if (!base64 || !base64.startsWith('data:image/')) {
+        console.error('Invalid image data format');
+        alert('Failed to process the selected file. Please try a different image.');
+        return;
+      }
+      
+      if (type === 'user') {
+        setUserImage(base64);
+        setUserImagePreview(base64);
+        console.log('User image set successfully');
+      } else if (type === 'clothing') {
+        setClothingImage(base64);
+        setClothingImagePreview(base64);
+        console.log('Clothing image set successfully');
+      }
+    };
+    
+    reader.onerror = (error) => {
+      console.error('File reading failed:', error);
+      alert('Failed to read the selected file. Please try again.');
+    };
+    
+    reader.readAsDataURL(file);
   };
 
   const handleProductSelect = (product) => {
@@ -1174,19 +1236,37 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       src={`data:image/png;base64,${tryonResult.result_image_base64}`}
                       alt="Try-on result" 
                       className="w-full max-h-96 object-contain rounded-lg shadow-lg"
+                      onLoad={() => {
+                        console.log('Try-on result image loaded successfully');
+                        console.log('Image dimensions loaded');
+                      }}
                       onError={(e) => {
                         console.error('Failed to load try-on result image');
+                        console.error('Base64 data length:', tryonResult.result_image_base64?.length);
+                        console.error('Base64 preview:', tryonResult.result_image_base64?.substring(0, 100));
+                        console.error('Image src:', e.target.src.substring(0, 100));
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'block';
                       }}
                     />
                   ) : (
                     <div className="w-full max-h-96 bg-gray-700 rounded-lg shadow-lg flex items-center justify-center">
-                      <p className="text-white/60">Processing failed - no result image available</p>
+                      <div className="text-center">
+                        <p className="text-white/60">Processing failed - no result image available</p>
+                        <p className="text-white/40 text-sm mt-2">Check console for debugging information</p>
+                        {tryonResult && (
+                          <p className="text-white/40 text-xs mt-1">
+                            Response received: {JSON.stringify(Object.keys(tryonResult))}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
-                  <div className="w-full max-h-96 bg-gray-700 rounded-lg shadow-lg flex items-center justify-center" style={{display: 'none'}}>
-                    <p className="text-white/60">Failed to load result image</p>
+                  <div style={{display: 'none'}} className="w-full max-h-96 bg-red-700 rounded-lg shadow-lg flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-white/60">Image failed to load</p>
+                      <p className="text-white/40 text-sm mt-2">Check console for error details</p>
+                    </div>
                   </div>
                 </div>
               </div>

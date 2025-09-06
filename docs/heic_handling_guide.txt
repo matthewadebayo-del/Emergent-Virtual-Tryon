@@ -1,0 +1,22 @@
+# HEIC Handling Guide
+
+PDF content could not be extracted automatically due to missing PDF processing tools.
+Please refer to the original PDF file for complete information.
+
+The comprehensive HEIC processor has been saved to backend/src/utils/heic_processor.py with the following features:
+
+## Key Features:
+- Multiple conversion methods (pillow-heif, pyheif, imageio, heif-convert, ffmpeg)
+- Automatic method detection and fallback
+- EXIF orientation handling
+- Integration with FastAPI file upload handler
+- Comprehensive error handling and logging
+
+## Installation Requirements:
+- pillow-heif>=0.13.0 (Primary method)
+- pyheif>=0.7.1 (Backup method)
+- imageio>=2.31.0 (Alternative method)
+- System dependencies: libheif-dev, libheif1, heif-examples, ffmpeg
+
+## Usage:
+The HEICProcessor class provides robust HEIC to JPEG conversion with automatic fallback between multiple conversion methods.
