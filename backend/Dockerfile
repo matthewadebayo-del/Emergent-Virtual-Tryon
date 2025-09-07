@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     gcc \
     g++ \
+    # Graphics libraries for Blender
     libgl1-mesa-dev \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
@@ -37,6 +38,7 @@ RUN apt-get update && apt-get install -y \
     libgles2-mesa-dev \
     libfreetype6 \
     libfontconfig1 \
+    # Blender and virtual display
     blender \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
@@ -44,20 +46,12 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and install Python dependencies with CUDA support
 COPY requirements.txt .
 
-# Install PyTorch with CUDA support first
-RUN pip install torch==2.2.0+cu118 torchvision==0.17.0+cu118 torchaudio==2.2.0+cu118 \
+# Install all dependencies from requirements.txt in one step to avoid conflicts
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Override with CUDA versions of PyTorch (must be after requirements.txt)
+RUN pip install --force-reinstall torch==2.2.0+cu118 torchvision==0.17.0+cu118 torchaudio==2.2.0+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
-
-# Then install other ML dependencies in one step to avoid conflicts
-RUN pip install \
-    diffusers==0.21.4 \
-    transformers==4.35.2 \
-    accelerate==0.24.1 \
-    huggingface-hub==0.17.3 \
-    safetensors==0.4.0
-
-# Install remaining dependencies (excluding ML packages already installed)
-RUN pip install --no-cache-dir -r requirements.txt --no-deps
 
 # Copy application code
 COPY . .
@@ -72,7 +66,7 @@ ENV BLENDER_USER_CONFIG=/tmp/blender_config
 ENV BLENDER_USER_SCRIPTS=/tmp/blender_scripts
 ENV PYTHONPATH="${PYTHONPATH}:/usr/share/blender/scripts/modules"
 
-# Create startup script for proper virtual display initialization
+# Create startup script for proper virtual display initialization and testing
 RUN echo '#!/bin/bash\n\
 echo "🖥️ Starting virtual display..."\n\
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
@@ -87,6 +81,17 @@ try:\n\
     print(f\"Blender version: {bpy.app.version_string}\")\n\
 except ImportError as e:\n\
     print(f\"❌ Blender Python API not available: {e}\")\n\
+"\n\
+echo "🧪 Testing AI dependencies..."\n\
+python3 -c "\
+try:\n\
+    from huggingface_hub import cached_download\n\
+    from diffusers import StableDiffusionImg2ImgPipeline\n\
+    import torch\n\
+    print(\"✅ AI dependencies load successfully\")\n\
+    print(f\"✅ torch version: {torch.__version__}\")\n\
+except ImportError as e:\n\
+    print(f\"❌ AI dependency error: {e}\")\n\
 "\n\
 echo "🚀 Starting application..."\n\
 uvicorn server:app --host 0.0.0.0 --port 8000\n\
