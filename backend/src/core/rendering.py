@@ -53,13 +53,22 @@ class FixedPhorealisticRenderer:
                 bpy.ops.wm.read_factory_settings(use_empty=True)
                 logger.info("✅ Blender factory settings loaded")
             
-            # Set render engine with error handling
+            # Set render engine with enhanced fallback logic
             try:
                 bpy.context.scene.render.engine = 'CYCLES'
-                logger.info("✅ Cycles render engine set")
+                bpy.context.scene.cycles.device = 'GPU'
+                logger.info("✅ Using CYCLES with GPU")
             except Exception as e:
-                logger.warning(f"⚠️ Cycles not available, using EEVEE: {e}")
-                bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+                logger.warning(f"⚠️ GPU failed, trying CPU: {e}")
+                try:
+                    bpy.context.scene.render.engine = 'CYCLES'
+                    bpy.context.scene.cycles.device = 'CPU' 
+                    bpy.context.scene.cycles.samples = 32  # Lower for CPU
+                    logger.info("✅ Using CYCLES with CPU")
+                except Exception as e2:
+                    logger.warning(f"⚠️ Cycles failed, using EEVEE: {e2}")
+                    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+                    logger.info("✅ Using EEVEE fallback")
             
             # Safe GPU setup with fallback
             self._setup_gpu_safe()
@@ -324,7 +333,10 @@ class FixedPhorealisticRenderer:
             return False
             
         try:
-            logger.info("🎬 Starting debug render...")
+            logger.info("🎬 DEBUG: Starting render with existing renderer...")
+            logger.info(f"📊 Body mesh: {len(body_mesh.vertices)} vertices, {len(body_mesh.faces)} faces")
+            logger.info(f"📊 Garment mesh: {len(garment_mesh.vertices)} vertices, {len(garment_mesh.faces)} faces")
+            logger.info(f"📁 Output path: {output_path}")
             
             # Clear scene
             self.clear_scene()
@@ -335,12 +347,14 @@ class FixedPhorealisticRenderer:
             if not body_obj:
                 logger.error("❌ Failed to import body mesh")
                 return False
+            logger.info("✅ Body mesh imported successfully")
             
             logger.info("Importing garment mesh...")
             garment_obj = self.import_mesh_safe(garment_mesh, "garment")
             if not garment_obj:
                 logger.error("❌ Failed to import garment mesh")
                 return False
+            logger.info("✅ Garment mesh imported successfully")
             
             # Create materials
             logger.info("Creating materials...")
@@ -357,10 +371,12 @@ class FixedPhorealisticRenderer:
                 garment_obj.data.materials[0] = garment_material
             else:
                 garment_obj.data.materials.append(garment_material)
+            logger.info("✅ Materials created")
             
             # Setup lighting
             logger.info("Setting up lighting...")
             self.setup_basic_lighting()
+            logger.info("✅ Lighting setup complete")
             
             # Setup camera
             logger.info("Setting up camera...")
@@ -368,6 +384,7 @@ class FixedPhorealisticRenderer:
             if not camera:
                 logger.error("❌ Camera setup failed")
                 return False
+            logger.info("✅ Camera positioned")
             
             # Validate scene
             if not self.validate_scene_before_render():
@@ -393,16 +410,15 @@ class FixedPhorealisticRenderer:
             # Verify output
             if os.path.exists(output_path):
                 file_size = os.path.getsize(output_path)
-                logger.info(f"✅ Render complete! Size: {file_size} bytes")
+                logger.info(f"✅ Render complete! File size: {file_size} bytes")
                 
-                # Basic validation - check if file is not too small
-                if file_size < 1000:  # Less than 1KB is probably empty
-                    logger.warning(f"⚠️ Rendered file seems too small: {file_size} bytes")
+                if file_size < 10000:  # Small file = problem
+                    logger.warning(f"⚠️ File seems too small: {file_size} bytes")
                     return False
                 
                 return True
             else:
-                logger.error(f"❌ Render file not created: {output_path}")
+                logger.error("❌ No output file created")
                 return False
                 
         except Exception as e:
