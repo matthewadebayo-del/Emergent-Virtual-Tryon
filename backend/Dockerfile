@@ -40,7 +40,7 @@ COPY requirements.txt .
 RUN pip install torch==2.1.0+cu118 torchvision==0.16.0+cu118 torchaudio==2.1.0+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
 
-# Then install other ML dependencies
+# Then install other ML dependencies in one step to avoid conflicts
 RUN pip install \
     diffusers==0.25.0 \
     transformers==4.36.0 \
@@ -49,8 +49,8 @@ RUN pip install \
     safetensors==0.4.1 \
     xformers==0.0.22.post7
 
-# Install remaining dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install remaining dependencies (excluding ML packages already installed)
+RUN pip install --no-cache-dir -r requirements.txt --no-deps
 
 # Copy application code
 COPY . .

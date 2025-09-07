@@ -9,10 +9,14 @@ from PIL import Image
 
 try:
     import torch
+    print(f"✅ torch imported successfully: {torch.__version__}")
     from diffusers import StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipeline
+    print(f"✅ diffusers imported successfully")
     AI_ENHANCEMENT_AVAILABLE = True
-except ImportError:
-    print("⚠️ AI enhancement dependencies not available (torch, diffusers)")
+except ImportError as e:
+    print(f"⚠️ AI enhancement dependencies not available: {e}")
+    import traceback
+    traceback.print_exc()
     AI_ENHANCEMENT_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
