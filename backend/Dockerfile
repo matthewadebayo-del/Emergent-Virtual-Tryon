@@ -1,17 +1,14 @@
-# Dockerfile for VirtualFit Backend (FastAPI)
 FROM python:3.12-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies required for PyBullet, 3D libraries, and Blender
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
     pkg-config \
     gcc \
     g++ \
-    # Graphics libraries for Blender
     libgl1-mesa-dev \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
@@ -38,27 +35,30 @@ RUN apt-get update && apt-get install -y \
     libgles2-mesa-dev \
     libfreetype6 \
     libfontconfig1 \
-    # Blender and virtual display
     blender \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies in single step
+# Copy requirements
 COPY requirements.txt .
 
-# Install PyTorch with CUDA first to establish correct index
-RUN pip install --no-cache-dir torch==2.2.0+cu118 torchvision==0.17.0+cu118 torchaudio==2.2.0+cu118 \
+# Install PyTorch 2.2.0+cu118 (minimum available CUDA version)
+RUN pip install --no-cache-dir \
+    torch==2.2.0+cu118 \
+    torchvision==0.17.0+cu118 \
+    torchaudio==2.2.0+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
 
-# Install remaining dependencies (this will respect the CUDA PyTorch installation)
+# Install ML dependencies in exact order to prevent conflicts
 RUN pip install --no-cache-dir \
-    diffusers==0.21.4 \
-    transformers==4.35.2 \
-    huggingface-hub==0.17.3 \
-    accelerate==0.24.1 \
-    safetensors==0.4.0
+    numpy==1.24.4 \
+    huggingface-hub==0.20.3 \
+    safetensors==0.4.2 \
+    accelerate==0.27.2 \
+    transformers==4.38.2 \
+    diffusers==0.27.2
 
-# Install remaining non-ML dependencies
+# Install remaining dependencies
 RUN pip install --no-cache-dir \
     fastapi==0.110.1 \
     uvicorn==0.25.0 \
@@ -73,15 +73,9 @@ RUN pip install --no-cache-dir \
     passlib>=1.7.4 \
     tzdata>=2024.2 \
     motor==3.3.1 \
-    pytest>=8.0.0 \
-    black>=24.1.1 \
-    isort>=5.13.2 \
-    flake8>=7.0.0 \
-    mypy>=1.8.0 \
     python-jose>=3.3.0 \
     requests>=2.31.0 \
     pandas>=2.2.0 \
-    numpy>=1.26.0 \
     python-multipart>=0.0.9 \
     jq>=1.6.0 \
     typer>=0.9.0 \
@@ -99,41 +93,35 @@ RUN pip install --no-cache-dir \
     scikit-learn==1.3.2 \
     aiofiles
 
-# Copy application code
 COPY . .
-
-# Expose port
 EXPOSE 8000
 
-# Set environment variables for headless Blender
 ENV DISPLAY=:99
 ENV BLENDER_HEADLESS=1
 ENV BLENDER_USER_CONFIG=/tmp/blender_config
 ENV BLENDER_USER_SCRIPTS=/tmp/blender_scripts
 ENV PYTHONPATH="${PYTHONPATH}:/usr/share/blender/scripts/modules"
 
-# Create startup script
 RUN echo '#!/bin/bash\n\
-echo "🖥️ Starting virtual display..."\n\
+echo "Starting virtual display..."\n\
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
 export DISPLAY=:99\n\
 sleep 2\n\
-echo "🧪 Testing dependencies..."\n\
+echo "Testing dependencies..."\n\
 python3 -c "\
 try:\n\
     from huggingface_hub import cached_download\n\
-    print(\"✅ cached_download available\")\n\
+    print(\"cached_download available\")\n\
     from diffusers import StableDiffusionImg2ImgPipeline\n\
-    print(\"✅ diffusers imports successfully\")\n\
+    print(\"diffusers imports successfully\")\n\
     import bpy\n\
-    print(\"✅ Blender bpy available\")\n\
+    print(\"Blender bpy available\")\n\
     import torch\n\
-    print(f\"✅ torch version: {torch.__version__}\")\n\
-    print(f\"✅ CUDA available: {torch.cuda.is_available()}\")\n\
+    print(f\"torch version: {torch.__version__}\")\n\
 except ImportError as e:\n\
-    print(f\"❌ Import error: {e}\")\n\
+    print(f\"Import error: {e}\")\n\
 "\n\
-echo "🚀 Starting application..."\n\
+echo "Starting application..."\n\
 uvicorn server:app --host 0.0.0.0 --port 8000\n\
 ' > /start.sh && chmod +x /start.sh
 
