@@ -13,13 +13,15 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libgl1-mesa-dev \
     libgl1-mesa-glx \
+    libgl1-mesa-dri \
     libglu1-mesa-dev \
+    libglu1-mesa \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
+    libxrender1 \
     libgomp1 \
-    libglu1-mesa \
     libxrandr2 \
     libxinerama1 \
     libxcursor1 \
@@ -27,10 +29,14 @@ RUN apt-get update && apt-get install -y \
     libx11-6 \
     libxss1 \
     libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
     libasound2 \
     libxtst6 \
     libegl1-mesa-dev \
     libgles2-mesa-dev \
+    libfreetype6 \
+    libfontconfig1 \
     blender \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
@@ -49,8 +55,7 @@ RUN pip install \
     accelerate==0.25.0 \
     huggingface-hub==0.19.4 \
     safetensors==0.4.1 \
-    xformers==0.0.22.post7 \
-    bpy==4.0.0
+    xformers==0.0.22.post7
 
 # Install remaining dependencies (excluding ML packages already installed)
 RUN pip install --no-cache-dir -r requirements.txt --no-deps
@@ -63,8 +68,30 @@ EXPOSE 8000
 
 # Set environment variables for headless Blender
 ENV DISPLAY=:99
+ENV BLENDER_HEADLESS=1
 ENV BLENDER_USER_CONFIG=/tmp/blender_config
 ENV BLENDER_USER_SCRIPTS=/tmp/blender_scripts
+ENV PYTHONPATH="${PYTHONPATH}:/usr/share/blender/scripts/modules"
 
-# Run the application with virtual display for Blender
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1024x768x24 & uvicorn server:app --host 0.0.0.0 --port 8000"]
+# Create startup script for proper virtual display initialization
+RUN echo '#!/bin/bash\n\
+echo "🖥️ Starting virtual display..."\n\
+Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
+export DISPLAY=:99\n\
+sleep 2\n\
+echo "🧪 Testing Blender availability..."\n\
+python3 -c "\
+import sys\n\
+try:\n\
+    import bpy\n\
+    print(\"✅ Blender Python API (bpy) is available\")\n\
+    print(f\"Blender version: {bpy.app.version_string}\")\n\
+except ImportError as e:\n\
+    print(f\"❌ Blender Python API not available: {e}\")\n\
+"\n\
+echo "🚀 Starting application..."\n\
+uvicorn server:app --host 0.0.0.0 --port 8000\n\
+' > /start.sh && chmod +x /start.sh
+
+# Run the application with proper Blender initialization
+CMD ["/start.sh"]
