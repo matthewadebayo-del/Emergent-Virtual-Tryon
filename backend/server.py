@@ -1464,6 +1464,62 @@ def test_ai_dependencies():
         return {"error": str(e)}
 
 
+@app.get("/api/v1/test-blender-3d")
+def test_blender_3d():
+    """Test if Blender 3D rendering is available"""
+    try:
+        import bpy
+        return {
+            "blender_available": True,
+            "blender_version": bpy.app.version_string,
+            "display": os.environ.get("DISPLAY", "not_set")
+        }
+    except ImportError as e:
+        return {
+            "blender_available": False,
+            "error": str(e),
+            "display": os.environ.get("DISPLAY", "not_set")
+        }
+
+
+@app.get("/api/v1/test-rendering-pipeline")
+def test_rendering_pipeline():
+    """Test the complete rendering pipeline to identify 4296-byte placeholder issue"""
+    try:
+        from src.core.model_manager import ModelManager
+        import tempfile
+        import os
+        
+        # Initialize model manager
+        model_manager = ModelManager()
+        renderer = model_manager.get_renderer()
+        
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        try:
+            result = renderer.render_scene(
+                garment_path="test",
+                person_image_path="test", 
+                output_path=temp_path
+            )
+            
+            file_size = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
+            
+            return {
+                "rendering_result": result,
+                "output_file_size": file_size,
+                "is_placeholder": file_size <= 5000,  # 4296 bytes indicates placeholder
+                "renderer_type": type(renderer).__name__
+            }
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+                
+    except Exception as e:
+        return {"error": str(e), "traceback": str(e.__traceback__)}
+
+
 @app.get("/app-root")
 async def app_root():
     return {"status": "healthy", "message": "VirtualFit Backend is running"}
