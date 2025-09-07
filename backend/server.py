@@ -12,7 +12,9 @@ from typing import Dict, List, Optional
 
 import aiofiles
 import bcrypt
+import cv2
 import fal_client
+import numpy as np
 import requests
 from dotenv import load_dotenv
 from fastapi import (APIRouter, Depends, FastAPI, File, Form, Header,
@@ -457,13 +459,16 @@ async def get_products():
 # Measurement Extraction Route
 @api_router.post("/extract-measurements")
 async def extract_measurements(
-    user_image_base64: str = Form(...), current_user: User = Depends(get_current_user)
+    user_image_base64: str = Form(...), 
+    user_height_cm: Optional[float] = Form(None),
+    current_user: User = Depends(get_current_user)
 ):
-    """Extract body measurements from user image using AI computer vision"""
+    """Extract body measurements from user image using enhanced AI computer vision"""
     try:
-        print("=== AI-Based Measurement Extraction ===")
+        print("=== Enhanced AI-Based Measurement Extraction ===")
         print(f"User: {current_user.email}")
         print(f"Image length: {len(user_image_base64)}")
+        print(f"Reference height: {user_height_cm} cm" if user_height_cm else "No reference height provided")
 
         try:
             # Check if it's base64 encoded HEIC by trying to decode and detect format
@@ -506,12 +511,24 @@ async def extract_measurements(
                 "arms": 0.7,
             }
         else:
-            print("🎯 Using AI-based measurement extraction with MediaPipe")
+            print("🎯 Using enhanced AI-based measurement extraction")
+
+            # Convert image bytes to numpy array for enhanced processing
+            image_array = np.frombuffer(image_bytes, np.uint8)
+            image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
             body_result = model_manager.get_body_reconstructor().process_image_bytes(
                 image_bytes
             )
-            body_measurements = body_result["measurements"]
+            
+            pose_data = model_manager.get_body_reconstructor().extract_pose_landmarks(image)
+            
+            body_measurements = model_manager.get_body_reconstructor().estimate_body_measurements(
+                pose_data["landmarks"], 
+                image.shape[:2], 
+                image=image,
+                reference_height_cm=user_height_cm
+            )
 
             simulated_measurements = {
                 "height": body_measurements["height"],
@@ -1518,6 +1535,83 @@ def test_rendering_pipeline():
                 
     except Exception as e:
         return {"error": str(e), "traceback": str(e.__traceback__)}
+
+
+@api_router.get("/measurements/garment/{garment_type}")
+async def get_garment_measurements(
+    garment_type: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get measurements relevant for specific garment type"""
+    try:
+        # Get user's stored measurements
+        user_data = await db.users.find_one({"id": current_user.id})
+        if not user_data or not user_data.get("measurements"):
+            raise HTTPException(status_code=404, detail="No measurements found for user")
+        
+        stored_measurements = user_data["measurements"]
+        enhanced_measurements = stored_measurements.get("enhanced_measurements")
+        
+        if not enhanced_measurements:
+            # Fallback to basic measurements
+            return {
+                "garment_type": garment_type,
+                "measurements": {
+                    "chest": stored_measurements.get("chest", 0),
+                    "waist": stored_measurements.get("waist", 0),
+                    "hips": stored_measurements.get("hips", 0),
+                    "shoulder_width": stored_measurements.get("shoulder_width", 0),
+                },
+                "source": "basic_measurements"
+            }
+        
+        from src.core.advanced_measurement_extractor import GARMENT_MEASUREMENTS
+        
+        # Get garment-specific measurements
+        if garment_type not in GARMENT_MEASUREMENTS:
+            available_types = list(GARMENT_MEASUREMENTS.keys())
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unknown garment type: {garment_type}. Available types: {available_types}"
+            )
+        
+        required_measurements = GARMENT_MEASUREMENTS[garment_type]
+        result = {}
+        
+        # Get primary measurements
+        for field in required_measurements['primary']:
+            value = enhanced_measurements.get(field, 0.0)
+            confidence = enhanced_measurements.get('confidence_scores', {}).get(field, 0.0)
+            
+            if value > 0:
+                result[field] = {
+                    'value': value,
+                    'confidence': confidence,
+                    'importance': 'primary'
+                }
+        
+        # Get secondary and optional measurements
+        for importance in ['secondary', 'optional']:
+            for field in required_measurements.get(importance, []):
+                value = enhanced_measurements.get(field, 0.0)
+                confidence = enhanced_measurements.get('confidence_scores', {}).get(field, 0.0)
+                
+                if value > 0:
+                    result[field] = {
+                        'value': value,
+                        'confidence': confidence,
+                        'importance': importance
+                    }
+        
+        return {
+            "garment_type": garment_type,
+            "measurements": result,
+            "source": "enhanced_measurements"
+        }
+        
+    except Exception as e:
+        print(f"Error getting garment measurements: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get garment measurements: {str(e)}")
 
 
 @app.get("/app-root")

@@ -182,6 +182,19 @@ class GarmentFitter:
 
         template = self.garment_templates[garment_type][garment_subtype]
         body_measurements = self._analyze_body_measurements(body_mesh)
+        
+        enhanced_measurements = getattr(body_mesh, 'enhanced_measurements', None)
+        if enhanced_measurements:
+            print("🎯 Using enhanced measurements for garment fitting")
+            body_measurements.update({
+                "chest_circumference": enhanced_measurements.get("chest_circumference", body_measurements.get("chest_circumference", 0)),
+                "waist_circumference": enhanced_measurements.get("waist_circumference", body_measurements.get("waist_circumference", 0)),
+                "hip_circumference": enhanced_measurements.get("hip_circumference", body_measurements.get("hip_circumference", 0)),
+                "shoulder_width": enhanced_measurements.get("shoulder_width", body_measurements.get("shoulder_width", 0)),
+                "arm_length": enhanced_measurements.get("arm_length", body_measurements.get("arm_length", 0)),
+                "torso_length": enhanced_measurements.get("torso_length", body_measurements.get("torso_length", 0)),
+            })
+        
         scaled_garment = self._scale_garment_to_body(template, body_measurements)
 
         if self.physics_client is not None:

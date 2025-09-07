@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional
 
 import cv2
 import numpy as np
@@ -23,9 +23,17 @@ except ImportError:
 
 
 class BodyReconstructor:
-    """3D Body reconstruction using MediaPipe + SMPL-X"""
+    """3D Body reconstruction using enhanced measurement extraction"""
 
     def __init__(self):
+        try:
+            from src.core.advanced_measurement_extractor import AdvancedMeasurementExtractor
+            self.measurement_extractor = AdvancedMeasurementExtractor()
+            print("✅ Enhanced measurement extractor initialized")
+        except ImportError as e:
+            print(f"⚠️ Enhanced measurement extractor not available: {e}")
+            self.measurement_extractor = None
+        
         if MEDIAPIPE_AVAILABLE:
             self.mp_pose = mp.solutions.pose.Pose(
                 static_image_mode=True,
@@ -75,9 +83,76 @@ class BodyReconstructor:
         }
 
     def estimate_body_measurements(
-        self, landmarks: np.ndarray, image_shape: Tuple[int, int]
+        self, landmarks: np.ndarray, image_shape: Tuple[int, int], 
+        image: Optional[np.ndarray] = None, reference_height_cm: Optional[float] = None
     ) -> Dict[str, float]:
-        """Estimate body measurements from pose landmarks using CV algorithms"""
+        """Enhanced body measurements using AdvancedMeasurementExtractor"""
+        
+        if self.measurement_extractor is not None and image is not None:
+            try:
+                print("🎯 Using enhanced measurement extraction")
+                
+                reference_measurement = None
+                if reference_height_cm:
+                    reference_measurement = {'type': 'height', 'value_cm': reference_height_cm}
+                
+                # Extract enhanced measurements
+                enhanced_measurements = self.measurement_extractor.extract_measurements_single_image(
+                    image, reference_measurement
+                )
+                
+                # Convert to legacy format for backward compatibility
+                measurements = {
+                    "height": enhanced_measurements.height_cm,
+                    "weight": enhanced_measurements.weight_kg or self._estimate_weight_from_enhanced(enhanced_measurements),
+                    "chest_width": enhanced_measurements.chest_circumference / 3.14159,  # Approximate width from circumference
+                    "chest_cm": enhanced_measurements.chest_circumference,
+                    "waist_width": enhanced_measurements.waist_circumference / 3.14159,
+                    "waist_cm": enhanced_measurements.waist_circumference,
+                    "hip_width": enhanced_measurements.hip_circumference / 3.14159,
+                    "hips_cm": enhanced_measurements.hip_circumference,
+                    "shoulder_width_cm": enhanced_measurements.shoulder_width,
+                    "torso_length": enhanced_measurements.torso_length,
+                    "confidence_score": np.mean(list(enhanced_measurements.confidence_scores.values())) if enhanced_measurements.confidence_scores else 0.85,
+                    "measurement_source": "enhanced_ai_extraction",
+                    "enhanced_measurements": self._measurements_to_dict(enhanced_measurements),  # Store full measurements
+                }
+                
+                print(f"✅ Enhanced measurements extracted with {len(enhanced_measurements.confidence_scores)} confidence scores")
+                return measurements
+                
+            except Exception as e:
+                print(f"⚠️ Enhanced measurement extraction failed: {e}, falling back to legacy method")
+        
+        return self._legacy_estimate_body_measurements(landmarks, image_shape)
+    
+    def _estimate_weight_from_enhanced(self, measurements) -> float:
+        """Estimate weight from enhanced measurements using BMI approximation"""
+        if measurements.height_cm > 0:
+            avg_circumference = (measurements.chest_circumference + measurements.waist_circumference) / 2
+            estimated_bmi = 18.5 + (avg_circumference - 80) * 0.15
+            weight_kg = estimated_bmi * (measurements.height_cm / 100) ** 2
+            return max(45.0, min(120.0, weight_kg))  # Reasonable bounds
+        return 70.0  # Default weight
+    
+    def _measurements_to_dict(self, measurements):
+        """Convert BodyMeasurements to dict safely"""
+        try:
+            from dataclasses import asdict
+            return asdict(measurements)
+        except:
+            return {
+                "height_cm": measurements.height_cm,
+                "chest_circumference": measurements.chest_circumference,
+                "waist_circumference": measurements.waist_circumference,
+                "hip_circumference": measurements.hip_circumference,
+                "shoulder_width": measurements.shoulder_width,
+                "torso_length": measurements.torso_length,
+                "confidence_scores": measurements.confidence_scores or {}
+            }
+    
+    def _legacy_estimate_body_measurements(self, landmarks: np.ndarray, image_shape: Tuple[int, int]) -> Dict[str, float]:
+        """Legacy measurement method (original implementation)"""
         h, w = image_shape[:2]
         pixel_landmarks = landmarks.copy()
 
