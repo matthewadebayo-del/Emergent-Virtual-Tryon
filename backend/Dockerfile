@@ -45,17 +45,16 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 
 # Install PyTorch with CUDA support first
-RUN pip install torch==2.1.0+cu118 torchvision==0.16.0+cu118 torchaudio==2.1.0+cu118 \
+RUN pip install torch==2.2.0+cu118 torchvision==0.17.0+cu118 torchaudio==2.2.0+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
 
 # Then install other ML dependencies in one step to avoid conflicts
 RUN pip install \
-    diffusers==0.25.0 \
-    transformers==4.36.0 \
-    accelerate==0.25.0 \
-    huggingface-hub==0.19.4 \
-    safetensors==0.4.1 \
-    xformers==0.0.22.post7
+    diffusers==0.21.4 \
+    transformers==4.35.2 \
+    accelerate==0.24.1 \
+    huggingface-hub==0.17.3 \
+    safetensors==0.4.0
 
 # Install remaining dependencies (excluding ML packages already installed)
 RUN pip install --no-cache-dir -r requirements.txt --no-deps

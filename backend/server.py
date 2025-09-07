@@ -1443,6 +1443,27 @@ async def root():
     return {"message": "Virtual Try-on API is running"}
 
 
+@app.get("/api/v1/test-ai-dependencies")
+def test_ai_dependencies():
+    """Test if AI dependencies work after version fix"""
+    try:
+        from diffusers import StableDiffusionImg2ImgPipeline
+        from huggingface_hub import cached_download
+        import torch
+        
+        return {
+            "diffusers_import": "success",
+            "huggingface_hub_import": "success", 
+            "torch_available": torch.cuda.is_available(),
+            "versions": {
+                "torch": torch.__version__,
+                "diffusers": "imported_successfully"
+            }
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/app-root")
 async def app_root():
     return {"status": "healthy", "message": "VirtualFit Backend is running"}
