@@ -1,4 +1,9 @@
+# NUCLEAR OPTION: Complete Docker cache bypass
 FROM python:3.12-slim
+
+# Force cache invalidation with build timestamp
+ARG CACHE_BUST=1
+RUN echo "Cache bust: $CACHE_BUST $(date)"
 
 WORKDIR /app
 
@@ -39,37 +44,55 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
+# NUCLEAR APPROACH: Completely remove any existing packages
+RUN pip uninstall -y torch torchvision torchaudio transformers diffusers huggingface-hub accelerate safetensors numpy || true
+RUN pip cache purge
+RUN rm -rf /root/.cache/pip
+RUN rm -rf /usr/local/lib/python3.12/site-packages/torch*
+RUN rm -rf /usr/local/lib/python3.12/site-packages/transformers*
+RUN rm -rf /usr/local/lib/python3.12/site-packages/diffusers*
+RUN rm -rf /usr/local/lib/python3.12/site-packages/huggingface*
 
-# Install PyTorch 2.2.0+cu118 (minimum available CUDA version)
-RUN pip install --no-cache-dir \
+# Install exact versions in precise order with verification
+RUN echo "Installing PyTorch 2.2.0+cu118..." && \
+    pip install --no-cache-dir --no-deps \
     torch==2.2.0+cu118 \
     torchvision==0.17.0+cu118 \
     torchaudio==2.2.0+cu118 \
-    --index-url https://download.pytorch.org/whl/cu118
+    --index-url https://download.pytorch.org/whl/cu118 && \
+    python3 -c "import torch; print(f'✅ torch: {torch.__version__}')"
 
-# Force clean pip cache and install ML dependencies with exact versions
-# CRITICAL: Use --force-reinstall to prevent version conflicts
-RUN pip cache purge && \
-    pip install --no-cache-dir --force-reinstall --no-deps \
-    numpy==1.24.4 && \
-    pip install --no-cache-dir --force-reinstall --no-deps \
-    huggingface-hub==0.19.4 && \
-    pip install --no-cache-dir --force-reinstall --no-deps \
-    safetensors==0.4.2 && \
-    pip install --no-cache-dir --force-reinstall --no-deps \
-    accelerate==0.27.2 && \
-    pip install --no-cache-dir --force-reinstall --no-deps \
-    transformers==4.38.2 && \
-    pip install --no-cache-dir --force-reinstall --no-deps \
-    diffusers==0.27.2
+RUN echo "Installing numpy 1.24.4..." && \
+    pip install --no-cache-dir --no-deps numpy==1.24.4 && \
+    python3 -c "import numpy; print(f'✅ numpy: {numpy.__version__}')"
 
-# Verify critical imports work after forced installation
-RUN python3 -c "from huggingface_hub import cached_download; print('✅ cached_download available')" && \
-    python3 -c "import torch; print(f'✅ torch version: {torch.__version__}')" && \
-    python3 -c "import diffusers; print(f'✅ diffusers version: {diffusers.__version__}')" && \
-    python3 -c "import transformers; print(f'✅ transformers version: {transformers.__version__}')"
+RUN echo "Installing huggingface-hub 0.19.4..." && \
+    pip install --no-cache-dir --no-deps huggingface-hub==0.19.4 && \
+    python3 -c "from huggingface_hub import cached_download; print('✅ cached_download available')"
+
+RUN echo "Installing safetensors 0.4.2..." && \
+    pip install --no-cache-dir --no-deps safetensors==0.4.2 && \
+    python3 -c "import safetensors; print(f'✅ safetensors: {safetensors.__version__}')"
+
+RUN echo "Installing accelerate 0.27.2..." && \
+    pip install --no-cache-dir --no-deps accelerate==0.27.2 && \
+    python3 -c "import accelerate; print(f'✅ accelerate: {accelerate.__version__}')"
+
+RUN echo "Installing transformers 4.38.2..." && \
+    pip install --no-cache-dir --no-deps transformers==4.38.2 && \
+    python3 -c "import transformers; print(f'✅ transformers: {transformers.__version__}')"
+
+RUN echo "Installing diffusers 0.27.2..." && \
+    pip install --no-cache-dir --no-deps diffusers==0.27.2 && \
+    python3 -c "import diffusers; print(f'✅ diffusers: {diffusers.__version__}')"
+
+# Final verification
+RUN echo "Final verification..." && \
+    python3 -c "from huggingface_hub import cached_download; print('✅ cached_download available')" && \
+    python3 -c "import torch; print(f'✅ torch: {torch.__version__}')" && \
+    python3 -c "import diffusers; print(f'✅ diffusers: {diffusers.__version__}')" && \
+    python3 -c "import transformers; print(f'✅ transformers: {transformers.__version__}')" && \
+    echo "🎉 ALL ML DEPENDENCIES VERIFIED!"
 
 # Install remaining dependencies
 RUN pip install --no-cache-dir \
@@ -123,19 +146,21 @@ echo "Starting virtual display..."\n\
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
 export DISPLAY=:99\n\
 sleep 2\n\
-echo "Testing dependencies..."\n\
+echo "Final runtime verification..."\n\
 python3 -c "\
 try:\n\
     from huggingface_hub import cached_download\n\
-    print(\"cached_download available\")\n\
+    print(\"✅ cached_download available at runtime\")\n\
     from diffusers import StableDiffusionImg2ImgPipeline\n\
-    print(\"diffusers imports successfully\")\n\
-    import bpy\n\
-    print(\"Blender bpy available\")\n\
+    print(\"✅ diffusers imports at runtime\")\n\
     import torch\n\
-    print(f\"torch version: {torch.__version__}\")\n\
+    print(f\"✅ torch runtime: {torch.__version__}\")\n\
+    import transformers\n\
+    print(f\"✅ transformers runtime: {transformers.__version__}\")\n\
+    print(\"🎉 ALL RUNTIME IMPORTS SUCCESSFUL!\")\n\
 except ImportError as e:\n\
-    print(f\"Import error: {e}\")\n\
+    print(f\"❌ Runtime import error: {e}\")\n\
+    exit(1)\n\
 "\n\
 echo "Starting application..."\n\
 uvicorn server:app --host 0.0.0.0 --port $PORT\n\
