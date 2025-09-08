@@ -39,7 +39,7 @@ torchvision==0.17.0+cu118
 torchaudio==2.2.0+cu118
 diffusers==0.27.2
 transformers==4.38.2
-huggingface-hub==0.20.3
+huggingface-hub==0.19.4
 accelerate==0.27.2
 safetensors==0.4.2
 
