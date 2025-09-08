@@ -1,3 +1,5 @@
+DISABLE_AI_FOR_DEBUGGING = True
+
 import os
 import logging
 from typing import Any, Dict
@@ -7,25 +9,35 @@ import cv2
 import numpy as np
 from PIL import Image
 
-try:
-    import torch
-    print(f"✅ torch imported successfully: {torch.__version__}")
-    from diffusers import StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipeline
-    print(f"✅ diffusers imported successfully")
-    AI_ENHANCEMENT_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ AI enhancement dependencies not available: {e}")
-    import traceback
-    traceback.print_exc()
+if DISABLE_AI_FOR_DEBUGGING:
     AI_ENHANCEMENT_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.info("🔧 AI temporarily disabled for 3D debugging")
+else:
+    try:
+        import torch
+        print(f"✅ torch imported successfully: {torch.__version__}")
+        from diffusers import StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipeline
+        print(f"✅ diffusers imported successfully")
+        AI_ENHANCEMENT_AVAILABLE = True
+    except ImportError as e:
+        print(f"⚠️ AI enhancement dependencies not available: {e}")
+        import traceback
+        traceback.print_exc()
+        AI_ENHANCEMENT_AVAILABLE = False
 
-logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__)
 
 
 class FixedAIEnhancer:
     """Fixed AI enhancer with proper error handling"""
     
     def __init__(self):
+        if DISABLE_AI_FOR_DEBUGGING:
+            self.models_loaded = False
+            logger.info("🔧 AI temporarily disabled for 3D debugging")
+            return
+            
         self.models_loaded = False
         self._try_load_models()
     
@@ -61,6 +73,11 @@ class FixedAIEnhancer:
     
     def enhance_image(self, image_path: str, output_path: str) -> bool:
         """Enhance image with AI or return original"""
+        if DISABLE_AI_FOR_DEBUGGING:
+            shutil.copy2(image_path, output_path)
+            logger.info(f"🔧 AI bypass: copied {image_path} to {output_path}")
+            return True
+            
         try:
             if not self.models_loaded:
                 logger.info("📋 Stable Diffusion not available, copying original image")

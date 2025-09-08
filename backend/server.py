@@ -1634,6 +1634,26 @@ async def health_check():
         )
 
 
+@app.get("/api/v1/debug-versions")
+async def debug_versions():
+    """Check what versions are actually deployed"""
+    try:
+        import torch
+        import diffusers
+        import transformers
+        import huggingface_hub
+        
+        return {
+            "torch": torch.__version__,
+            "diffusers": diffusers.__version__,
+            "transformers": transformers.__version__,
+            "huggingface_hub": huggingface_hub.__version__,
+            "deployment_time": datetime.utcnow().isoformat()
+        }
+    except ImportError as e:
+        return {"error": str(e), "deployment_time": datetime.utcnow().isoformat()}
+
+
 @app.get("/debug/db-status")
 async def debug_db_status():
     try:
