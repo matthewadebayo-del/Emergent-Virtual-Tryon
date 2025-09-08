@@ -1616,7 +1616,12 @@ async def get_garment_measurements(
 
 @app.get("/")
 async def root():
-    return {"status": "healthy", "service": "virtualfit-backend", "version": "latest"}
+    return {"status": "healthy", "service": "virtualfit-backend"}
+
+
+@app.get("/health") 
+async def health():
+    return {"status": "ok", "timestamp": "2024-09-08"}
 
 
 @app.get("/ping") 
@@ -1629,9 +1634,9 @@ async def app_root():
     return {"status": "healthy", "message": "VirtualFit Backend is running"}
 
 
-@app.get("/health")
+@app.get("/health-detailed")
 async def health_check():
-    """Health check endpoint that verifies database connectivity"""
+    """Detailed health check endpoint that verifies database connectivity"""
     if db is None:
         raise HTTPException(status_code=503, detail="Database not initialized")
 
