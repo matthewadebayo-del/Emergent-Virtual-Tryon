@@ -1614,6 +1614,16 @@ async def get_garment_measurements(
         raise HTTPException(status_code=500, detail=f"Failed to get garment measurements: {str(e)}")
 
 
+@app.get("/")
+async def root():
+    return {"status": "healthy", "service": "virtualfit-backend", "version": "latest"}
+
+
+@app.get("/ping") 
+async def ping():
+    return {"message": "pong"}
+
+
 @app.get("/app-root")
 async def app_root():
     return {"status": "healthy", "message": "VirtualFit Backend is running"}

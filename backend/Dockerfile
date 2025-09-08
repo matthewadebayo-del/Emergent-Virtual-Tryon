@@ -94,7 +94,10 @@ RUN pip install --no-cache-dir \
     aiofiles
 
 COPY . .
-EXPOSE 8000
+
+# Add explicit PORT configuration for Cloud Run
+ENV PORT=8000
+EXPOSE $PORT
 
 ENV DISPLAY=:99
 ENV BLENDER_HEADLESS=1
@@ -122,7 +125,7 @@ except ImportError as e:\n\
     print(f\"Import error: {e}\")\n\
 "\n\
 echo "Starting application..."\n\
-uvicorn server:app --host 0.0.0.0 --port 8000\n\
+uvicorn server:app --host 0.0.0.0 --port $PORT\n\
 ' > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]
