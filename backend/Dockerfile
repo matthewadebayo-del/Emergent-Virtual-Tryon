@@ -50,9 +50,10 @@ RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu118
 
 # Install ML dependencies in exact order to prevent conflicts
+# Use huggingface-hub==0.19.4 which has cached_download
 RUN pip install --no-cache-dir \
     numpy==1.24.4 \
-    huggingface-hub==0.20.3 \
+    huggingface-hub==0.19.4 \
     safetensors==0.4.2 \
     accelerate==0.27.2 \
     transformers==4.38.2 \
