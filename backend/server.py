@@ -1652,21 +1652,53 @@ async def health_check():
 @app.get("/api/v1/debug-versions")
 async def debug_versions():
     """Check what versions are actually deployed"""
+    result = {"deployment_time": datetime.utcnow().isoformat()}
+    
     try:
         import torch
-        import diffusers
-        import transformers
-        import huggingface_hub
-        
-        return {
-            "torch": torch.__version__,
-            "diffusers": diffusers.__version__,
-            "transformers": transformers.__version__,
-            "huggingface_hub": huggingface_hub.__version__,
-            "deployment_time": datetime.utcnow().isoformat()
-        }
+        result["torch"] = torch.__version__
     except ImportError as e:
-        return {"error": str(e), "deployment_time": datetime.utcnow().isoformat()}
+        result["torch_error"] = str(e)
+    
+    try:
+        import diffusers
+        result["diffusers"] = diffusers.__version__
+    except ImportError as e:
+        result["diffusers_error"] = str(e)
+    
+    try:
+        import transformers
+        result["transformers"] = transformers.__version__
+    except ImportError as e:
+        result["transformers_error"] = str(e)
+    
+    try:
+        import huggingface_hub
+        result["huggingface_hub"] = huggingface_hub.__version__
+        
+        try:
+            from huggingface_hub import cached_download
+            result["cached_download"] = "available"
+        except ImportError as e:
+            result["cached_download_error"] = str(e)
+            
+    except ImportError as e:
+        result["huggingface_hub_error"] = str(e)
+    
+    try:
+        import subprocess
+        pip_list = subprocess.run(['pip', 'list'], capture_output=True, text=True)
+        if pip_list.returncode == 0:
+            lines = pip_list.stdout.split('\n')
+            ml_packages = {}
+            for line in lines:
+                if any(pkg in line.lower() for pkg in ['torch', 'diffusers', 'transformers', 'huggingface']):
+                    ml_packages[line.split()[0]] = line.split()[1] if len(line.split()) > 1 else "unknown"
+            result["installed_packages"] = ml_packages
+    except Exception as e:
+        result["pip_list_error"] = str(e)
+    
+    return result
 
 
 @app.get("/debug/db-status")
