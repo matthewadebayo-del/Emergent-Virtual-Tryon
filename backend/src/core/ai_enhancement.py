@@ -1,4 +1,5 @@
 DISABLE_AI_FOR_DEBUGGING = True
+EMERGENCY_BYPASS = True
 
 import os
 import logging
@@ -33,6 +34,10 @@ class FixedAIEnhancer:
     """Fixed AI enhancer with proper error handling"""
     
     def __init__(self):
+        if EMERGENCY_BYPASS:
+            self.models_loaded = False
+            print("AI BYPASSED - focusing on 3D rendering")
+            return
         if DISABLE_AI_FOR_DEBUGGING:
             self.models_loaded = False
             logger.info("🔧 AI temporarily disabled for 3D debugging")
@@ -73,6 +78,10 @@ class FixedAIEnhancer:
     
     def enhance_image(self, image_path: str, output_path: str) -> bool:
         """Enhance image with AI or return original"""
+        if EMERGENCY_BYPASS:
+            import shutil
+            shutil.copy2(image_path, output_path)
+            return True
         if DISABLE_AI_FOR_DEBUGGING:
             shutil.copy2(image_path, output_path)
             logger.info(f"🔧 AI bypass: copied {image_path} to {output_path}")
