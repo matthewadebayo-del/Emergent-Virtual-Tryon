@@ -49,15 +49,27 @@ RUN pip install --no-cache-dir \
     torchaudio==2.2.0+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
 
-# Install ML dependencies in exact order to prevent conflicts
-# Use huggingface-hub==0.19.4 which has cached_download
-RUN pip install --no-cache-dir \
-    numpy==1.24.4 \
-    huggingface-hub==0.19.4 \
-    safetensors==0.4.2 \
-    accelerate==0.27.2 \
-    transformers==4.38.2 \
+# Force clean pip cache and install ML dependencies with exact versions
+# CRITICAL: Use --force-reinstall to prevent version conflicts
+RUN pip cache purge && \
+    pip install --no-cache-dir --force-reinstall --no-deps \
+    numpy==1.24.4 && \
+    pip install --no-cache-dir --force-reinstall --no-deps \
+    huggingface-hub==0.19.4 && \
+    pip install --no-cache-dir --force-reinstall --no-deps \
+    safetensors==0.4.2 && \
+    pip install --no-cache-dir --force-reinstall --no-deps \
+    accelerate==0.27.2 && \
+    pip install --no-cache-dir --force-reinstall --no-deps \
+    transformers==4.38.2 && \
+    pip install --no-cache-dir --force-reinstall --no-deps \
     diffusers==0.27.2
+
+# Verify critical imports work after forced installation
+RUN python3 -c "from huggingface_hub import cached_download; print('✅ cached_download available')" && \
+    python3 -c "import torch; print(f'✅ torch version: {torch.__version__}')" && \
+    python3 -c "import diffusers; print(f'✅ diffusers version: {diffusers.__version__}')" && \
+    python3 -c "import transformers; print(f'✅ transformers version: {transformers.__version__}')"
 
 # Install remaining dependencies
 RUN pip install --no-cache-dir \
