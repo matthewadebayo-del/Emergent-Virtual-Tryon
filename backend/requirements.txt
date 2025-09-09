@@ -33,13 +33,13 @@ open3d==0.19.0
 pybullet==3.2.7
 opencv-python==4.8.1.78
 
-# Compatible ML stack - PyTorch 2.2.0+cu118 with working cached_download
+# Methodical ML stack - tested compatible versions
 torch==2.2.0+cu118
 torchvision==0.17.0+cu118
 torchaudio==2.2.0+cu118
-diffusers==0.27.2
-transformers==4.38.2
-huggingface-hub==0.19.4
+huggingface-hub==0.16.4
+transformers==4.33.3
+diffusers==0.21.4
 accelerate==0.27.2
 safetensors==0.4.2
 
