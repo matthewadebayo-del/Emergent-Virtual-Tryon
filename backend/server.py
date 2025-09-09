@@ -1701,6 +1701,97 @@ async def debug_versions():
     return result
 
 
+@app.get("/api/v1/debug-blender-status")
+async def debug_blender_status():
+    """Debug endpoint to check Blender availability and 3D rendering status"""
+    try:
+        import traceback
+        import os
+        
+        bpy_status = {}
+        try:
+            import sys
+            
+            original_path = sys.path.copy()
+            
+            blender_scripts = '/usr/share/blender/scripts/modules'
+            if blender_scripts not in sys.path:
+                sys.path.append(blender_scripts)
+            
+            blender_version_paths = [
+                '/usr/share/blender/4.0/python/lib/python3.11/site-packages',
+                '/usr/share/blender/3.6/python/lib/python3.10/site-packages',
+                '/usr/share/blender/4.1/python/lib/python3.11/site-packages'
+            ]
+            
+            added_paths = []
+            for path in blender_version_paths:
+                if os.path.exists(path) and path not in sys.path:
+                    sys.path.append(path)
+                    added_paths.append(path)
+            
+            import bpy
+            bpy_status = {
+                "available": True,
+                "version": bpy.app.version_string,
+                "python_paths_added": added_paths,
+                "blender_scripts_path": blender_scripts
+            }
+        except ImportError as e:
+            bpy_status = {
+                "available": False,
+                "error": str(e),
+                "python_path": sys.path[-5:]
+            }
+        
+        memory_status = {}
+        try:
+            import psutil
+            vm = psutil.virtual_memory()
+            memory_status = {
+                "available": True,
+                "total_gb": round(vm.total / (1024**3), 2),
+                "available_gb": round(vm.available / (1024**3), 2),
+                "used_percent": vm.percent
+            }
+        except ImportError:
+            memory_status = {"available": False, "error": "psutil not installed"}
+        except Exception as e:
+            memory_status = {"available": False, "error": str(e)}
+        
+        from src.core.rendering import FixedPhorealisticRenderer, AdaptiveFallbackRenderer
+        
+        renderer = FixedPhorealisticRenderer()
+        fallback_renderer = AdaptiveFallbackRenderer()
+        
+        adaptive_settings = {}
+        try:
+            adaptive_settings = {
+                "resolution": fallback_renderer._get_adaptive_resolution(),
+                "quality": fallback_renderer._get_adaptive_quality(),
+                "psutil_available": fallback_renderer.psutil_available
+            }
+        except Exception as e:
+            adaptive_settings = {"error": str(e)}
+        
+        return {
+            "blender_status": bpy_status,
+            "memory_status": memory_status,
+            "renderer_available": renderer.blender_available,
+            "fallback_available": True,
+            "adaptive_settings": adaptive_settings,
+            "environment": {
+                "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
+                "BLENDER_USER_CONFIG": os.environ.get("BLENDER_USER_CONFIG", ""),
+                "BLENDER_HEADLESS": os.environ.get("BLENDER_HEADLESS", ""),
+                "DISPLAY": os.environ.get("DISPLAY", "")
+            }
+        }
+        
+    except Exception as e:
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
 @app.get("/debug/db-status")
 async def debug_db_status():
     try:

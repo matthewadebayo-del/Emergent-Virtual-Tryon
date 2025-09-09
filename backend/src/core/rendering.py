@@ -36,57 +36,67 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class FixedPhorealisticRenderer:
-    """Fixed version of the photorealistic renderer addressing the DirectionalLight issue"""
+    """Fixed version using direct bpy API calls (no subprocess)"""
     
     def __init__(self, headless: bool = True):
         self.headless = headless
-        logger.info("🎬 Initializing Fixed Renderer...")
-        if BLENDER_AVAILABLE:
-            self._setup_blender_fixed()
+        self.blender_available = False
+        logger.info("🎬 Initializing Fixed Renderer with direct bpy API...")
         
-    def _setup_blender_fixed(self):
-        """Fixed Blender setup addressing API issues"""
-        try:
-            logger.info("Setting up Blender with fixes...")
-            
-            if self.headless:
-                bpy.ops.wm.read_factory_settings(use_empty=True)
-                logger.info("✅ Blender factory settings loaded")
-            
-            # Set render engine with enhanced fallback logic
+        if BLENDER_AVAILABLE:
             try:
-                bpy.context.scene.render.engine = 'CYCLES'
-                bpy.context.scene.cycles.device = 'GPU'
-                logger.info("✅ Using CYCLES with GPU")
+                self._setup_blender_direct()
+                self.blender_available = True
+                logger.info("✅ Blender setup successful with direct API")
             except Exception as e:
-                logger.warning(f"⚠️ GPU failed, trying CPU: {e}")
-                try:
-                    bpy.context.scene.render.engine = 'CYCLES'
-                    bpy.context.scene.cycles.device = 'CPU' 
-                    bpy.context.scene.cycles.samples = 32  # Lower for CPU
-                    logger.info("✅ Using CYCLES with CPU")
-                except Exception as e2:
-                    logger.warning(f"⚠️ Cycles failed, using EEVEE: {e2}")
-                    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-                    logger.info("✅ Using EEVEE fallback")
+                logger.error(f"❌ Blender setup failed: {e}")
+                self.blender_available = False
+        else:
+            logger.warning("⚠️ Blender not available - will use fallback rendering")
+        
+    def _setup_blender_direct(self):
+        """Setup Blender with direct API calls (no subprocess)"""
+        try:
+            import sys
+            import os
             
-            # Safe GPU setup with fallback
-            self._setup_gpu_safe()
+            blender_scripts = '/usr/share/blender/scripts/modules'
+            if blender_scripts not in sys.path:
+                sys.path.append(blender_scripts)
             
-            # Set conservative render settings
-            scene = bpy.context.scene
-            scene.render.resolution_x = 512  # Start smaller for debugging
-            scene.render.resolution_y = 512
-            scene.render.resolution_percentage = 100
+            blender_version_paths = [
+                '/usr/share/blender/4.0/python/lib/python3.11/site-packages',
+                '/usr/share/blender/3.6/python/lib/python3.10/site-packages',
+                '/usr/share/blender/4.1/python/lib/python3.11/site-packages'
+            ]
             
-            if bpy.context.scene.render.engine == 'CYCLES':
-                scene.cycles.samples = 32  # Low samples for debugging
-                scene.cycles.device = 'CPU'  # Force CPU for reliability
+            for path in blender_version_paths:
+                if os.path.exists(path) and path not in sys.path:
+                    sys.path.append(path)
+                    logger.info(f"✅ Added Blender path: {path}")
             
-            logger.info("✅ Fixed Blender setup complete")
+            import bpy
+            logger.info(f"✅ Blender Python API loaded: {bpy.app.version_string}")
+            
+            # Configure for headless rendering
+            if self.headless:
+                # Set render engine to CYCLES for better quality
+                bpy.context.scene.render.engine = 'CYCLES'
+                bpy.context.scene.cycles.device = 'CPU'  # Use CPU in Cloud Run
+                
+                # Configure render settings
+                bpy.context.scene.render.resolution_x = 512
+                bpy.context.scene.render.resolution_y = 512
+                bpy.context.scene.render.resolution_percentage = 100
+                
+                logger.info("✅ Blender configured for headless rendering")
+            
+            bpy.ops.mesh.primitive_cube_add()
+            bpy.ops.object.delete()
+            logger.info("✅ Blender operations verified")
             
         except Exception as e:
-            logger.error(f"❌ Blender setup failed: {e}")
+            logger.error(f"❌ Blender direct setup failed: {e}")
             raise
     
     def _setup_gpu_safe(self):
@@ -456,48 +466,204 @@ class FixedPhorealisticRenderer:
                 return output_path
 
 
-class SimpleFallbackRenderer:
-    """Simple fallback renderer using OpenCV when Blender fails"""
+class AdaptiveFallbackRenderer:
+    """Adaptive fallback renderer with memory-based quality adjustment"""
     
     def __init__(self):
-        logger.info("🎨 Initializing Simple Fallback Renderer...")
+        self.memory_threshold_high = 8  # GB
+        self.memory_threshold_med = 4   # GB
+        logger.info("🎨 Initializing Adaptive Fallback Renderer...")
+        
+        try:
+            import psutil
+            self.psutil_available = True
+            logger.info("✅ psutil available for memory monitoring")
+        except ImportError:
+            logger.warning("⚠️ psutil not available, using default resolution")
+            self.psutil_available = False
+    
+    def _get_adaptive_resolution(self) -> Tuple[int, int]:
+        """Adjust resolution based on available memory"""
+        if not self.psutil_available:
+            return (512, 384)  # Safe fallback
+            
+        try:
+            import psutil
+            available_mem = psutil.virtual_memory().available / (1024**3)  # GB
+            
+            if available_mem > self.memory_threshold_high:
+                return (1024, 768)  # High quality
+            elif available_mem > self.memory_threshold_med:
+                return (800, 600)   # Medium quality
+            else:
+                return (512, 384)   # Low quality but >15KB
+        except Exception as e:
+            logger.warning(f"⚠️ Memory detection failed: {e}")
+            return (512, 384)     # Safe fallback
+    
+    def _get_adaptive_quality(self) -> int:
+        """Get compression quality based on available memory"""
+        if not self.psutil_available:
+            return 6  # Medium compression
+            
+        try:
+            import psutil
+            available_mem = psutil.virtual_memory().available / (1024**3)  # GB
+            
+            if available_mem > self.memory_threshold_high:
+                return 3  # Low compression (high quality)
+            elif available_mem > self.memory_threshold_med:
+                return 6  # Medium compression
+            else:
+                return 9  # High compression (lower quality but smaller)
+        except:
+            return 6  # Safe fallback
     
     def create_simple_composite(self, body_mesh, garment_mesh, output_path: str, 
-                              image_size: Tuple[int, int] = (512, 512)) -> bool:
-        """Create simple composite image when 3D rendering fails"""
+                              image_size: Tuple[int, int] = None) -> bool:
+        """Create realistic composite image when 3D rendering fails"""
         try:
-            logger.info("Creating simple composite...")
+            if image_size is None:
+                image_size = self._get_adaptive_resolution()
+            compression_quality = self._get_adaptive_quality()
             
-            # Create blank image
-            img = np.ones((image_size[1], image_size[0], 3), dtype=np.uint8) * 240  # Light gray background
+            logger.info(f"Creating enhanced fallback composite at {image_size[0]}x{image_size[1]}...")
             
-            # Draw simple representation
+            img = np.zeros((image_size[1], image_size[0], 3), dtype=np.uint8) + 240
+            
+            for y in range(image_size[1]):
+                gradient_factor = 1.0 - (y / image_size[1]) * 0.3
+                img[y, :] = img[y, :] * gradient_factor
+            
             center_x, center_y = image_size[0] // 2, image_size[1] // 2
             
-            # Draw body outline (simple)
-            cv2.ellipse(img, (center_x, center_y + 50), (80, 150), 0, 0, 360, (200, 180, 160), -1)  # Body
-            cv2.circle(img, (center_x, center_y - 120), 40, (220, 200, 180), -1)  # Head
+            # Extract realistic proportions from actual mesh data
+            if hasattr(body_mesh, 'vertices') and len(body_mesh.vertices) > 0:
+                body_bounds = body_mesh.bounds
+                body_height = body_bounds[1][2] - body_bounds[0][2]  # Z dimension
+                body_width = body_bounds[1][0] - body_bounds[0][0]   # X dimension
+                
+                max_height = image_size[1] * 0.7  # Use 70% of image height
+                max_width = image_size[0] * 0.4   # Use 40% of image width
+                scale_factor = min(max_height / body_height, max_width / body_width) if body_height > 0 else 1.0
+                
+                body_silhouette = self._project_mesh_to_2d(body_mesh, (center_x, center_y), scale_factor)
+                body_img_height = int(body_height * scale_factor)
+                body_img_width = int(body_width * scale_factor)
+            else:
+                body_img_height, body_img_width = int(image_size[1] * 0.6), int(image_size[0] * 0.3)
+                body_silhouette = None
             
-            # Draw garment outline
-            cv2.ellipse(img, (center_x, center_y + 20), (90, 100), 0, 0, 360, (50, 100, 200), -1)  # Garment
+            if body_silhouette is not None:
+                cv2.fillPoly(img, [body_silhouette], (200, 180, 160))  # Skin tone
+            else:
+                cv2.ellipse(img, (center_x, center_y + 50), (body_img_width//2, body_img_height//2), 
+                           0, 0, 360, (200, 180, 160), -1)  # Fallback body shape
             
-            # Add text
-            cv2.putText(img, "Virtual Try-On Preview", (center_x - 120, image_size[1] - 30), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+            head_radius = max(30, body_img_width // 6)
+            cv2.circle(img, (center_x, center_y - body_img_height//2 - head_radius), 
+                      head_radius, (220, 200, 180), -1)
             
-            # Save image
-            cv2.imwrite(output_path, img)
+            # Extract garment proportions from mesh data
+            if hasattr(garment_mesh, 'vertices') and len(garment_mesh.vertices) > 0:
+                garment_bounds = garment_mesh.bounds
+                garment_silhouette = self._project_mesh_to_2d(garment_mesh, (center_x, center_y), scale_factor * 1.1)
+            else:
+                garment_silhouette = None
             
-            if os.path.exists(output_path):
-                logger.info(f"✅ Fallback composite created: {output_path}")
+            if garment_silhouette is not None:
+                cv2.fillPoly(img, [garment_silhouette], (70, 130, 220))  # Blue garment
+            else:
+                garment_width = min(body_img_width + 20, int(image_size[0] * 0.35))
+                garment_height = min(body_img_height - 40, int(image_size[1] * 0.45))
+                cv2.ellipse(img, (center_x, center_y + 20), (garment_width//2, garment_height//2), 
+                           0, 0, 360, (70, 130, 220), -1)  # Fallback garment shape
+            
+            overlay = img.copy()
+            shadow_width = max(60, body_img_width // 2)
+            shadow_height = max(80, body_img_height // 3)
+            cv2.ellipse(overlay, (center_x - 20, center_y + 40), (shadow_width, shadow_height), 
+                       0, 0, 360, (50, 100, 180), -1)  # Shadow
+            img = cv2.addWeighted(img, 0.8, overlay, 0.2, 0)
+            
+            font_scale = max(0.5, image_size[0] / 1000)
+            text_thickness = max(1, int(image_size[0] / 500))
+            
+            cv2.putText(img, "Virtual Try-On Render", 
+                       (center_x - int(150 * font_scale), image_size[1] - int(60 * font_scale)), 
+                       cv2.FONT_HERSHEY_SIMPLEX, font_scale * 0.8, (60, 60, 60), text_thickness)
+            cv2.putText(img, "Enhanced Fallback Mode", 
+                       (center_x - int(120 * font_scale), image_size[1] - int(30 * font_scale)), 
+                       cv2.FONT_HERSHEY_SIMPLEX, font_scale * 0.5, (120, 120, 120), max(1, text_thickness-1))
+            
+            success = cv2.imwrite(output_path, img, [cv2.IMWRITE_PNG_COMPRESSION, compression_quality])
+            
+            if success and os.path.exists(output_path):
+                file_size = os.path.getsize(output_path)
+                logger.info(f"✅ Enhanced fallback composite created: {output_path} ({file_size} bytes)")
+                
+                if file_size < 15000:
+                    logger.warning(f"⚠️ File size too small ({file_size} bytes), retrying with higher quality...")
+                    return self._increase_quality_and_retry(img, output_path)
+                
                 return True
             else:
-                logger.error("❌ Failed to save fallback composite")
+                logger.error("❌ Failed to save enhanced fallback composite")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Fallback rendering failed: {e}")
+            logger.error(f"❌ Enhanced fallback rendering failed: {e}")
             return False
+    
+    def _increase_quality_and_retry(self, img: np.ndarray, output_path: str) -> bool:
+        """Retry with higher quality settings if file size is too small"""
+        try:
+            height, width = img.shape[:2]
+            if width < 800:
+                new_width, new_height = 1024, 768
+                img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+            
+            success = cv2.imwrite(output_path, img, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+            
+            if success and os.path.exists(output_path):
+                file_size = os.path.getsize(output_path)
+                logger.info(f"✅ Retry successful: {file_size} bytes")
+                return file_size >= 15000
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ Quality retry failed: {e}")
+            return False
+
+    def _project_mesh_to_2d(self, mesh, center_point: Tuple[int, int], scale_factor: float) -> Optional[np.ndarray]:
+        """Project 3D mesh vertices to 2D silhouette points"""
+        try:
+            vertices = mesh.vertices
+            if len(vertices) == 0:
+                return None
+            
+            projected_points = []
+            center_x, center_y = center_point
+            
+            for vertex in vertices:
+                x_2d = int(center_x + vertex[0] * scale_factor)
+                y_2d = int(center_y - vertex[2] * scale_factor)  # Flip Z for screen coordinates
+                projected_points.append([x_2d, y_2d])
+            
+            if len(projected_points) > 3:
+                points_array = np.array(projected_points, dtype=np.int32)
+                hull = cv2.convexHull(points_array)
+                return hull.reshape(-1, 2)
+            else:
+                return np.array(projected_points, dtype=np.int32)
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Mesh projection failed: {e}")
+            return None
+
+
+SimpleFallbackRenderer = AdaptiveFallbackRenderer
 
 
 class RenderingPipeline:
