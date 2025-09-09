@@ -103,8 +103,8 @@ RUN pkg-config --exists openssl && echo "OpenSSL found" || echo "OpenSSL missing
 # Verify Rust installation
 RUN rustc --version
 
-RUN echo "Installing transformers 4.33.3 with system Rust compiler..." && \
-    pip install --no-cache-dir transformers==4.33.3 && \
+RUN echo "Installing transformers 4.36.0 (Python 3.12 compatible with prebuilt wheels)..." && \
+    pip install --no-cache-dir transformers==4.36.0 && \
     python3 -c "import transformers; print(f'✅ transformers: {transformers.__version__}')"
 
 RUN echo "Installing diffusers 0.21.4..." && \
