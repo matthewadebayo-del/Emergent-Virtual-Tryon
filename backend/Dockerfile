@@ -88,13 +88,16 @@ RUN echo "Installing accelerate 0.27.2..." && \
     pip install --no-cache-dir --no-deps accelerate==0.27.2 && \
     python3 -c "import accelerate; print(f'✅ accelerate: {accelerate.__version__}')"
 
-RUN echo "Installing transformers 4.33.3 with prebuilt wheels..." && \
-    pip install --upgrade pip && \
-    pip install --no-cache-dir --only-binary=all transformers==4.33.3 && \
+# Install Rust compiler for tokenizers dependency
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN echo "Installing transformers 4.33.3 with Rust compiler..." && \
+    pip install --no-cache-dir transformers==4.33.3 && \
     python3 -c "import transformers; print(f'✅ transformers: {transformers.__version__}')"
 
-RUN echo "Installing diffusers 0.21.4 with prebuilt wheels..." && \
-    pip install --no-cache-dir --only-binary=all diffusers==0.21.4 && \
+RUN echo "Installing diffusers 0.21.4..." && \
+    pip install --no-cache-dir diffusers==0.21.4 && \
     python3 -c "import diffusers; print(f'✅ diffusers: {diffusers.__version__}')"
 
 # Step 4: Prevent Version Drift - Pin ML packages after installation
