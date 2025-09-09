@@ -88,12 +88,17 @@ RUN echo "Installing accelerate 0.27.2..." && \
     pip install --no-cache-dir --no-deps accelerate==0.27.2 && \
     python3 -c "import accelerate; print(f'✅ accelerate: {accelerate.__version__}')"
 
-# Install Rust compiler via apt (more reliable for Docker builds)
+# Install Rust compiler and OpenSSL dev libraries for tokenizers
 RUN apt-get update && apt-get install -y \
     rustc \
     cargo \
     build-essential \
+    libssl-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
+
+# Verify OpenSSL is found
+RUN pkg-config --exists openssl && echo "OpenSSL found" || echo "OpenSSL missing"
 
 # Verify Rust installation
 RUN rustc --version
