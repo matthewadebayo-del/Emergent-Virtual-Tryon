@@ -1,7 +1,8 @@
+import os
+
 DISABLE_AI_FOR_DEBUGGING = True
 EMERGENCY_BYPASS = True
-
-import os
+DISABLE_AI = os.environ.get('DISABLE_AI', 'false').lower() == 'true'
 import logging
 from typing import Any, Dict
 import shutil
@@ -10,10 +11,10 @@ import cv2
 import numpy as np
 from PIL import Image
 
-if DISABLE_AI_FOR_DEBUGGING:
+if DISABLE_AI or DISABLE_AI_FOR_DEBUGGING:
     AI_ENHANCEMENT_AVAILABLE = False
     logger = logging.getLogger(__name__)
-    logger.info("🔧 AI temporarily disabled for 3D debugging")
+    logger.info("🔧 Step 6: AI enhancement disabled - using fallback mode")
 else:
     try:
         import torch
@@ -34,6 +35,10 @@ class FixedAIEnhancer:
     """Fixed AI enhancer with proper error handling"""
     
     def __init__(self):
+        if DISABLE_AI:
+            self.models_loaded = False
+            print("🔧 Step 6: AI disabled via runtime environment variable")
+            return
         if EMERGENCY_BYPASS:
             self.models_loaded = False
             print("AI BYPASSED - focusing on 3D rendering")
