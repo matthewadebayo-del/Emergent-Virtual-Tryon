@@ -52,15 +52,17 @@ RUN rm -rf /usr/local/lib/python3.12/site-packages/transformers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/diffusers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/huggingface*
 
-# Install build dependencies first
+# Install build dependencies in separate steps for proper availability
+RUN echo "Installing core build tools..." && \
+    pip install --no-cache-dir --upgrade pip setuptools wheel
+
 RUN echo "Installing build dependencies..." && \
-    pip install --no-cache-dir setuptools wheel pip --upgrade && \
     pip install --no-cache-dir typing_extensions filelock networkx jinja2 fsspec && \
     echo "✅ Build dependencies installed"
 
-# Install numpy first (required by many packages)
-RUN echo "Installing numpy 1.24.4..." && \
-    pip install --no-cache-dir numpy==1.24.4 && \
+# Install numpy first (required by many packages) - Python 3.12 compatible version
+RUN echo "Installing numpy 1.26.0 (Python 3.12 compatible)..." && \
+    pip install --no-cache-dir --only-binary=numpy numpy==1.26.0 && \
     python3 -c "import numpy; print(f'✅ numpy: {numpy.__version__}')"
 
 # Install PyTorch with CPU support
