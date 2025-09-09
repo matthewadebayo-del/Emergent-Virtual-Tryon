@@ -131,6 +131,24 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
 export DISPLAY=:99\n\
 sleep 2\n\
 \n\
+echo "Configuring Blender Python paths..."\n\
+BLENDER_VERSION=$(blender --version | head -1 | grep -oP "\\d+\\.\\d+" || echo "4.0")\n\
+echo "Detected Blender version: $BLENDER_VERSION"\n\
+export PYTHONPATH="$PYTHONPATH:/usr/share/blender/scripts/modules"\n\
+for path in /usr/share/blender/$BLENDER_VERSION/python/lib/python*/site-packages; do\n\
+    if [ -d "$path" ]; then\n\
+        export PYTHONPATH="$PYTHONPATH:$path"\n\
+        echo "Added to PYTHONPATH: $path"\n\
+    fi\n\
+done\n\
+for path in /usr/share/blender/*/python/lib/python*/site-packages; do\n\
+    if [ -d "$path" ]; then\n\
+        export PYTHONPATH="$PYTHONPATH:$path"\n\
+        echo "Added to PYTHONPATH: $path"\n\
+    fi\n\
+done\n\
+echo "Final PYTHONPATH: $PYTHONPATH"\n\
+\n\
 echo "Testing dependencies..."\n\
 python3 -c "\
 import sys\n\
