@@ -106,13 +106,13 @@ RUN BLENDER_VERSION=$(blender --version | head -1 | grep -oP '\d+\.\d+') && \
     echo "export PYTHONPATH=\$PYTHONPATH:/usr/share/blender/scripts/modules:$BLENDER_PYTHON_PATH" >> /etc/environment
 
 # Test bpy import with correct path
-RUN python3 -c "
-import sys
-import glob
-sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages'))
-sys.path.append('/usr/share/blender/scripts/modules')
-import bpy
-print(f'Blender API working: {bpy.app.version_string}')
+RUN python3 -c "\
+import sys; \
+import glob; \
+sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages')); \
+sys.path.append('/usr/share/blender/scripts/modules'); \
+import bpy; \
+print(f'Blender API working: {bpy.app.version_string}'); \
 "
 
 # Environment configuration
@@ -130,6 +130,36 @@ echo "Starting virtual display..."\n\
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
 export DISPLAY=:99\n\
 sleep 2\n\
+\n\
+# Store original PYTHONPATH\n\
+export PYTHONPATH_ORIGINAL="$PYTHONPATH"\n\
+\n\
+echo "Configuring Blender Python paths..."\n\
+BLENDER_VERSION=$(blender --version | head -1 | grep -oP "\\d+\\.\\d+" || echo "4.0")\n\
+echo "Detected Blender version: $BLENDER_VERSION"\n\
+\n\
+# Initialize PYTHONPATH with Blender scripts\n\
+export PYTHONPATH="/usr/share/blender/scripts/modules"\n\
+\n\
+# Add version-specific paths\n\
+for path in /usr/share/blender/$BLENDER_VERSION/python/lib/python*/site-packages; do\n\
+    if [ -d "$path" ]; then\n\
+        export PYTHONPATH="$PYTHONPATH:$path"\n\
+        echo "Added version-specific path: $path"\n\
+    fi\n\
+done\n\
+\n\
+# Add fallback paths for any Blender version\n\
+for path in /usr/share/blender/*/python/lib/python*/site-packages; do\n\
+    if [ -d "$path" ] && [[ ":$PYTHONPATH:" != *":$path:"* ]]; then\n\
+        export PYTHONPATH="$PYTHONPATH:$path"\n\
+        echo "Added fallback path: $path"\n\
+    fi\n\
+done\n\
+\n\
+# Add system Python path as fallback\n\
+export PYTHONPATH="$PYTHONPATH:$PYTHONPATH_ORIGINAL"\n\
+echo "Final PYTHONPATH: $PYTHONPATH"\n\
 \n\
 echo "Testing dependencies..."\n\
 python3 -c "\
