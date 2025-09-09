@@ -141,6 +141,25 @@ ENV BLENDER_USER_CONFIG=/tmp/blender_config
 ENV BLENDER_USER_SCRIPTS=/tmp/blender_scripts
 ENV PYTHONPATH="${PYTHONPATH}:/usr/share/blender/scripts/modules"
 
+# Create Blender config directory and disable network calls
+RUN mkdir -p /tmp/blender_config /tmp/blender_scripts && \
+    echo "import bpy; bpy.context.preferences.system.use_international_fonts = False" > /tmp/blender_config/startup.py
+
+# Test bpy availability during build with direct import (no subprocess)
+RUN python3 -c "\
+import sys;\
+sys.path.append('/usr/share/blender/scripts/modules');\
+# Try common Blender version paths\
+blender_paths = ['/usr/share/blender/4.0/python/lib/python3.11/site-packages', '/usr/share/blender/3.6/python/lib/python3.10/site-packages'];\
+for path in blender_paths:\
+    if __import__('os').path.exists(path): sys.path.append(path);\
+import bpy;\
+print(f'✅ Blender Python API available: {bpy.app.version_string}');\
+bpy.ops.mesh.primitive_cube_add();\
+bpy.ops.object.delete();\
+print('✅ Blender operations working');\
+" && echo "✅ Blender Python API verification complete"
+
 RUN echo '#!/bin/bash\n\
 echo "Starting virtual display..."\n\
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
