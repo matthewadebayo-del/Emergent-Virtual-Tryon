@@ -52,9 +52,11 @@ RUN rm -rf /usr/local/lib/python3.12/site-packages/transformers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/diffusers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/huggingface*
 
-# Install build dependencies first
+# Install build dependencies in separate steps for proper availability
+RUN echo "Installing core build tools..." && \
+    pip install --no-cache-dir --upgrade pip setuptools wheel
+
 RUN echo "Installing build dependencies..." && \
-    pip install --no-cache-dir setuptools wheel pip --upgrade && \
     pip install --no-cache-dir typing_extensions filelock networkx jinja2 fsspec && \
     echo "✅ Build dependencies installed"
 
