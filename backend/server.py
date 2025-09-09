@@ -1515,9 +1515,13 @@ def test_rendering_pipeline():
             temp_path = temp_file.name
         
         try:
+            import trimesh
+            body_mesh = trimesh.creation.cylinder(radius=0.3, height=1.8)
+            garment_mesh = trimesh.creation.cylinder(radius=0.35, height=1.0)
+            
             result = renderer.render_scene(
-                garment_path="test",
-                person_image_path="test", 
+                body_mesh=body_mesh,
+                garment_mesh=garment_mesh,
                 output_path=temp_path
             )
             
