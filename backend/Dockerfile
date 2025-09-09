@@ -52,23 +52,25 @@ RUN rm -rf /usr/local/lib/python3.12/site-packages/transformers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/diffusers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/huggingface*
 
-# Install PyTorch dependencies first
-RUN echo "Installing PyTorch dependencies..." && \
+# Install build dependencies first
+RUN echo "Installing build dependencies..." && \
+    pip install --no-cache-dir setuptools wheel pip --upgrade && \
     pip install --no-cache-dir typing_extensions filelock networkx jinja2 fsspec && \
-    echo "✅ PyTorch dependencies installed"
+    echo "✅ Build dependencies installed"
 
-# Install exact versions in precise order with verification
+# Install numpy first (required by many packages)
+RUN echo "Installing numpy 1.24.4..." && \
+    pip install --no-cache-dir numpy==1.24.4 && \
+    python3 -c "import numpy; print(f'✅ numpy: {numpy.__version__}')"
+
+# Install PyTorch with CPU support
 RUN echo "Installing PyTorch 2.2.0 (CPU)..." && \
-    pip install --no-cache-dir --no-deps \
+    pip install --no-cache-dir \
     torch==2.2.0+cpu \
     torchvision==0.17.0+cpu \
     torchaudio==2.2.0+cpu \
     --index-url https://download.pytorch.org/whl/cpu && \
     python3 -c "import torch; print(f'✅ torch: {torch.__version__}')"
-
-RUN echo "Installing numpy 1.24.4..." && \
-    pip install --no-cache-dir --no-deps numpy==1.24.4 && \
-    python3 -c "import numpy; print(f'✅ numpy: {numpy.__version__}')"
 
 RUN echo "Installing huggingface-hub 0.16.4..." && \
     pip install --no-cache-dir --no-deps huggingface-hub==0.16.4 && \
