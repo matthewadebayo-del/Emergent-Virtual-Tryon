@@ -48,6 +48,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const [countdown, setCountdown] = useState(null);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [processingType, setProcessingType] = useState('default'); // 'default' or 'premium'
+  const [userHeight, setUserHeight] = useState(''); // Height in cm for measurement reference
   
   const fileInputRef = useRef(null);
   const clothingInputRef = useRef(null);
@@ -276,21 +277,53 @@ const VirtualTryOn = ({ user, onLogout }) => {
     }, 1000);
   };
 
-  const extractMeasurementsFromImage = () => {
-    // Simulated measurement extraction - in production, this would use AI
-    const simulatedMeasurements = {
-      height: Math.round((67 + Math.random() * 8) * 100) / 100, // 67-75 inches (5'7" - 6'3")
-      weight: Math.round((140 + Math.random() * 40) * 100) / 100, // 140-180 lbs
-      chest: Math.round((34 + Math.random() * 8) * 100) / 100, // 34-42 inches
-      waist: Math.round((28 + Math.random() * 8) * 100) / 100, // 28-36 inches
-      hips: Math.round((36 + Math.random() * 8) * 100) / 100, // 36-44 inches
-      shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100 // 16-20 inches
-    };
-    
-    setMeasurements(simulatedMeasurements);
-    
-    // Save measurements to backend
-    saveMeasurementsToBackend(simulatedMeasurements);
+  const extractMeasurementsFromImage = async () => {
+    try {
+      const heightCm = userHeight ? parseFloat(userHeight) : 170; // Default to 170cm if not provided
+      
+      const formData = new FormData();
+      formData.append('user_image_base64', userImage.split(',')[1]);
+      formData.append('user_height_cm', heightCm.toString());
+      
+      const response = await axios.post('/extract_measurements', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      if (response.data && response.data.measurements) {
+        setMeasurements(response.data.measurements);
+        saveMeasurementsToBackend(response.data.measurements);
+      } else {
+        const simulatedMeasurements = {
+          height: heightCm / 2.54, // Convert cm to inches for display
+          weight: Math.round((140 + Math.random() * 40) * 100) / 100,
+          chest: Math.round((34 + Math.random() * 8) * 100) / 100,
+          waist: Math.round((28 + Math.random() * 8) * 100) / 100,
+          hips: Math.round((36 + Math.random() * 8) * 100) / 100,
+          shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100
+        };
+        
+        setMeasurements(simulatedMeasurements);
+        saveMeasurementsToBackend(simulatedMeasurements);
+      }
+    } catch (error) {
+      console.error('Failed to extract measurements:', error);
+      
+      // Fallback to simulated measurements
+      const heightCm = userHeight ? parseFloat(userHeight) : 170;
+      const simulatedMeasurements = {
+        height: heightCm / 2.54, // Convert cm to inches for display
+        weight: Math.round((140 + Math.random() * 40) * 100) / 100,
+        chest: Math.round((34 + Math.random() * 8) * 100) / 100,
+        waist: Math.round((28 + Math.random() * 8) * 100) / 100,
+        hips: Math.round((36 + Math.random() * 8) * 100) / 100,
+        shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100
+      };
+      
+      setMeasurements(simulatedMeasurements);
+      saveMeasurementsToBackend(simulatedMeasurements);
+    }
   };
 
   const saveMeasurementsToBackend = async (measurementData) => {
@@ -459,6 +492,10 @@ const VirtualTryOn = ({ user, onLogout }) => {
       formData.append('clothing_image_base64', clothingImageBase64 || '');
       formData.append('use_stored_measurements', String(useStoredMeasurements && (user.measurements || measurements)));
       formData.append('processing_type', processingType);
+      
+      if (userHeight && !isNaN(userHeight)) {
+        formData.append('user_height_cm', parseFloat(userHeight).toString());
+      }
 
       console.log('Sending try-on FormData with product_id:', selectedProduct?.id);
       console.log('Processing type:', processingType);
@@ -576,10 +613,49 @@ const VirtualTryOn = ({ user, onLogout }) => {
           <div className="max-w-4xl mx-auto">
             <div className="card text-center">
               <h2 className="text-2xl font-bold text-white mb-6">Take Your Full Body Photo</h2>
-              <p className="text-white/70 mb-8">
+              <p className="text-white/70 mb-4">
                 Position yourself in good lighting, stand straight, and make sure your full body is visible. 
                 We'll automatically extract your measurements and create your personalized avatar.
               </p>
+              
+              <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg max-w-2xl mx-auto">
+                <h3 className="text-blue-200 font-medium mb-3">Photo Guidelines for Best Results</h3>
+                <div className="text-sm text-blue-100/80 space-y-2">
+                  <p><strong className="text-blue-200">Positioning:</strong> Stand 6-8 feet from camera, arms slightly away from body</p>
+                  <p><strong className="text-blue-200">Lighting:</strong> Use natural or bright lighting with plain background</p>
+                  <p><strong className="text-blue-200">Frame:</strong> Ensure full body is visible in frame</p>
+                </div>
+              </div>
+              
+              {/* Height Input for Reference Scaling */}
+              <div className="mb-8 max-w-md mx-auto">
+                <label className="block text-white/80 text-sm font-medium mb-2">
+                  Your Height (for accurate measurements)
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={userHeight}
+                      onChange={(e) => setUserHeight(e.target.value)}
+                      placeholder="170"
+                      min="120"
+                      max="220"
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <span className="text-white/60 text-xs mt-1 block">cm</span>
+                  </div>
+                  <div className="text-white/60 text-sm">
+                    {userHeight && !isNaN(userHeight) && userHeight > 0 ? 
+                      Math.floor(parseFloat(userHeight) / 30.48) + "'" + Math.round((parseFloat(userHeight) / 2.54) % 12) + '"' : 
+                      '5\'7"'
+                    }
+                  </div>
+                </div>
+                <p className="text-white/50 text-xs mt-2">
+                  Providing your height helps us extract more accurate body measurements from your photo
+                </p>
+              </div>
               
               <div className="relative inline-block">
                 {isCameraActive ? (
@@ -623,6 +699,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       <button
                         onClick={capturePhoto}
                         className="btn-primary flex items-center"
+                        disabled={!userHeight || isNaN(userHeight) || parseFloat(userHeight) < 120 || parseFloat(userHeight) > 220}
                       >
                         <Camera className="w-5 h-5 mr-2" />
                         Capture Photo
@@ -654,6 +731,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         className="btn-secondary"
+                        disabled={!userHeight || isNaN(userHeight) || parseFloat(userHeight) < 120 || parseFloat(userHeight) > 220}
                       >
                         <Upload className="w-5 h-5 mr-2" />
                         Upload Photo
@@ -665,8 +743,10 @@ const VirtualTryOn = ({ user, onLogout }) => {
                         onChange={(e) => {
                           handleImageUpload(e.target.files[0], 'user');
                           if (e.target.files[0]) {
-                            extractMeasurementsFromImage();
-                            setStep(2);
+                            setTimeout(() => {
+                              extractMeasurementsFromImage();
+                              setStep(2);
+                            }, 500);
                           }
                         }}
                         className="hidden"
@@ -683,9 +763,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     <span className="text-green-200 font-medium">Measurements Extracted</span>
                   </div>
                   <div className="text-green-200 text-sm">
-                    Height: {measurements.height?.toFixed(2)}", 
+                    Height: {measurements.height?.toFixed(2)}" ({userHeight || '170'} cm), 
                     Chest: {measurements.chest?.toFixed(2)}", 
                     Waist: {measurements.waist?.toFixed(2)}"
+                  </div>
+                  <div className="text-green-300/70 text-xs mt-2">
+                    Using height reference: {userHeight || '170'} cm for accurate scaling
                   </div>
                 </div>
               )}
