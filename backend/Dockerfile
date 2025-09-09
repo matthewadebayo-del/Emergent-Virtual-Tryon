@@ -15,7 +15,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libgl1-mesa-dev \
-    libgl1-mesa-glx \
     libgl1-mesa-dri \
     libglu1-mesa-dev \
     libglu1-mesa \
@@ -53,12 +52,18 @@ RUN rm -rf /usr/local/lib/python3.12/site-packages/transformers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/diffusers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/huggingface*
 
+# Install PyTorch dependencies first
+RUN echo "Installing PyTorch dependencies..." && \
+    pip install --no-cache-dir typing_extensions filelock networkx jinja2 fsspec && \
+    echo "✅ PyTorch dependencies installed"
+
 # Install exact versions in precise order with verification
 RUN echo "Installing PyTorch 2.2.0 (CPU)..." && \
     pip install --no-cache-dir --no-deps \
-    torch==2.2.0 \
-    torchvision==0.17.0 \
-    torchaudio==2.2.0 && \
+    torch==2.2.0+cpu \
+    torchvision==0.17.0+cpu \
+    torchaudio==2.2.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu && \
     python3 -c "import torch; print(f'✅ torch: {torch.__version__}')"
 
 RUN echo "Installing numpy 1.24.4..." && \
