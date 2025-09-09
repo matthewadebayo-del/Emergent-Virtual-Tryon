@@ -106,13 +106,13 @@ RUN BLENDER_VERSION=$(blender --version | head -1 | grep -oP '\d+\.\d+') && \
     echo "export PYTHONPATH=\$PYTHONPATH:/usr/share/blender/scripts/modules:$BLENDER_PYTHON_PATH" >> /etc/environment
 
 # Test bpy import with correct path
-RUN python3 -c "
-import sys
-import glob
-sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages'))
-sys.path.append('/usr/share/blender/scripts/modules')
-import bpy
-print(f'Blender API working: {bpy.app.version_string}')
+RUN python3 -c "\
+import sys; \
+import glob; \
+sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages')); \
+sys.path.append('/usr/share/blender/scripts/modules'); \
+import bpy; \
+print(f'Blender API working: {bpy.app.version_string}'); \
 "
 
 # Environment configuration
