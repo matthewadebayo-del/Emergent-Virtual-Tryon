@@ -88,11 +88,17 @@ RUN echo "Installing accelerate 0.27.2..." && \
     pip install --no-cache-dir --no-deps accelerate==0.27.2 && \
     python3 -c "import accelerate; print(f'✅ accelerate: {accelerate.__version__}')"
 
-# Install Rust compiler for tokenizers dependency
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+# Install Rust compiler via apt (more reliable for Docker builds)
+RUN apt-get update && apt-get install -y \
+    rustc \
+    cargo \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN echo "Installing transformers 4.33.3 with Rust compiler..." && \
+# Verify Rust installation
+RUN rustc --version
+
+RUN echo "Installing transformers 4.33.3 with system Rust compiler..." && \
     pip install --no-cache-dir transformers==4.33.3 && \
     python3 -c "import transformers; print(f'✅ transformers: {transformers.__version__}')"
 
