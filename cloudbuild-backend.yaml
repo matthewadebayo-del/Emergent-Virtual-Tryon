@@ -1,6 +1,6 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-f', './backend/Dockerfile.ultra', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA', './backend']
+    args: ['build', '-f', './backend/Dockerfile', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA', './backend']
     
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/virtualfit/backend:$COMMIT_SHA']
