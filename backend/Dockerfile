@@ -74,7 +74,9 @@ RUN echo "Installing PyTorch 2.2.0 (CPU)..." && \
     --index-url https://download.pytorch.org/whl/cpu && \
     python3 -c "import torch; print(f'✅ torch: {torch.__version__}')"
 
-RUN echo "Installing huggingface-hub 0.16.4 with dependencies..." && \
+RUN echo "Installing huggingface-hub dependencies first..." && \
+    pip install --no-cache-dir requests urllib3 tqdm pyyaml typing-extensions filelock fsspec && \
+    echo "Installing huggingface-hub 0.16.4..." && \
     pip install --no-cache-dir huggingface-hub==0.16.4 && \
     python3 -c "from huggingface_hub import cached_download; print('✅ cached_download available')"
 
