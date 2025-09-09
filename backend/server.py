@@ -1705,6 +1705,34 @@ async def debug_versions():
     return result
 
 
+@app.get("/api/v1/debug-ml-versions")
+async def debug_ml_versions():
+    """Step 1: Diagnose Current State - Check ML dependency versions and cached_download availability"""
+    try:
+        import torch
+        import transformers  
+        import diffusers
+        import huggingface_hub
+        
+        try:
+            from huggingface_hub import cached_download
+            cached_download_available = True
+        except ImportError:
+            cached_download_available = False
+            
+        return {
+            "torch": torch.__version__,
+            "transformers": transformers.__version__, 
+            "diffusers": diffusers.__version__,
+            "huggingface_hub": huggingface_hub.__version__,
+            "cached_download_available": cached_download_available,
+            "diffusers_path": diffusers.__file__,
+            "step_1_status": "✅ Systematic ML diagnosis complete"
+        }
+    except ImportError as e:
+        return {"error": str(e), "step_1_status": "❌ ML dependencies missing"}
+
+
 @app.get("/api/v1/debug-blender-status")
 async def debug_blender_status():
     """Debug endpoint to check Blender availability and 3D rendering status"""

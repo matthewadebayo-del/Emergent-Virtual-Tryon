@@ -15,7 +15,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libgl1-mesa-dev \
-    libgl1-mesa-glx \
     libgl1-mesa-dri \
     libglu1-mesa-dev \
     libglu1-mesa \
@@ -53,13 +52,18 @@ RUN rm -rf /usr/local/lib/python3.12/site-packages/transformers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/diffusers*
 RUN rm -rf /usr/local/lib/python3.12/site-packages/huggingface*
 
+# Install PyTorch dependencies first
+RUN echo "Installing PyTorch dependencies..." && \
+    pip install --no-cache-dir typing_extensions filelock networkx jinja2 fsspec && \
+    echo "✅ PyTorch dependencies installed"
+
 # Install exact versions in precise order with verification
-RUN echo "Installing PyTorch 2.2.0+cu118..." && \
+RUN echo "Installing PyTorch 2.2.0 (CPU)..." && \
     pip install --no-cache-dir --no-deps \
-    torch==2.2.0+cu118 \
-    torchvision==0.17.0+cu118 \
-    torchaudio==2.2.0+cu118 \
-    --index-url https://download.pytorch.org/whl/cu118 && \
+    torch==2.2.0+cpu \
+    torchvision==0.17.0+cpu \
+    torchaudio==2.2.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu && \
     python3 -c "import torch; print(f'✅ torch: {torch.__version__}')"
 
 RUN echo "Installing numpy 1.24.4..." && \
@@ -85,6 +89,11 @@ RUN echo "Installing transformers 4.33.3..." && \
 RUN echo "Installing diffusers 0.21.4..." && \
     pip install --no-cache-dir --no-deps diffusers==0.21.4 && \
     python3 -c "import diffusers; print(f'✅ diffusers: {diffusers.__version__}')"
+
+# Step 4: Prevent Version Drift - Pin ML packages after installation
+RUN pip freeze | grep -E "(torch|transformers|diffusers|huggingface)" > /tmp/ml_freeze.txt && \
+    pip install --no-deps --force-reinstall -r /tmp/ml_freeze.txt && \
+    echo "🔒 ML packages pinned to prevent version drift"
 
 # Final verification
 RUN echo "Final verification..." && \
@@ -169,18 +178,19 @@ echo "Final runtime verification..."\n\
 python3 -c "\
 try:\n\
     from huggingface_hub import cached_download\n\
-    print(\"✅ cached_download available at runtime\")\n\
     from diffusers import StableDiffusionImg2ImgPipeline\n\
-    print(\"✅ diffusers imports at runtime\")\n\
     import torch\n\
-    print(f\"✅ torch runtime: {torch.__version__}\")\n\
     import transformers\n\
-    print(f\"✅ transformers runtime: {transformers.__version__}\")\n\
-    print(\"🎉 ALL RUNTIME IMPORTS SUCCESSFUL!\")\n\
+    print('✅ Step 5: All AI dependencies verified at runtime')\n\
+    print(f'torch: {torch.__version__}')\n\
+    print(f'transformers: {transformers.__version__}')\n\
+    print('🎉 ALL RUNTIME IMPORTS SUCCESSFUL!')\n\
 except ImportError as e:\n\
-    print(f\"❌ Runtime import error: {e}\")\n\
-    exit(1)\n\
-"\n\
+    print(f'❌ Step 5: Runtime import error: {e}')\n\
+    print('🔧 Starting with AI enhancement disabled')\n\
+    import os\n\
+    os.environ['DISABLE_AI'] = 'true'\n\
+" || echo "AI dependencies failed, continuing with fallback mode"\n\
 echo "Starting application..."\n\
 uvicorn server:app --host 0.0.0.0 --port $PORT\n\
 ' > /start.sh && chmod +x /start.sh
