@@ -74,8 +74,8 @@ RUN echo "Installing PyTorch 2.2.0 (CPU)..." && \
     --index-url https://download.pytorch.org/whl/cpu && \
     python3 -c "import torch; print(f'✅ torch: {torch.__version__}')"
 
-RUN echo "Installing huggingface-hub 0.16.4..." && \
-    pip install --no-cache-dir --no-deps huggingface-hub==0.16.4 && \
+RUN echo "Installing huggingface-hub 0.16.4 with dependencies..." && \
+    pip install --no-cache-dir huggingface-hub==0.16.4 && \
     python3 -c "from huggingface_hub import cached_download; print('✅ cached_download available')"
 
 RUN echo "Installing safetensors 0.4.2..." && \
@@ -87,11 +87,11 @@ RUN echo "Installing accelerate 0.27.2..." && \
     python3 -c "import accelerate; print(f'✅ accelerate: {accelerate.__version__}')"
 
 RUN echo "Installing transformers 4.33.3..." && \
-    pip install --no-cache-dir --no-deps transformers==4.33.3 && \
+    pip install --no-cache-dir transformers==4.33.3 && \
     python3 -c "import transformers; print(f'✅ transformers: {transformers.__version__}')"
 
 RUN echo "Installing diffusers 0.21.4..." && \
-    pip install --no-cache-dir --no-deps diffusers==0.21.4 && \
+    pip install --no-cache-dir diffusers==0.21.4 && \
     python3 -c "import diffusers; print(f'✅ diffusers: {diffusers.__version__}')"
 
 # Step 4: Prevent Version Drift - Pin ML packages after installation
