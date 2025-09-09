@@ -99,13 +99,28 @@ RUN pip install --no-cache-dir \
 # Copy application code
 COPY . .
 
+# Detect Blender version and configure Python path
+RUN BLENDER_VERSION=$(blender --version | head -1 | grep -oP '\d+\.\d+') && \
+    echo "Detected Blender version: $BLENDER_VERSION" && \
+    export BLENDER_PYTHON_PATH="/usr/share/blender/$BLENDER_VERSION/python/lib/python*/site-packages" && \
+    echo "export PYTHONPATH=\$PYTHONPATH:/usr/share/blender/scripts/modules:$BLENDER_PYTHON_PATH" >> /etc/environment
+
+# Test bpy import with correct path
+RUN python3 -c "
+import sys
+import glob
+sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages'))
+sys.path.append('/usr/share/blender/scripts/modules')
+import bpy
+print(f'Blender API working: {bpy.app.version_string}')
+"
+
 # Environment configuration
 ENV PORT=8000
 ENV DISPLAY=:99
 ENV BLENDER_HEADLESS=1
 ENV BLENDER_USER_CONFIG=/tmp/blender_config
 ENV BLENDER_USER_SCRIPTS=/tmp/blender_scripts
-ENV PYTHONPATH="${PYTHONPATH}:/usr/share/blender/scripts/modules"
 
 EXPOSE $PORT
 
@@ -130,11 +145,13 @@ except ImportError as e:\n\
 \n\
 # Test Blender (critical for rendering)\n\
 try:\n\
+    import glob\n\
+    sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages'))\n\
     sys.path.append('/usr/share/blender/scripts/modules')\n\
     import bpy\n\
-    print('Blender API: OK')\n\
-except ImportError:\n\
-    print('Blender API unavailable - using fallback rendering')\n\
+    print(f'Blender API: OK - {bpy.app.version_string}')\n\
+except ImportError as e:\n\
+    print(f'Blender API unavailable: {e} - using fallback rendering')\n\
 \n\
 # Test AI dependencies (non-critical)\n\
 try:\n\
