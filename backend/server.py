@@ -141,7 +141,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 app = FastAPI(
     title="VirtualFit API",
     description="Virtual Try-On API with HEIC support",
-    version="1.0.0"
+    version="1.0.0",
+    max_request_size=10 * 1024 * 1024
 )
 
 # Add middleware to handle larger request bodies for HEIC processing
@@ -151,8 +152,8 @@ from starlette.responses import Response
 
 class LargeRequestMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path == "/api/v1/convert-heic":
-            request.scope["body_size_limit"] = 10 * 1024 * 1024
+        if request.url.path in ["/api/v1/convert-heic", "/api/tryon", "/api/api/v1/tryon/3d"]:
+            request.scope["body_size_limit"] = 10 * 1024 * 1024  # 10MB
         return await call_next(request)
 
 app.add_middleware(LargeRequestMiddleware)
@@ -837,14 +838,32 @@ async def virtual_tryon(
         # Generate try-on image using AI with personalized approach
         print("🎭 Creating personalized virtual try-on...")
 
-        # Decode the user's image for processing
+        # Decode the user's image for processing with enhanced error handling
         try:
+            print(f"🔍 Processing user image, base64 length: {len(user_image_base64)}")
+            
+            if user_image_base64.startswith("data:"):
+                user_image_base64 = user_image_base64.split(",", 1)[1]
+                print(f"🔍 Cleaned base64 length: {len(user_image_base64)}")
+            
             user_image_bytes = base64.b64decode(user_image_base64)
-            print(
-                f"Successfully decoded user image, size: {len(user_image_bytes)} bytes"
-            )
+            print(f"✅ User image decoded successfully: {len(user_image_bytes)} bytes")
+            
+            # Validate image format
+            from PIL import Image
+            import io
+            try:
+                test_image = Image.open(io.BytesIO(user_image_bytes))
+                print(f"✅ Image validation successful: {test_image.format} {test_image.size}")
+            except Exception as img_error:
+                print(f"❌ Image validation failed: {str(img_error)}")
+                raise HTTPException(status_code=422, detail=f"Invalid image format: {str(img_error)}")
+                
+        except base64.binascii.Error as e:
+            print(f"❌ Base64 decoding failed: {str(e)}")
+            raise HTTPException(status_code=422, detail=f"Invalid base64 format: {str(e)}")
         except Exception as e:
-            print(f"ERROR decoding user image: {str(e)}")
+            print(f"❌ User image processing failed: {str(e)}")
             raise HTTPException(status_code=422, detail="Invalid user image format")
 
         # 🎯 ADVANCED VIRTUAL TRY-ON: Multi-Stage AI Pipeline
@@ -1619,24 +1638,38 @@ def test_ai_dependencies():
 
 @app.post("/api/v1/convert-heic")
 async def convert_heic_endpoint(request: Request):
-    """Convert HEIC image to JPEG format"""
+    """Convert HEIC image to JPEG format with enhanced error handling"""
     try:
+        content_length = request.headers.get("content-length", "unknown")
+        logger.info(f"HEIC conversion request received, content-length: {content_length}")
+        
         data = await request.json()
         heic_base64 = data.get("heic_base64")
         
         if not heic_base64:
             raise HTTPException(status_code=400, detail="heic_base64 field required")
         
-        heic_bytes = base64.b64decode(heic_base64.split(',')[1] if ',' in heic_base64 else heic_base64)
+        logger.info(f"HEIC base64 data length: {len(heic_base64)}")
+        
+        if heic_base64.startswith("data:"):
+            heic_base64 = heic_base64.split(",", 1)[1]
+            logger.info(f"Cleaned HEIC base64 data length: {len(heic_base64)}")
+        
+        heic_bytes = base64.b64decode(heic_base64)
+        logger.info(f"HEIC bytes decoded: {len(heic_bytes)} bytes")
         
         # Convert to JPEG
         jpeg_bytes = convert_heic_to_jpeg(heic_bytes)
         jpeg_base64 = base64.b64encode(jpeg_bytes).decode()
+        logger.info(f"HEIC conversion successful, JPEG base64 length: {len(jpeg_base64)}")
         
         return {
             "success": True,
             "jpeg_base64": f"data:image/jpeg;base64,{jpeg_base64}"
         }
+    except ValueError as e:
+        logger.error(f"JSON decode error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
     except Exception as e:
         logger.error(f"HEIC conversion failed: {e}")
         raise HTTPException(status_code=500, detail=f"HEIC conversion failed: {str(e)}")
@@ -1680,45 +1713,70 @@ def test_blender_3d():
 
 
 @app.get("/api/v1/test-rendering-pipeline")
-def test_rendering_pipeline():
-    """Test the complete rendering pipeline to identify 4296-byte placeholder issue"""
+async def test_rendering_pipeline():
+    """Test the rendering pipeline to verify it's working correctly with enhanced debugging"""
     try:
-        from src.core.model_manager import ModelManager
-        import tempfile
-        import os
+        import trimesh
+        from src.core.rendering import BlenderSubprocessRenderer
         
-        # Initialize model manager
-        model_manager = ModelManager()
-        renderer = model_manager.get_renderer()
+        logger.info("🧪 Starting rendering pipeline test...")
         
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
-            temp_path = temp_file.name
+        body_mesh = trimesh.creation.cylinder(radius=0.3, height=1.8)
+        garment_mesh = trimesh.creation.cylinder(radius=0.35, height=1.0)
         
-        try:
-            import trimesh
-            body_mesh = trimesh.creation.cylinder(radius=0.3, height=1.8)
-            garment_mesh = trimesh.creation.cylinder(radius=0.35, height=1.0)
+        logger.info(f"✅ Test meshes created - Body: {len(body_mesh.vertices)} vertices, Garment: {len(garment_mesh.vertices)} vertices")
+        
+        renderer = BlenderSubprocessRenderer()
+        logger.info(f"🔧 Renderer initialized, Blender available: {renderer.blender_available}")
+        
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
+            logger.info(f"🎯 Testing render to: {temp_file.name}")
+            success = renderer.render_with_subprocess(body_mesh, garment_mesh, temp_file.name)
             
-            result = renderer.render_scene(
-                body_mesh=body_mesh,
-                garment_mesh=garment_mesh,
-                output_path=temp_path
-            )
-            
-            file_size = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
-            
-            return {
-                "rendering_result": result,
-                "output_file_size": file_size,
-                "is_placeholder": file_size <= 5000,  # 4296 bytes indicates placeholder
-                "renderer_type": type(renderer).__name__
-            }
-        finally:
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
+            if success and os.path.exists(temp_file.name):
+                file_size = os.path.getsize(temp_file.name)
+                is_placeholder = file_size < 50000
+                
+                logger.info(f"✅ Render test complete - Size: {file_size} bytes, Placeholder: {is_placeholder}")
+                
+                try:
+                    from PIL import Image
+                    test_img = Image.open(temp_file.name)
+                    img_info = f"{test_img.format} {test_img.size} {test_img.mode}"
+                    logger.info(f"📸 Image validation: {img_info}")
+                    
+                    return {
+                        "status": "success",
+                        "file_size": file_size,
+                        "is_placeholder": is_placeholder,
+                        "output_path": temp_file.name,
+                        "image_info": img_info,
+                        "blender_available": renderer.blender_available
+                    }
+                except Exception as img_error:
+                    logger.error(f"❌ Image validation failed: {str(img_error)}")
+                    return {
+                        "status": "success_but_invalid_image",
+                        "file_size": file_size,
+                        "is_placeholder": True,
+                        "output_path": temp_file.name,
+                        "image_error": str(img_error),
+                        "blender_available": renderer.blender_available
+                    }
+            else:
+                logger.error("❌ Rendering failed or output file not created")
+                return {
+                    "status": "failed",
+                    "error": "Rendering failed or output file not created",
+                    "blender_available": renderer.blender_available
+                }
                 
     except Exception as e:
-        return {"error": str(e), "traceback": str(e.__traceback__)}
+        logger.error(f"❌ Rendering pipeline test failed: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 
 
 @api_router.get("/measurements/garment/{garment_type}")
