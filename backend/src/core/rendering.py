@@ -133,10 +133,12 @@ print(f"✅ Render completed: {{'{output_path}'}}")
                     timeout=60  # 60 second timeout
                 )
                 
+                logger.info(f"🔍 Blender process completed with return code: {result.returncode}")
+                logger.info(f"🔍 Blender stdout: {result.stdout}")
+                if result.stderr:
+                    logger.warning(f"🔍 Blender stderr: {result.stderr}")
+                
                 if result.returncode == 0:
-                    logger.info("✅ Blender subprocess completed successfully")
-                    logger.info(f"Blender stdout: {result.stdout}")
-                    
                     if os.path.exists(output_path):
                         file_size = os.path.getsize(output_path)
                         logger.info(f"✅ Render output created: {output_path} ({file_size} bytes)")
@@ -144,21 +146,40 @@ print(f"✅ Render completed: {{'{output_path}'}}")
                         if file_size == 0:
                             logger.error("❌ Output file is 0 bytes - rendering failed silently")
                             logger.error(f"Script content was: {script_content}")
+                            logger.error(f"Temp directory contents: {os.listdir(temp_dir)}")
                             return False
                         elif file_size < 1000:
                             logger.warning(f"⚠️ Output file is very small ({file_size} bytes) - may be placeholder")
+                            try:
+                                from PIL import Image
+                                test_img = Image.open(output_path)
+                                logger.info(f"📸 Small file validated as image: {test_img.format} {test_img.size}")
+                            except Exception as img_error:
+                                logger.error(f"❌ Small file is not a valid image: {str(img_error)}")
+                                return False
+                        else:
+                            try:
+                                from PIL import Image
+                                test_img = Image.open(output_path)
+                                logger.info(f"📸 Render validated as image: {test_img.format} {test_img.size}")
+                            except Exception as img_error:
+                                logger.error(f"❌ Render file is not a valid image: {str(img_error)}")
+                                return False
                         
                         return True
                     else:
                         logger.error(f"❌ Render output not found: {output_path}")
                         logger.error(f"Expected output at: {output_path}")
                         logger.error(f"Directory contents: {os.listdir(os.path.dirname(output_path)) if os.path.exists(os.path.dirname(output_path)) else 'Directory does not exist'}")
+                        logger.error(f"Temp directory contents: {os.listdir(temp_dir)}")
                         return False
                 else:
                     logger.error(f"❌ Blender subprocess failed with return code {result.returncode}")
                     logger.error(f"Blender stderr: {result.stderr}")
                     logger.error(f"Blender stdout: {result.stdout}")
                     logger.error(f"Command that failed: {' '.join(cmd)}")
+                    logger.error(f"Script content: {script_content}")
+                    logger.error(f"Temp directory contents: {os.listdir(temp_dir)}")
                     return False
                     
         except subprocess.TimeoutExpired:
