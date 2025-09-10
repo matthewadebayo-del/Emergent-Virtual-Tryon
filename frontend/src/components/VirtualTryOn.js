@@ -386,13 +386,19 @@ const VirtualTryOn = ({ user, onLogout }) => {
         console.log('HEIC file read, sending to backend for conversion...');
         
         try {
+          let processedHeicBase64 = heicBase64;
+          if (heicBase64.length > 2 * 1024 * 1024) {
+            console.log('HEIC file is large, attempting compression...');
+            processedHeicBase64 = heicBase64.split(',')[1] || heicBase64;
+          }
+          
           const response = await fetch('/api/v1/convert-heic', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              heic_base64: heicBase64
+              heic_base64: processedHeicBase64
             })
           });
           
