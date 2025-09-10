@@ -1483,18 +1483,37 @@ def test_ai_dependencies():
 
 @app.get("/api/v1/test-blender-3d")
 def test_blender_3d():
-    """Test if Blender 3D rendering is available"""
+    """Test if Blender subprocess rendering is available"""
+    import subprocess
     try:
-        import bpy
+        result = subprocess.run(['blender', '--version'], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            version = result.stdout.split('\n')[0] if result.stdout else 'Unknown'
+            return {
+                "blender_available": True,
+                "blender_version": version,
+                "subprocess_mode": True,
+                "display": os.environ.get("DISPLAY", "not_set")
+            }
+        else:
+            return {
+                "blender_available": False,
+                "error": f"Blender subprocess failed with return code {result.returncode}",
+                "subprocess_mode": True,
+                "display": os.environ.get("DISPLAY", "not_set")
+            }
+    except subprocess.TimeoutExpired:
         return {
-            "blender_available": True,
-            "blender_version": bpy.app.version_string,
+            "blender_available": False,
+            "error": "Blender subprocess timeout",
+            "subprocess_mode": True,
             "display": os.environ.get("DISPLAY", "not_set")
         }
-    except ImportError as e:
+    except Exception as e:
         return {
             "blender_available": False,
             "error": str(e),
+            "subprocess_mode": True,
             "display": os.environ.get("DISPLAY", "not_set")
         }
 
@@ -1735,45 +1754,41 @@ async def debug_ml_versions():
 
 @app.get("/api/v1/debug-blender-status")
 async def debug_blender_status():
-    """Debug endpoint to check Blender availability and 3D rendering status"""
+    """Debug endpoint to check Blender subprocess availability and 3D rendering status"""
     try:
         import traceback
         import os
+        import subprocess
         
-        bpy_status = {}
+        blender_status = {}
         try:
-            import sys
-            
-            original_path = sys.path.copy()
-            
-            blender_scripts = '/usr/share/blender/scripts/modules'
-            if blender_scripts not in sys.path:
-                sys.path.append(blender_scripts)
-            
-            blender_version_paths = [
-                '/usr/share/blender/4.0/python/lib/python3.11/site-packages',
-                '/usr/share/blender/3.6/python/lib/python3.10/site-packages',
-                '/usr/share/blender/4.1/python/lib/python3.11/site-packages'
-            ]
-            
-            added_paths = []
-            for path in blender_version_paths:
-                if os.path.exists(path) and path not in sys.path:
-                    sys.path.append(path)
-                    added_paths.append(path)
-            
-            import bpy
-            bpy_status = {
-                "available": True,
-                "version": bpy.app.version_string,
-                "python_paths_added": added_paths,
-                "blender_scripts_path": blender_scripts
+            result = subprocess.run(['blender', '--version'], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                version = result.stdout.split('\n')[0] if result.stdout else 'Unknown'
+                blender_status = {
+                    "available": True,
+                    "version": version,
+                    "subprocess_mode": True,
+                    "error": None
+                }
+            else:
+                blender_status = {
+                    "available": False,
+                    "error": f"Blender subprocess failed with return code {result.returncode}",
+                    "subprocess_mode": True,
+                    "stderr": result.stderr if result.stderr else "No error output"
+                }
+        except subprocess.TimeoutExpired:
+            blender_status = {
+                "available": False,
+                "error": "Blender subprocess timeout",
+                "subprocess_mode": True
             }
-        except ImportError as e:
-            bpy_status = {
+        except Exception as e:
+            blender_status = {
                 "available": False,
                 "error": str(e),
-                "python_path": sys.path[-5:]
+                "subprocess_mode": True
             }
         
         memory_status = {}
@@ -1807,9 +1822,9 @@ async def debug_blender_status():
             adaptive_settings = {"error": str(e)}
         
         return {
-            "blender_status": bpy_status,
+            "blender_status": blender_status,
             "memory_status": memory_status,
-            "renderer_available": renderer.blender_available,
+            "renderer_available": blender_status["available"],
             "fallback_available": True,
             "adaptive_settings": adaptive_settings,
             "environment": {
