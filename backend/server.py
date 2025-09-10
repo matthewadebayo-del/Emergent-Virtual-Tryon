@@ -144,6 +144,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Add middleware to handle larger request bodies for HEIC processing
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+
+class LargeRequestMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path == "/api/v1/convert-heic":
+            request.scope["body_size_limit"] = 10 * 1024 * 1024
+        return await call_next(request)
+
+app.add_middleware(LargeRequestMiddleware)
+
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
