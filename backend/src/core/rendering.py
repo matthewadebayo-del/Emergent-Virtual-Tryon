@@ -1,30 +1,11 @@
 import os
 import subprocess
 import tempfile
-from typing import Optional, Tuple, TYPE_CHECKING, Any
-
-try:
-    import bpy
-    BLENDER_AVAILABLE = True
-except ImportError:
-    BLENDER_AVAILABLE = False
-    bpy = None
-
-if TYPE_CHECKING and BLENDER_AVAILABLE:
-    import bpy
+from typing import Optional, Tuple, Any
 import logging
 import numpy as np
 from PIL import Image
 import cv2
-
-try:
-    import bpy
-    import bmesh
-    from mathutils import Vector, Matrix
-    BLENDER_AVAILABLE = True
-except ImportError:
-    print("⚠️ Blender Python API not available")
-    BLENDER_AVAILABLE = False
 
 try:
     import trimesh
@@ -35,415 +16,142 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-class FixedPhorealisticRenderer:
-    """Fixed version using direct bpy API calls (no subprocess)"""
+def check_blender_subprocess_available():
+    """Check if Blender is available as subprocess (no bpy import needed)"""
+    try:
+        result = subprocess.run(['blender', '--version'], 
+                              capture_output=True, text=True, timeout=10)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+BLENDER_SUBPROCESS_AVAILABLE = check_blender_subprocess_available()
+
+class BlenderSubprocessRenderer:
+    """Blender renderer using subprocess approach (no bpy import required)"""
     
     def __init__(self, headless: bool = True):
         self.headless = headless
-        self.blender_available = False
-        logger.info("🎬 Initializing Fixed Renderer with direct bpy API...")
+        self.blender_available = BLENDER_SUBPROCESS_AVAILABLE
+        logger.info("🎬 Initializing Blender Subprocess Renderer...")
         
-        if BLENDER_AVAILABLE:
-            try:
-                self._setup_blender_direct()
-                self.blender_available = True
-                logger.info("✅ Blender setup successful with direct API")
-            except Exception as e:
-                logger.error(f"❌ Blender setup failed: {e}")
-                self.blender_available = False
+        if self.blender_available:
+            logger.info("✅ Blender subprocess available")
         else:
-            logger.warning("⚠️ Blender not available - will use fallback rendering")
+            logger.warning("⚠️ Blender subprocess not available - will use fallback rendering")
         
-    def _setup_blender_direct(self):
-        """Setup Blender with direct API calls (no subprocess)"""
+    def render_with_subprocess(self, body_mesh, garment_mesh, output_path: str) -> bool:
+        """Use Blender as subprocess instead of bpy import"""
         try:
-            import sys
-            import os
+            logger.info("🎬 Starting Blender subprocess rendering...")
             
-            blender_scripts = '/usr/share/blender/scripts/modules'
-            if blender_scripts not in sys.path:
-                sys.path.append(blender_scripts)
-            
-            blender_version_paths = [
-                '/usr/share/blender/4.0/python/lib/python3.11/site-packages',
-                '/usr/share/blender/3.6/python/lib/python3.10/site-packages',
-                '/usr/share/blender/4.1/python/lib/python3.11/site-packages'
-            ]
-            
-            for path in blender_version_paths:
-                if os.path.exists(path) and path not in sys.path:
-                    sys.path.append(path)
-                    logger.info(f"✅ Added Blender path: {path}")
-            
-            import bpy
-            logger.info(f"✅ Blender Python API loaded: {bpy.app.version_string}")
-            
-            # Configure for headless rendering
-            if self.headless:
-                # Set render engine to CYCLES for better quality
-                bpy.context.scene.render.engine = 'CYCLES'
-                bpy.context.scene.cycles.device = 'CPU'  # Use CPU in Cloud Run
+            with tempfile.TemporaryDirectory() as temp_dir:
+                body_path = os.path.join(temp_dir, "body.obj")
+                garment_path = os.path.join(temp_dir, "garment.obj")
                 
-                # Configure render settings
-                bpy.context.scene.render.resolution_x = 512
-                bpy.context.scene.render.resolution_y = 512
-                bpy.context.scene.render.resolution_percentage = 100
-                
-                logger.info("✅ Blender configured for headless rendering")
-            
-            bpy.ops.mesh.primitive_cube_add()
-            bpy.ops.object.delete()
-            logger.info("✅ Blender operations verified")
-            
-        except Exception as e:
-            logger.error(f"❌ Blender direct setup failed: {e}")
-            raise
-    
-    def _setup_gpu_safe(self):
-        """Safe GPU setup with proper fallbacks"""
-        try:
-            # Try GPU setup with error handling
-            preferences = bpy.context.preferences
-            cycles_preferences = preferences.addons['cycles'].preferences
-            
-            try:
-                cycles_preferences.compute_device_type = 'CUDA'
-                cycles_preferences.get_devices()
-                
-                cuda_devices = [d for d in cycles_preferences.devices if d.type == 'CUDA']
-                if cuda_devices and len(cuda_devices) > 0:
-                    for device in cuda_devices:
-                        device.use = True
-                    bpy.context.scene.cycles.device = 'GPU'
-                    logger.info(f"✅ GPU rendering enabled: {len(cuda_devices)} devices")
+                if hasattr(body_mesh, 'export'):
+                    body_mesh.export(body_path)
+                    logger.info(f"✅ Body mesh exported to {body_path}")
                 else:
-                    bpy.context.scene.cycles.device = 'CPU'
-                    logger.info("⚠️ No CUDA devices, using CPU")
-                    
-            except Exception as gpu_error:
-                logger.warning(f"⚠️ GPU setup failed: {gpu_error}, using CPU")
-                bpy.context.scene.cycles.device = 'CPU'
-                
-        except Exception as e:
-            logger.warning(f"⚠️ Could not access cycles preferences: {e}")
-    
-    def clear_scene(self):
-        """Safely clear all objects from scene"""
-        try:
-            # Select all objects
-            bpy.ops.object.select_all(action='SELECT')
-            # Delete selected objects
-            bpy.ops.object.delete(use_global=False)
-            
-            # Also clear orphaned data
-            for mesh in bpy.data.meshes:
-                if mesh.users == 0:
-                    bpy.data.meshes.remove(mesh)
-            
-            for material in bpy.data.materials:
-                if material.users == 0:
-                    bpy.data.materials.remove(material)
-                    
-            logger.info("✅ Scene cleared successfully")
-            
-        except Exception as e:
-            logger.warning(f"⚠️ Scene clearing issue: {e}")
-    
-    def import_mesh_safe(self, mesh, name: str = "imported_mesh") -> Optional[Any]:
-        """Safely import mesh with validation"""
-        try:
-            logger.info(f"Importing mesh: {name}")
-            
-            # Validate mesh data
-            if not hasattr(mesh, 'vertices') or len(mesh.vertices) == 0:
-                logger.error(f"❌ Mesh {name} has no vertices")
-                return None
-                
-            if not hasattr(mesh, 'faces') or len(mesh.faces) == 0:
-                logger.error(f"❌ Mesh {name} has no faces")
-                return None
-            
-            vertices = mesh.vertices.tolist()
-            faces = mesh.faces.tolist()
-            
-            logger.info(f"Mesh {name}: {len(vertices)} vertices, {len(faces)} faces")
-            
-            # Create mesh data
-            mesh_data = bpy.data.meshes.new(name)
-            mesh_data.from_pydata(vertices, [], faces)
-            mesh_data.update()
-            
-            # Validate created mesh
-            if len(mesh_data.vertices) == 0:
-                logger.error(f"❌ Blender mesh creation failed for {name}")
-                return None
-            
-            # Create object
-            obj = bpy.data.objects.new(name, mesh_data)
-            bpy.context.collection.objects.link(obj)
-            
-            # Set object location to origin
-            obj.location = (0, 0, 0)
-            obj.rotation_euler = (0, 0, 0)
-            obj.scale = (1, 1, 1)
-            
-            logger.info(f"✅ Mesh {name} imported at location {obj.location}")
-            return obj
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to import mesh {name}: {e}")
-            return None
-    
-    def create_simple_material(self, name: str, color: Tuple[float, float, float] = (0.8, 0.6, 0.4)) -> Any:
-        """Create simple, reliable material"""
-        try:
-            mat = bpy.data.materials.new(name=name)
-            mat.use_nodes = True
-            nodes = mat.node_tree.nodes
-            links = mat.node_tree.links
-            
-            # Clear existing nodes
-            nodes.clear()
-            
-            # Create simple emission shader for visibility
-            emission = nodes.new(type='ShaderNodeEmission')
-            emission.inputs['Color'].default_value = (*color, 1.0)
-            emission.inputs['Strength'].default_value = 1.0
-            
-            output = nodes.new(type='ShaderNodeOutputMaterial')
-            links.new(emission.outputs['Emission'], output.inputs['Surface'])
-            
-            logger.info(f"✅ Created material: {name}")
-            return mat
-            
-        except Exception as e:
-            logger.error(f"❌ Material creation failed: {e}")
-            # Return a basic material without nodes
-            mat = bpy.data.materials.new(name=name)
-            mat.diffuse_color = (*color, 1.0)
-            return mat
-    
-    def setup_basic_lighting(self):
-        """Setup simple, reliable lighting"""
-        try:
-            logger.info("Setting up basic lighting...")
-            
-            # Method 1: Try to add sun light
-            try:
-                bpy.ops.object.light_add(type='SUN', location=(0, 0, 10))
-                sun = bpy.context.active_object
-                sun.data.energy = 5  # Bright light
-                logger.info("✅ Sun light added")
-            except Exception as e:
-                logger.warning(f"⚠️ Could not add sun light: {e}")
-            
-            # Method 2: Add world background lighting
-            try:
-                world = bpy.context.scene.world
-                if not world:
-                    world = bpy.data.worlds.new("World")
-                    bpy.context.scene.world = world
-                
-                world.use_nodes = True
-                if 'Background' in world.node_tree.nodes:
-                    bg_node = world.node_tree.nodes['Background']
-                    bg_node.inputs['Color'].default_value = (1.0, 1.0, 1.0, 1.0)  # White
-                    bg_node.inputs['Strength'].default_value = 2.0  # Bright
-                    logger.info("✅ World background lighting set")
-                
-            except Exception as e:
-                logger.warning(f"⚠️ World lighting setup failed: {e}")
-            
-            # Method 3: Add area lights as backup
-            try:
-                # Front light
-                bpy.ops.object.light_add(type='AREA', location=(2, -3, 2))
-                front_light = bpy.context.active_object
-                front_light.data.energy = 100
-                front_light.data.size = 3
-                
-                # Fill light
-                bpy.ops.object.light_add(type='AREA', location=(-2, -3, 1))
-                fill_light = bpy.context.active_object
-                fill_light.data.energy = 50
-                fill_light.data.size = 2
-                
-                logger.info("✅ Area lights added")
-                
-            except Exception as e:
-                logger.warning(f"⚠️ Area lights failed: {e}")
-            
-        except Exception as e:
-            logger.error(f"❌ Lighting setup failed: {e}")
-    
-    def setup_camera_safe(self, distance: float = 4.0) -> Optional[Any]:
-        """Setup camera with safe positioning"""
-        try:
-            logger.info("Setting up camera...")
-            
-            # Remove existing cameras
-            for obj in bpy.context.scene.objects:
-                if obj.type == 'CAMERA':
-                    bpy.data.objects.remove(obj, do_unlink=True)
-            
-            # Add new camera
-            bpy.ops.object.camera_add(location=(0, -distance, 1.5))
-            camera = bpy.context.active_object
-            
-            # Point camera at origin with safe rotation
-            camera.rotation_euler = (1.1, 0, 0)  # Look slightly down
-            
-            # Set as active camera
-            bpy.context.scene.camera = camera
-            
-            # Set camera properties
-            camera.data.lens = 50  # Standard lens
-            camera.data.clip_start = 0.1
-            camera.data.clip_end = 1000
-            
-            logger.info(f"✅ Camera set at location {camera.location}")
-            return camera
-            
-        except Exception as e:
-            logger.error(f"❌ Camera setup failed: {e}")
-            return None
-    
-    def validate_scene_before_render(self) -> bool:
-        """Validate scene is ready for rendering"""
-        try:
-            # Check for objects
-            if len(bpy.context.scene.objects) == 0:
-                logger.error("❌ No objects in scene")
-                return False
-            
-            # Check for camera
-            if not bpy.context.scene.camera:
-                logger.error("❌ No camera in scene")
-                return False
-            
-            # Check for lights
-            lights = [obj for obj in bpy.context.scene.objects if obj.type == 'LIGHT']
-            if len(lights) == 0:
-                logger.warning("⚠️ No lights in scene, but continuing...")
-            
-            # Log scene contents
-            scene_objects = [f"{obj.name}({obj.type})" for obj in bpy.context.scene.objects]
-            logger.info(f"Scene objects: {scene_objects}")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Scene validation failed: {e}")
-            return False
-    
-    def render_scene_debug(self, body_mesh, garment_mesh, output_path: str) -> bool:
-        """Debug rendering with extensive error handling"""
-        if not BLENDER_AVAILABLE:
-            logger.warning("⚠️ Blender not available, using fallback")
-            return False
-            
-        try:
-            logger.info("🎬 DEBUG: Starting render with existing renderer...")
-            logger.info(f"📊 Body mesh: {len(body_mesh.vertices)} vertices, {len(body_mesh.faces)} faces")
-            logger.info(f"📊 Garment mesh: {len(garment_mesh.vertices)} vertices, {len(garment_mesh.faces)} faces")
-            logger.info(f"📁 Output path: {output_path}")
-            
-            # Clear scene
-            self.clear_scene()
-            
-            # Import meshes
-            logger.info("Importing body mesh...")
-            body_obj = self.import_mesh_safe(body_mesh, "body")
-            if not body_obj:
-                logger.error("❌ Failed to import body mesh")
-                return False
-            logger.info("✅ Body mesh imported successfully")
-            
-            logger.info("Importing garment mesh...")
-            garment_obj = self.import_mesh_safe(garment_mesh, "garment")
-            if not garment_obj:
-                logger.error("❌ Failed to import garment mesh")
-                return False
-            logger.info("✅ Garment mesh imported successfully")
-            
-            # Create materials
-            logger.info("Creating materials...")
-            body_material = self.create_simple_material("body_mat", (0.9, 0.7, 0.6))  # Skin color
-            garment_material = self.create_simple_material("garment_mat", (0.2, 0.4, 0.8))  # Blue garment
-            
-            # Apply materials
-            if body_obj.data.materials:
-                body_obj.data.materials[0] = body_material
-            else:
-                body_obj.data.materials.append(body_material)
-                
-            if garment_obj.data.materials:
-                garment_obj.data.materials[0] = garment_material
-            else:
-                garment_obj.data.materials.append(garment_material)
-            logger.info("✅ Materials created")
-            
-            # Setup lighting
-            logger.info("Setting up lighting...")
-            self.setup_basic_lighting()
-            logger.info("✅ Lighting setup complete")
-            
-            # Setup camera
-            logger.info("Setting up camera...")
-            camera = self.setup_camera_safe()
-            if not camera:
-                logger.error("❌ Camera setup failed")
-                return False
-            logger.info("✅ Camera positioned")
-            
-            # Validate scene
-            if not self.validate_scene_before_render():
-                logger.error("❌ Scene validation failed")
-                return False
-            
-            # Ensure output directory exists
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            
-            # Set render output
-            bpy.context.scene.render.filepath = output_path
-            bpy.context.scene.render.image_settings.file_format = 'PNG'
-            
-            # Additional render settings
-            bpy.context.scene.render.image_settings.color_mode = 'RGBA'
-            bpy.context.scene.render.image_settings.color_depth = '8'
-            
-            logger.info(f"Rendering to: {output_path}")
-            
-            # Render
-            bpy.ops.render.render(write_still=True)
-            
-            # Verify output
-            if os.path.exists(output_path):
-                file_size = os.path.getsize(output_path)
-                logger.info(f"✅ Render complete! File size: {file_size} bytes")
-                
-                if file_size < 10000:  # Small file = problem
-                    logger.warning(f"⚠️ File seems too small: {file_size} bytes")
+                    logger.warning("⚠️ Body mesh doesn't have export method")
                     return False
                 
-                return True
-            else:
-                logger.error("❌ No output file created")
-                return False
+                if hasattr(garment_mesh, 'export'):
+                    garment_mesh.export(garment_path)
+                    logger.info(f"✅ Garment mesh exported to {garment_path}")
+                else:
+                    logger.warning("⚠️ Garment mesh doesn't have export method")
+                    return False
                 
-        except Exception as e:
-            logger.error(f"❌ Render failed with error: {e}")
-            
-            # Save debug blend file
-            try:
-                debug_blend_path = output_path.replace('.png', '_debug.blend')
-                bpy.ops.wm.save_as_mainfile(filepath=debug_blend_path)
-                logger.info(f"Debug blend file saved: {debug_blend_path}")
-            except:
-                pass
-            
-            return False
+                script_content = f"""
+import bpy
+import os
 
+# Clear existing mesh objects
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+if os.path.exists('{body_path}'):
+    bpy.ops.import_scene.obj(filepath='{body_path}')
+    print("✅ Body mesh imported")
+else:
+    print("❌ Body mesh file not found")
+
+if os.path.exists('{garment_path}'):
+    bpy.ops.import_scene.obj(filepath='{garment_path}')
+    print("✅ Garment mesh imported")
+else:
+    print("❌ Garment mesh file not found")
+
+# Set up scene for rendering
+scene = bpy.context.scene
+
+# Configure render settings
+scene.render.engine = 'CYCLES'
+scene.cycles.device = 'CPU'
+scene.render.resolution_x = 512
+scene.render.resolution_y = 512
+scene.render.resolution_percentage = 100
+
+bpy.ops.object.light_add(type='SUN', location=(5, 5, 10))
+sun = bpy.context.object
+sun.data.energy = 3.0
+
+bpy.ops.object.camera_add(location=(7, -7, 5))
+camera = bpy.context.object
+camera.rotation_euler = (1.1, 0, 0.785)
+scene.camera = camera
+
+scene.render.filepath = '{output_path}'
+bpy.ops.render.render(write_still=True)
+
+print(f"✅ Render completed: {{'{output_path}'}}")
+"""
+                
+                script_path = os.path.join(temp_dir, "render_script.py")
+                with open(script_path, 'w') as f:
+                    f.write(script_content)
+                
+                logger.info(f"✅ Blender script created: {script_path}")
+                
+                # Run Blender subprocess
+                env = os.environ.copy()
+                env['DISPLAY'] = ':99'  # Use virtual display
+                
+                cmd = ['blender', '--background', '--python', script_path]
+                logger.info(f"🚀 Running Blender command: {' '.join(cmd)}")
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    timeout=60  # 60 second timeout
+                )
+                
+                if result.returncode == 0:
+                    logger.info("✅ Blender subprocess completed successfully")
+                    logger.info(f"Blender stdout: {result.stdout}")
+                    
+                    if os.path.exists(output_path):
+                        file_size = os.path.getsize(output_path)
+                        logger.info(f"✅ Render output created: {output_path} ({file_size} bytes)")
+                        return True
+                    else:
+                        logger.error(f"❌ Render output not found: {output_path}")
+                        return False
+                else:
+                    logger.error(f"❌ Blender subprocess failed with return code {result.returncode}")
+                    logger.error(f"Blender stderr: {result.stderr}")
+                    logger.error(f"Blender stdout: {result.stdout}")
+                    return False
+                    
+        except subprocess.TimeoutExpired:
+            logger.error("❌ Blender subprocess timed out")
+            return False
+        except Exception as e:
+            logger.error(f"❌ Blender subprocess rendering failed: {e}")
+            return False
     def render_scene(
         self,
         body_mesh,
@@ -452,18 +160,25 @@ class FixedPhorealisticRenderer:
         fabric_type: str = "cotton",
         fabric_color: Tuple[float, float, float] = (0.2, 0.3, 0.8),
     ) -> str:
-        """Main render_scene method for compatibility with existing code"""
-        success = self.render_scene_debug(body_mesh, garment_mesh, output_path)
-        if success:
-            return output_path
-        else:
-            fallback = SimpleFallbackRenderer()
-            if fallback.create_simple_composite(body_mesh, garment_mesh, output_path):
+        """Main render_scene method using subprocess approach"""
+        if self.blender_available:
+            logger.info("🎬 Using Blender subprocess rendering...")
+            success = self.render_with_subprocess(body_mesh, garment_mesh, output_path)
+            if success:
                 return output_path
             else:
-                placeholder = Image.new("RGB", (512, 512), color=(220, 200, 180))
-                placeholder.save(output_path)
-                return output_path
+                logger.warning("⚠️ Blender subprocess failed, using fallback...")
+        else:
+            logger.warning("⚠️ Blender subprocess not available, using fallback...")
+        
+        # Fallback to AdaptiveFallbackRenderer
+        fallback = AdaptiveFallbackRenderer()
+        if fallback.create_simple_composite(body_mesh, garment_mesh, output_path):
+            return output_path
+        else:
+            placeholder = Image.new("RGB", (512, 512), color=(220, 200, 180))
+            placeholder.save(output_path)
+            return output_path
 
 
 class AdaptiveFallbackRenderer:
@@ -667,10 +382,10 @@ SimpleFallbackRenderer = AdaptiveFallbackRenderer
 
 
 class RenderingPipeline:
-    """Complete fixed rendering pipeline - main class for compatibility"""
+    """Complete rendering pipeline using subprocess approach - main class for compatibility"""
     
     def __init__(self):
-        self.renderer = FixedPhorealisticRenderer()
+        self.renderer = BlenderSubprocessRenderer()
         self.fallback_renderer = SimpleFallbackRenderer()
     
     def render_scene(
@@ -681,39 +396,36 @@ class RenderingPipeline:
         fabric_type: str = "cotton",
         fabric_color: Tuple[float, float, float] = (0.2, 0.3, 0.8),
     ) -> str:
-        """Complete rendering pipeline with fallbacks"""
+        """Complete rendering pipeline with subprocess approach and fallbacks"""
         
-        # Stage 1: Try 3D rendering
-        logger.info("🎬 Stage 1: 3D Rendering...")
-        temp_render_path = output_path.replace('.png', '_temp.png')
+        # Stage 1: Try Blender subprocess rendering
+        logger.info("🎬 Stage 1: Blender Subprocess Rendering...")
         
-        success = self.renderer.render_scene_debug(body_mesh, garment_mesh, temp_render_path)
-        
-        if not success:
-            logger.warning("⚠️ 3D rendering failed, trying fallback...")
-            
-            # Stage 2: Fallback rendering
-            logger.info("🎨 Stage 2: Fallback Rendering...")
-            success = self.fallback_renderer.create_simple_composite(
-                body_mesh, garment_mesh, temp_render_path
-            )
-            
-            if not success:
-                logger.error("❌ All rendering methods failed")
-                placeholder = Image.new("RGB", (512, 512), color=(220, 200, 180))
-                placeholder.save(output_path)
+        if self.renderer.blender_available:
+            success = self.renderer.render_with_subprocess(body_mesh, garment_mesh, output_path)
+            if success:
+                logger.info("✅ Blender subprocess rendering successful")
                 return output_path
+            else:
+                logger.warning("⚠️ Blender subprocess rendering failed, trying fallback...")
+        else:
+            logger.warning("⚠️ Blender subprocess not available, using fallback...")
         
-        try:
-            if os.path.exists(temp_render_path):
-                if temp_render_path != output_path:
-                    import shutil
-                    shutil.copy2(temp_render_path, output_path)
-                    os.remove(temp_render_path)
-        except:
-            pass
+        # Stage 2: Fallback rendering
+        logger.info("🎨 Stage 2: Fallback Rendering...")
+        success = self.fallback_renderer.create_simple_composite(
+            body_mesh, garment_mesh, output_path
+        )
         
-        return output_path
+        if success:
+            logger.info("✅ Fallback rendering successful")
+            return output_path
+        else:
+            logger.error("❌ All rendering methods failed, creating placeholder")
+            placeholder = Image.new("RGB", (512, 512), color=(220, 200, 180))
+            placeholder.save(output_path)
+            return output_path
 
 
-PhotorealisticRenderer = FixedPhorealisticRenderer
+PhotorealisticRenderer = BlenderSubprocessRenderer
+FixedPhorealisticRenderer = BlenderSubprocessRenderer

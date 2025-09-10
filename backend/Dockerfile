@@ -105,15 +105,8 @@ RUN BLENDER_VERSION=$(blender --version | head -1 | grep -oP '\d+\.\d+') && \
     export BLENDER_PYTHON_PATH="/usr/share/blender/$BLENDER_VERSION/python/lib/python*/site-packages" && \
     echo "export PYTHONPATH=\$PYTHONPATH:/usr/share/blender/scripts/modules:$BLENDER_PYTHON_PATH" >> /etc/environment
 
-# Test bpy import with correct path
-RUN python3 -c "\
-import sys; \
-import glob; \
-sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages')); \
-sys.path.append('/usr/share/blender/scripts/modules'); \
-import bpy; \
-print(f'Blender API working: {bpy.app.version_string}'); \
-"
+# Test Blender subprocess availability (no bpy import needed)
+RUN blender --version && echo "✅ Blender subprocess available"
 
 # Environment configuration
 ENV PORT=8000
@@ -173,15 +166,17 @@ except ImportError as e:\n\
     print(f'Critical 3D dependency missing: {e}')\n\
     sys.exit(1)\n\
 \n\
-# Test Blender (critical for rendering)\n\
+# Test Blender subprocess (no bpy import needed)\n\
+import subprocess\n\
 try:\n\
-    import glob\n\
-    sys.path.extend(glob.glob('/usr/share/blender/*/python/lib/python*/site-packages'))\n\
-    sys.path.append('/usr/share/blender/scripts/modules')\n\
-    import bpy\n\
-    print(f'Blender API: OK - {bpy.app.version_string}')\n\
-except ImportError as e:\n\
-    print(f'Blender API unavailable: {e} - using fallback rendering')\n\
+    result = subprocess.run(['blender', '--version'], capture_output=True, text=True, timeout=10)\n\
+    if result.returncode == 0:\n\
+        version = result.stdout.split('\\n')[0] if result.stdout else 'Unknown'\n\
+        print(f'Blender subprocess: OK - {version}')\n\
+    else:\n\
+        print('Blender subprocess: Failed - using fallback rendering')\n\
+except Exception as e:\n\
+    print(f'Blender subprocess unavailable: {e} - using fallback rendering')\n\
 \n\
 # Test AI dependencies (non-critical)\n\
 try:\n\
