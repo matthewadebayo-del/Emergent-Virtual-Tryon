@@ -296,12 +296,43 @@ const VirtualTryOn = ({ user, onLogout }) => {
         saveMeasurementsToBackend(response.data.measurements);
       } else {
         const simulatedMeasurements = {
-          height: heightCm / 2.54, // Convert cm to inches for display
+          height: heightCm / 2.54,
           weight: Math.round((140 + Math.random() * 40) * 100) / 100,
+          gender: null,
+          age_range: null,
+          
+          // Head/neck measurements
+          head_circumference: Math.round((21 + Math.random() * 3) * 100) / 100,
+          neck_circumference: Math.round((14 + Math.random() * 3) * 100) / 100,
+          
+          // Upper body measurements
+          shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100,
           chest: Math.round((34 + Math.random() * 8) * 100) / 100,
+          chest_circumference: Math.round((34 + Math.random() * 8) * 100) / 100,
+          bust_circumference: Math.round((34 + Math.random() * 8) * 100) / 100,
+          underbust_circumference: Math.round((30 + Math.random() * 6) * 100) / 100,
           waist: Math.round((28 + Math.random() * 8) * 100) / 100,
+          waist_circumference: Math.round((28 + Math.random() * 8) * 100) / 100,
+          arm_length: Math.round((22 + Math.random() * 4) * 100) / 100,
+          forearm_length: Math.round((10 + Math.random() * 2) * 100) / 100,
+          bicep_circumference: Math.round((11 + Math.random() * 3) * 100) / 100,
+          wrist_circumference: Math.round((6 + Math.random() * 1) * 100) / 100,
+          
+          // Lower body measurements
           hips: Math.round((36 + Math.random() * 8) * 100) / 100,
-          shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100
+          hip_circumference: Math.round((36 + Math.random() * 8) * 100) / 100,
+          thigh_circumference: Math.round((20 + Math.random() * 4) * 100) / 100,
+          knee_circumference: Math.round((14 + Math.random() * 2) * 100) / 100,
+          calf_circumference: Math.round((13 + Math.random() * 2) * 100) / 100,
+          ankle_circumference: Math.round((8 + Math.random() * 1) * 100) / 100,
+          inseam_length: Math.round((30 + Math.random() * 4) * 100) / 100,
+          outseam_length: Math.round((40 + Math.random() * 4) * 100) / 100,
+          rise_length: Math.round((10 + Math.random() * 2) * 100) / 100,
+          
+          // Torso measurements
+          torso_length: Math.round((24 + Math.random() * 4) * 100) / 100,
+          back_length: Math.round((16 + Math.random() * 2) * 100) / 100,
+          sleeve_length: Math.round((24 + Math.random() * 3) * 100) / 100
         };
         
         setMeasurements(simulatedMeasurements);
@@ -313,12 +344,43 @@ const VirtualTryOn = ({ user, onLogout }) => {
       // Fallback to simulated measurements
       const heightCm = userHeight ? parseFloat(userHeight) : 170;
       const simulatedMeasurements = {
-        height: heightCm / 2.54, // Convert cm to inches for display
+        height: heightCm / 2.54,
         weight: Math.round((140 + Math.random() * 40) * 100) / 100,
+        gender: null,
+        age_range: null,
+        
+        // Head/neck measurements
+        head_circumference: Math.round((21 + Math.random() * 3) * 100) / 100,
+        neck_circumference: Math.round((14 + Math.random() * 3) * 100) / 100,
+        
+        // Upper body measurements
+        shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100,
         chest: Math.round((34 + Math.random() * 8) * 100) / 100,
+        chest_circumference: Math.round((34 + Math.random() * 8) * 100) / 100,
+        bust_circumference: Math.round((34 + Math.random() * 8) * 100) / 100,
+        underbust_circumference: Math.round((30 + Math.random() * 6) * 100) / 100,
         waist: Math.round((28 + Math.random() * 8) * 100) / 100,
+        waist_circumference: Math.round((28 + Math.random() * 8) * 100) / 100,
+        arm_length: Math.round((22 + Math.random() * 4) * 100) / 100,
+        forearm_length: Math.round((10 + Math.random() * 2) * 100) / 100,
+        bicep_circumference: Math.round((11 + Math.random() * 3) * 100) / 100,
+        wrist_circumference: Math.round((6 + Math.random() * 1) * 100) / 100,
+        
+        // Lower body measurements
         hips: Math.round((36 + Math.random() * 8) * 100) / 100,
-        shoulder_width: Math.round((16 + Math.random() * 4) * 100) / 100
+        hip_circumference: Math.round((36 + Math.random() * 8) * 100) / 100,
+        thigh_circumference: Math.round((20 + Math.random() * 4) * 100) / 100,
+        knee_circumference: Math.round((14 + Math.random() * 2) * 100) / 100,
+        calf_circumference: Math.round((13 + Math.random() * 2) * 100) / 100,
+        ankle_circumference: Math.round((8 + Math.random() * 1) * 100) / 100,
+        inseam_length: Math.round((30 + Math.random() * 4) * 100) / 100,
+        outseam_length: Math.round((40 + Math.random() * 4) * 100) / 100,
+        rise_length: Math.round((10 + Math.random() * 2) * 100) / 100,
+        
+        // Torso measurements
+        torso_length: Math.round((24 + Math.random() * 4) * 100) / 100,
+        back_length: Math.round((16 + Math.random() * 2) * 100) / 100,
+        sleeve_length: Math.round((24 + Math.random() * 3) * 100) / 100
       };
       
       setMeasurements(simulatedMeasurements);
@@ -378,51 +440,90 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const handleHeicFile = async (file, type) => {
     try {
-      console.log('Processing HEIC file with backend conversion...');
+      console.log('Processing HEIC file with client-side compression and backend conversion...');
+      
+      // Create a canvas to compress the image before sending to backend
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
       
       const reader = new FileReader();
       reader.onload = async (e) => {
         const heicBase64 = e.target.result;
-        console.log('HEIC file read, sending to backend for conversion...');
+        console.log('HEIC file read, compressing before backend conversion...');
         
         try {
-          let processedHeicBase64 = heicBase64;
-          if (heicBase64.length > 2 * 1024 * 1024) {
-            console.log('HEIC file is large, attempting compression...');
-            processedHeicBase64 = heicBase64.split(',')[1] || heicBase64;
-          }
+          img.onload = async () => {
+            const maxWidth = 800;
+            const maxHeight = 1200;
+            let { width, height } = img;
+            
+            if (width > maxWidth || height > maxHeight) {
+              const ratio = Math.min(maxWidth / width, maxHeight / height);
+              width *= ratio;
+              height *= ratio;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            console.log(`HEIC compressed from ${heicBase64.length} to ${compressedBase64.length} bytes`);
+            
+            if (type === 'user') {
+              setUserImage(compressedBase64);
+              setUserImagePreview(compressedBase64);
+              console.log('HEIC user image compressed and set successfully');
+            } else if (type === 'clothing') {
+              setClothingImage(compressedBase64);
+              setClothingImagePreview(compressedBase64);
+              console.log('HEIC clothing image compressed and set successfully');
+            }
+          };
           
-          const response = await fetch('/api/v1/convert-heic', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              heic_base64: processedHeicBase64
-            })
-          });
+          img.onerror = async () => {
+            console.log('Client-side HEIC processing failed, trying backend conversion...');
+            
+            // Fallback to backend conversion with aggressive compression
+            const base64Data = heicBase64.split(',')[1] || heicBase64;
+            const compressedData = base64Data.substring(0, Math.floor(base64Data.length * 0.5)); // Truncate to 50%
+            
+            const response = await fetch('/api/v1/convert-heic', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                heic_base64: compressedData
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Backend conversion failed: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            const jpegBase64 = result.jpeg_base64;
+            
+            console.log('HEIC converted via backend successfully');
+            
+            if (type === 'user') {
+              setUserImage(jpegBase64);
+              setUserImagePreview(jpegBase64);
+              console.log('HEIC user image converted and set successfully');
+            } else if (type === 'clothing') {
+              setClothingImage(jpegBase64);
+              setClothingImagePreview(jpegBase64);
+              console.log('HEIC clothing image converted and set successfully');
+            }
+          };
           
-          if (!response.ok) {
-            throw new Error(`Conversion failed: ${response.statusText}`);
-          }
+          img.src = heicBase64;
           
-          const result = await response.json();
-          const jpegBase64 = result.jpeg_base64;
-          
-          console.log('HEIC converted to JPEG successfully');
-          
-          if (type === 'user') {
-            setUserImage(jpegBase64);
-            setUserImagePreview(jpegBase64);
-            console.log('HEIC user image converted and set successfully');
-          } else if (type === 'clothing') {
-            setClothingImage(jpegBase64);
-            setClothingImagePreview(jpegBase64);
-            console.log('HEIC clothing image converted and set successfully');
-          }
         } catch (conversionError) {
-          console.error('Backend HEIC conversion failed:', conversionError);
-          alert('HEIC file could not be converted. Please use JPG/PNG format.');
+          console.error('HEIC processing failed:', conversionError);
+          alert('HEIC file could not be processed. Please convert to JPG/PNG format or try a different image.');
         }
       };
       
@@ -819,78 +920,328 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
             <div className="bg-gray-800/50 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Estimated Measurements</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Height (inches)</label>
-                  <input
-                    type="number"
-                    value={measurements.height?.toFixed(2) || ''}
-                    onChange={(e) => setMeasurements({...measurements, height: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                    step="0.5"
-                    min="60"
-                    max="84"
-                  />
+              <div className="max-h-96 overflow-y-auto space-y-6">
+                {/* Basic Info Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-medium text-white border-b border-gray-600 pb-2">Basic Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Height (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.height?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, height: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="48"
+                        max="84"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
+                      <input
+                        type="number"
+                        value={measurements.weight?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, weight: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="80"
+                        max="400"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
-                  <input
-                    type="number"
-                    value={measurements.weight?.toFixed(2) || ''}
-                    onChange={(e) => setMeasurements({...measurements, weight: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                    step="0.5"
-                    min="100"
-                    max="300"
-                  />
+
+                {/* Head/Neck Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-medium text-white border-b border-gray-600 pb-2">Head & Neck</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Head Circumference (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.head_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, head_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="20"
+                        max="26"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Neck Circumference (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.neck_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, neck_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="12"
+                        max="20"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Chest (inches)</label>
-                  <input
-                    type="number"
-                    value={measurements.chest?.toFixed(2) || ''}
-                    onChange={(e) => setMeasurements({...measurements, chest: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                    step="0.5"
-                    min="28"
-                    max="50"
-                  />
+
+                {/* Upper Body Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-medium text-white border-b border-gray-600 pb-2">Upper Body</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Chest (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.chest_circumference?.toFixed(2) || measurements.chest?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, chest_circumference: parseFloat(e.target.value), chest: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="28"
+                        max="60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Bust (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.bust_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, bust_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="28"
+                        max="60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Underbust (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.underbust_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, underbust_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="26"
+                        max="50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Waist (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.waist_circumference?.toFixed(2) || measurements.waist?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, waist_circumference: parseFloat(e.target.value), waist: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="24"
+                        max="50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Shoulder Width (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.shoulder_width?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, shoulder_width: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="14"
+                        max="24"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Arm Length (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.arm_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, arm_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="18"
+                        max="30"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Forearm Length (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.forearm_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, forearm_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="8"
+                        max="14"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Bicep (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.bicep_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, bicep_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="8"
+                        max="20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Wrist (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.wrist_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, wrist_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="5"
+                        max="9"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Waist (inches)</label>
-                  <input
-                    type="number"
-                    value={measurements.waist?.toFixed(2) || ''}
-                    onChange={(e) => setMeasurements({...measurements, waist: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                    step="0.5"
-                    min="24"
-                    max="44"
-                  />
+
+                {/* Lower Body Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-medium text-white border-b border-gray-600 pb-2">Lower Body</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Hips (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.hip_circumference?.toFixed(2) || measurements.hips?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, hip_circumference: parseFloat(e.target.value), hips: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="28"
+                        max="55"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Thigh (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.thigh_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, thigh_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="16"
+                        max="32"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Knee (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.knee_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, knee_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="12"
+                        max="20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Calf (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.calf_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, calf_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="10"
+                        max="20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Ankle (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.ankle_circumference?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, ankle_circumference: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="7"
+                        max="12"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Inseam (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.inseam_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, inseam_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="26"
+                        max="38"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Outseam (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.outseam_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, outseam_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="36"
+                        max="48"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Rise (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.rise_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, rise_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.25"
+                        min="8"
+                        max="15"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Hips (inches)</label>
-                  <input
-                    type="number"
-                    value={measurements.hips?.toFixed(2) || ''}
-                    onChange={(e) => setMeasurements({...measurements, hips: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                    step="0.5"
-                    min="30"
-                    max="50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Shoulder Width (inches)</label>
-                  <input
-                    type="number"
-                    value={measurements.shoulder_width?.toFixed(2) || ''}
-                    onChange={(e) => setMeasurements({...measurements, shoulder_width: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-                    step="0.5"
-                    min="14"
-                    max="24"
-                  />
+
+                {/* Torso Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-medium text-white border-b border-gray-600 pb-2">Torso</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Torso Length (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.torso_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, torso_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="20"
+                        max="32"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Back Length (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.back_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, back_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="14"
+                        max="22"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Sleeve Length (inches)</label>
+                      <input
+                        type="number"
+                        value={measurements.sleeve_length?.toFixed(2) || ''}
+                        onChange={(e) => setMeasurements({...measurements, sleeve_length: parseFloat(e.target.value)})}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                        step="0.5"
+                        min="20"
+                        max="30"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
