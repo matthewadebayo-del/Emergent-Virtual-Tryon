@@ -378,30 +378,45 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const handleHeicFile = async (file, type) => {
     try {
-      console.log('Processing HEIC file with enhanced validation...');
+      console.log('Processing HEIC file with backend conversion...');
       
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target.result;
-        console.log('HEIC file read, base64 length:', base64.length);
-        console.log('Base64 preview:', base64.substring(0, 100) + '...');
+      reader.onload = async (e) => {
+        const heicBase64 = e.target.result;
+        console.log('HEIC file read, sending to backend for conversion...');
         
-        if (!base64 || !base64.startsWith('data:')) {
-          console.error('HEIC file processing failed - invalid data format');
-          alert('HEIC file could not be processed. Please convert to JPG/PNG or try a different image.');
-          return;
-        }
-        
-        console.log('HEIC file processed successfully, sending to backend for conversion');
-        
-        if (type === 'user') {
-          setUserImage(base64);
-          setUserImagePreview(base64);
-          console.log('HEIC user image set successfully');
-        } else if (type === 'clothing') {
-          setClothingImage(base64);
-          setClothingImagePreview(base64);
-          console.log('HEIC clothing image set successfully');
+        try {
+          const response = await fetch('/api/v1/convert-heic', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              heic_base64: heicBase64
+            })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Conversion failed: ${response.statusText}`);
+          }
+          
+          const result = await response.json();
+          const jpegBase64 = result.jpeg_base64;
+          
+          console.log('HEIC converted to JPEG successfully');
+          
+          if (type === 'user') {
+            setUserImage(jpegBase64);
+            setUserImagePreview(jpegBase64);
+            console.log('HEIC user image converted and set successfully');
+          } else if (type === 'clothing') {
+            setClothingImage(jpegBase64);
+            setClothingImagePreview(jpegBase64);
+            console.log('HEIC clothing image converted and set successfully');
+          }
+        } catch (conversionError) {
+          console.error('Backend HEIC conversion failed:', conversionError);
+          alert('HEIC file could not be converted. Please use JPG/PNG format.');
         }
       };
       

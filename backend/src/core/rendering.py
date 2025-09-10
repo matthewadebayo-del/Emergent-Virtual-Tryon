@@ -121,6 +121,10 @@ print(f"✅ Render completed: {{'{output_path}'}}")
                 cmd = ['blender', '--background', '--python', script_path]
                 logger.info(f"🚀 Running Blender command: {' '.join(cmd)}")
                 
+                logger.info(f"Executing Blender command: {' '.join(cmd)}")
+                logger.info(f"Working directory: {os.getcwd()}")
+                logger.info(f"Environment PATH: {env.get('PATH', 'Not set')}")
+                
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -136,14 +140,25 @@ print(f"✅ Render completed: {{'{output_path}'}}")
                     if os.path.exists(output_path):
                         file_size = os.path.getsize(output_path)
                         logger.info(f"✅ Render output created: {output_path} ({file_size} bytes)")
+                        
+                        if file_size == 0:
+                            logger.error("❌ Output file is 0 bytes - rendering failed silently")
+                            logger.error(f"Script content was: {script_content}")
+                            return False
+                        elif file_size < 1000:
+                            logger.warning(f"⚠️ Output file is very small ({file_size} bytes) - may be placeholder")
+                        
                         return True
                     else:
                         logger.error(f"❌ Render output not found: {output_path}")
+                        logger.error(f"Expected output at: {output_path}")
+                        logger.error(f"Directory contents: {os.listdir(os.path.dirname(output_path)) if os.path.exists(os.path.dirname(output_path)) else 'Directory does not exist'}")
                         return False
                 else:
                     logger.error(f"❌ Blender subprocess failed with return code {result.returncode}")
                     logger.error(f"Blender stderr: {result.stderr}")
                     logger.error(f"Blender stdout: {result.stdout}")
+                    logger.error(f"Command that failed: {' '.join(cmd)}")
                     return False
                     
         except subprocess.TimeoutExpired:

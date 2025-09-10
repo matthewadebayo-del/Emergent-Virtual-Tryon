@@ -18,7 +18,7 @@ import numpy as np
 import requests
 from dotenv import load_dotenv
 from fastapi import (APIRouter, Depends, FastAPI, File, Form, Header,
-                     HTTPException, UploadFile)
+                     HTTPException, Request, UploadFile)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1479,6 +1479,31 @@ def test_ai_dependencies():
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.post("/api/v1/convert-heic")
+async def convert_heic_endpoint(request: Request):
+    """Convert HEIC image to JPEG format"""
+    try:
+        data = await request.json()
+        heic_base64 = data.get("heic_base64")
+        
+        if not heic_base64:
+            raise HTTPException(status_code=400, detail="heic_base64 field required")
+        
+        heic_bytes = base64.b64decode(heic_base64.split(',')[1] if ',' in heic_base64 else heic_base64)
+        
+        # Convert to JPEG
+        jpeg_bytes = convert_heic_to_jpeg(heic_bytes)
+        jpeg_base64 = base64.b64encode(jpeg_bytes).decode()
+        
+        return {
+            "success": True,
+            "jpeg_base64": f"data:image/jpeg;base64,{jpeg_base64}"
+        }
+    except Exception as e:
+        logger.error(f"HEIC conversion failed: {e}")
+        raise HTTPException(status_code=500, detail=f"HEIC conversion failed: {str(e)}")
 
 
 @app.get("/api/v1/test-blender-3d")
