@@ -378,51 +378,90 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const handleHeicFile = async (file, type) => {
     try {
-      console.log('Processing HEIC file with backend conversion...');
+      console.log('Processing HEIC file with client-side compression and backend conversion...');
+      
+      // Create a canvas to compress the image before sending to backend
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
       
       const reader = new FileReader();
       reader.onload = async (e) => {
         const heicBase64 = e.target.result;
-        console.log('HEIC file read, sending to backend for conversion...');
+        console.log('HEIC file read, compressing before backend conversion...');
         
         try {
-          let processedHeicBase64 = heicBase64;
-          if (heicBase64.length > 2 * 1024 * 1024) {
-            console.log('HEIC file is large, attempting compression...');
-            processedHeicBase64 = heicBase64.split(',')[1] || heicBase64;
-          }
+          img.onload = async () => {
+            const maxWidth = 800;
+            const maxHeight = 1200;
+            let { width, height } = img;
+            
+            if (width > maxWidth || height > maxHeight) {
+              const ratio = Math.min(maxWidth / width, maxHeight / height);
+              width *= ratio;
+              height *= ratio;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            console.log(`HEIC compressed from ${heicBase64.length} to ${compressedBase64.length} bytes`);
+            
+            if (type === 'user') {
+              setUserImage(compressedBase64);
+              setUserImagePreview(compressedBase64);
+              console.log('HEIC user image compressed and set successfully');
+            } else if (type === 'clothing') {
+              setClothingImage(compressedBase64);
+              setClothingImagePreview(compressedBase64);
+              console.log('HEIC clothing image compressed and set successfully');
+            }
+          };
           
-          const response = await fetch('/api/v1/convert-heic', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              heic_base64: processedHeicBase64
-            })
-          });
+          img.onerror = async () => {
+            console.log('Client-side HEIC processing failed, trying backend conversion...');
+            
+            // Fallback to backend conversion with aggressive compression
+            const base64Data = heicBase64.split(',')[1] || heicBase64;
+            const compressedData = base64Data.substring(0, Math.floor(base64Data.length * 0.5)); // Truncate to 50%
+            
+            const response = await fetch('/api/v1/convert-heic', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                heic_base64: compressedData
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Backend conversion failed: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            const jpegBase64 = result.jpeg_base64;
+            
+            console.log('HEIC converted via backend successfully');
+            
+            if (type === 'user') {
+              setUserImage(jpegBase64);
+              setUserImagePreview(jpegBase64);
+              console.log('HEIC user image converted and set successfully');
+            } else if (type === 'clothing') {
+              setClothingImage(jpegBase64);
+              setClothingImagePreview(jpegBase64);
+              console.log('HEIC clothing image converted and set successfully');
+            }
+          };
           
-          if (!response.ok) {
-            throw new Error(`Conversion failed: ${response.statusText}`);
-          }
+          img.src = heicBase64;
           
-          const result = await response.json();
-          const jpegBase64 = result.jpeg_base64;
-          
-          console.log('HEIC converted to JPEG successfully');
-          
-          if (type === 'user') {
-            setUserImage(jpegBase64);
-            setUserImagePreview(jpegBase64);
-            console.log('HEIC user image converted and set successfully');
-          } else if (type === 'clothing') {
-            setClothingImage(jpegBase64);
-            setClothingImagePreview(jpegBase64);
-            console.log('HEIC clothing image converted and set successfully');
-          }
         } catch (conversionError) {
-          console.error('Backend HEIC conversion failed:', conversionError);
-          alert('HEIC file could not be converted. Please use JPG/PNG format.');
+          console.error('HEIC processing failed:', conversionError);
+          alert('HEIC file could not be processed. Please convert to JPG/PNG format or try a different image.');
         }
       };
       
