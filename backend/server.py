@@ -198,12 +198,45 @@ class Token(BaseModel):
 
 
 class Measurements(BaseModel):
+    # Basic info
     height: float
     weight: float
-    chest: float
-    waist: float
-    hips: float
+    gender: Optional[str] = None
+    age_range: Optional[str] = None
+    
+    # Head/neck measurements  
+    head_circumference: Optional[float] = None
+    neck_circumference: Optional[float] = None
+    
+    # Upper body measurements
     shoulder_width: float
+    chest: Optional[float] = None  # Keep for backward compatibility
+    chest_circumference: Optional[float] = None
+    bust_circumference: Optional[float] = None
+    underbust_circumference: Optional[float] = None
+    waist: Optional[float] = None  # Keep for backward compatibility
+    waist_circumference: Optional[float] = None
+    arm_length: Optional[float] = None
+    forearm_length: Optional[float] = None
+    bicep_circumference: Optional[float] = None
+    wrist_circumference: Optional[float] = None
+    
+    # Lower body measurements
+    hips: Optional[float] = None  # Keep for backward compatibility
+    hip_circumference: Optional[float] = None
+    thigh_circumference: Optional[float] = None
+    knee_circumference: Optional[float] = None
+    calf_circumference: Optional[float] = None
+    ankle_circumference: Optional[float] = None
+    inseam_length: Optional[float] = None
+    outseam_length: Optional[float] = None
+    rise_length: Optional[float] = None
+    
+    # Torso measurements
+    torso_length: Optional[float] = None
+    back_length: Optional[float] = None
+    sleeve_length: Optional[float] = None
+    
     measured_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -410,6 +443,27 @@ async def save_measurements(
     return {"message": "Measurements saved successfully"}
 
 
+@api_router.delete("/profile/reset")
+async def reset_user_profile(current_user: User = Depends(get_current_user)):
+    """Reset user profile by clearing measurements and captured images"""
+    try:
+        if db is None:
+            raise HTTPException(status_code=503, detail="Database not available")
+            
+        await db.users.update_one(
+            {"id": current_user.id}, 
+            {"$unset": {
+                "measurements": "",
+                "captured_image": "",
+                "captured_images": ""
+            }}
+        )
+        return {"message": "User profile reset successfully"}
+    except Exception as e:
+        logger.error(f"Profile reset failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Profile reset failed: {str(e)}")
+
+
 @api_router.post("/save_captured_image")
 async def save_captured_image(
     image_data: dict, current_user: User = Depends(get_current_user)
@@ -509,14 +563,44 @@ async def extract_measurements(
         if model_manager.get_body_reconstructor() is None:
             print("⚠️ 3D body reconstruction not available, using fallback")
             simulated_measurements = {
+                # Basic info
                 "height": round(165 + (hash(user_image_base64[:50]) % 30), 1),
                 "weight": round(60 + (hash(user_image_base64[50:100]) % 25), 1),
+                "gender": None,
+                "age_range": None,
+                
+                # Head/neck measurements
+                "head_circumference": round(53 + (hash(user_image_base64[300:350]) % 8), 1),
+                "neck_circumference": round(35 + (hash(user_image_base64[350:400]) % 8), 1),
+                
+                # Upper body measurements
+                "shoulder_width": round(40 + (hash(user_image_base64[250:300]) % 10), 1),
                 "chest": round(80 + (hash(user_image_base64[100:150]) % 20), 1),
+                "chest_circumference": round(86 + (hash(user_image_base64[400:450]) % 20), 1),
+                "bust_circumference": round(86 + (hash(user_image_base64[450:500]) % 20), 1),
+                "underbust_circumference": round(76 + (hash(user_image_base64[500:550]) % 15), 1),
                 "waist": round(70 + (hash(user_image_base64[150:200]) % 20), 1),
+                "waist_circumference": round(71 + (hash(user_image_base64[550:600]) % 20), 1),
+                "arm_length": round(56 + (hash(user_image_base64[600:650]) % 10), 1),
+                "forearm_length": round(25 + (hash(user_image_base64[650:700]) % 5), 1),
+                "bicep_circumference": round(28 + (hash(user_image_base64[700:750]) % 8), 1),
+                "wrist_circumference": round(15 + (hash(user_image_base64[750:800]) % 3), 1),
+                
+                # Lower body measurements
                 "hips": round(85 + (hash(user_image_base64[200:250]) % 20), 1),
-                "shoulder_width": round(
-                    40 + (hash(user_image_base64[250:300]) % 10), 1
-                ),
+                "hip_circumference": round(91 + (hash(user_image_base64[800:850]) % 20), 1),
+                "thigh_circumference": round(51 + (hash(user_image_base64[850:900]) % 10), 1),
+                "knee_circumference": round(35 + (hash(user_image_base64[900:950]) % 5), 1),
+                "calf_circumference": round(33 + (hash(user_image_base64[950:1000]) % 5), 1),
+                "ankle_circumference": round(20 + (hash(user_image_base64[1000:1050]) % 3), 1),
+                "inseam_length": round(76 + (hash(user_image_base64[1050:1100]) % 10), 1),
+                "outseam_length": round(102 + (hash(user_image_base64[1100:1150]) % 10), 1),
+                "rise_length": round(25 + (hash(user_image_base64[1150:1200]) % 5), 1),
+                
+                # Torso measurements
+                "torso_length": round(61 + (hash(user_image_base64[1200:1250]) % 10), 1),
+                "back_length": round(41 + (hash(user_image_base64[1250:1300]) % 5), 1),
+                "sleeve_length": round(61 + (hash(user_image_base64[1300:1350]) % 8), 1),
             }
 
             confidence_score = 0.7  # Lower confidence for simulated data
@@ -547,13 +631,47 @@ async def extract_measurements(
                 reference_height_cm=user_height_cm
             )
 
+            enhanced_measurements = body_measurements.get("enhanced_measurements", {})
+            
             simulated_measurements = {
+                # Basic info
                 "height": body_measurements["height"],
                 "weight": _estimate_weight_from_measurements(body_measurements),
-                "chest": body_measurements["chest_width"],
-                "waist": body_measurements["waist_width"],
-                "hips": body_measurements["hip_width"],
+                "gender": enhanced_measurements.get("gender"),
+                "age_range": enhanced_measurements.get("age_range"),
+                
+                # Head/neck measurements
+                "head_circumference": enhanced_measurements.get("head_circumference"),
+                "neck_circumference": enhanced_measurements.get("neck_circumference"),
+                
+                # Upper body measurements
                 "shoulder_width": body_measurements["shoulder_width"],
+                "chest": body_measurements["chest_width"],  # Backward compatibility
+                "chest_circumference": enhanced_measurements.get("chest_circumference", body_measurements.get("chest_cm")),
+                "bust_circumference": enhanced_measurements.get("bust_circumference"),
+                "underbust_circumference": enhanced_measurements.get("underbust_circumference"),
+                "waist": body_measurements["waist_width"],  # Backward compatibility
+                "waist_circumference": enhanced_measurements.get("waist_circumference", body_measurements.get("waist_cm")),
+                "arm_length": enhanced_measurements.get("arm_length"),
+                "forearm_length": enhanced_measurements.get("forearm_length"),
+                "bicep_circumference": enhanced_measurements.get("bicep_circumference"),
+                "wrist_circumference": enhanced_measurements.get("wrist_circumference"),
+                
+                # Lower body measurements
+                "hips": body_measurements["hip_width"],  # Backward compatibility
+                "hip_circumference": enhanced_measurements.get("hip_circumference", body_measurements.get("hips_cm")),
+                "thigh_circumference": enhanced_measurements.get("thigh_circumference"),
+                "knee_circumference": enhanced_measurements.get("knee_circumference"),
+                "calf_circumference": enhanced_measurements.get("calf_circumference"),
+                "ankle_circumference": enhanced_measurements.get("ankle_circumference"),
+                "inseam_length": enhanced_measurements.get("inseam_length"),
+                "outseam_length": enhanced_measurements.get("outseam_length"),
+                "rise_length": enhanced_measurements.get("rise_length"),
+                
+                # Torso measurements
+                "torso_length": enhanced_measurements.get("torso_length", body_measurements.get("torso_length")),
+                "back_length": enhanced_measurements.get("back_length"),
+                "sleeve_length": enhanced_measurements.get("sleeve_length"),
             }
 
             confidence_score = body_measurements.get("confidence_score", 0.85)
@@ -570,16 +688,17 @@ async def extract_measurements(
         measurements_cm = Measurements(**simulated_measurements)
 
         # Convert measurements to inches for US users
-        measurements_inches = {
-            "height": round(simulated_measurements["height"] / 2.54, 1),  # cm to inches
-            "weight": round(
-                simulated_measurements["weight"] * 2.205, 1
-            ),  # kg to pounds
-            "chest": round(simulated_measurements["chest"] / 2.54, 1),
-            "waist": round(simulated_measurements["waist"] / 2.54, 1),
-            "hips": round(simulated_measurements["hips"] / 2.54, 1),
-            "shoulder_width": round(simulated_measurements["shoulder_width"] / 2.54, 1),
-        }
+        measurements_inches = {}
+        for key, value in simulated_measurements.items():
+            if value is not None:
+                if key == "weight":
+                    measurements_inches[key] = round(value * 2.205, 1)  # kg to pounds
+                elif key in ["gender", "age_range"]:
+                    measurements_inches[key] = value  # No conversion needed
+                else:
+                    measurements_inches[key] = round(value / 2.54, 1)  # cm to inches
+            else:
+                measurements_inches[key] = None
 
         # Save measurements to backend (store in cm for consistency)
         measurement_data = measurements_cm.dict()

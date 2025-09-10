@@ -56,10 +56,39 @@ const Dashboard = ({ user, onLogout }) => {
     const measurementData = {
       height: totalHeightInches,
       weight: parseFloat(formData.get('weight')),
-      chest: parseFloat(formData.get('chest')),
-      waist: parseFloat(formData.get('waist')),
-      hips: parseFloat(formData.get('hips')),
-      shoulder_width: parseFloat(formData.get('shoulder_width'))
+      
+      // Head/neck measurements
+      head_circumference: parseFloat(formData.get('head_circumference')) || null,
+      neck_circumference: parseFloat(formData.get('neck_circumference')) || null,
+      
+      // Upper body measurements
+      shoulder_width: parseFloat(formData.get('shoulder_width')),
+      chest: parseFloat(formData.get('chest_circumference')),
+      chest_circumference: parseFloat(formData.get('chest_circumference')),
+      bust_circumference: parseFloat(formData.get('bust_circumference')) || null,
+      underbust_circumference: parseFloat(formData.get('underbust_circumference')) || null,
+      waist: parseFloat(formData.get('waist_circumference')),
+      waist_circumference: parseFloat(formData.get('waist_circumference')),
+      arm_length: parseFloat(formData.get('arm_length')) || null,
+      forearm_length: parseFloat(formData.get('forearm_length')) || null,
+      bicep_circumference: parseFloat(formData.get('bicep_circumference')) || null,
+      wrist_circumference: parseFloat(formData.get('wrist_circumference')) || null,
+      
+      // Lower body measurements
+      hips: parseFloat(formData.get('hip_circumference')),
+      hip_circumference: parseFloat(formData.get('hip_circumference')),
+      thigh_circumference: parseFloat(formData.get('thigh_circumference')) || null,
+      knee_circumference: parseFloat(formData.get('knee_circumference')) || null,
+      calf_circumference: parseFloat(formData.get('calf_circumference')) || null,
+      ankle_circumference: parseFloat(formData.get('ankle_circumference')) || null,
+      inseam_length: parseFloat(formData.get('inseam_length')) || null,
+      outseam_length: parseFloat(formData.get('outseam_length')) || null,
+      rise_length: parseFloat(formData.get('rise_length')) || null,
+      
+      // Torso measurements
+      torso_length: parseFloat(formData.get('torso_length')) || null,
+      back_length: parseFloat(formData.get('back_length')) || null,
+      sleeve_length: parseFloat(formData.get('sleeve_length')) || null
     };
 
     try {
@@ -71,6 +100,20 @@ const Dashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Failed to save measurements:', error);
       alert('Failed to save measurements. Please try again.');
+    }
+  };
+
+  const handleProfileReset = async () => {
+    if (window.confirm('Are you sure you want to reset your profile? This will delete all measurements and captured images.')) {
+      try {
+        await axios.delete('/profile/reset');
+        setMeasurements(null);
+        setIsFirstTime(true);
+        alert('Profile reset successfully!');
+      } catch (error) {
+        console.error('Failed to reset profile:', error);
+        alert('Failed to reset profile. Please try again.');
+      }
     }
   };
 
@@ -211,25 +254,35 @@ const Dashboard = ({ user, onLogout }) => {
             <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
           </Link>
 
-          <button
-            onClick={() => setShowMeasurements(true)}
-            className="card hover-lift cursor-pointer text-left"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500">
-                <Target className="w-8 h-8 text-white" />
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowMeasurements(true)}
+              className="card hover-lift cursor-pointer text-left w-full"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500">
+                  <Target className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-white">
+                    {measurements ? 'Update' : 'Add'} Measurements
+                  </h3>
+                  <p className="text-white/70">
+                    {measurements ? 'Update your body measurements' : 'Add your body measurements'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-semibold text-white">
-                  {measurements ? 'Update' : 'Add'} Measurements
-                </h3>
-                <p className="text-white/70">
-                  {measurements ? 'Update your body measurements' : 'Add your body measurements'}
-                </p>
-              </div>
-            </div>
-            <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
-          </button>
+              <ArrowRight className="w-5 h-5 text-purple-400 ml-auto" />
+            </button>
+            {measurements && (
+              <button
+                onClick={handleProfileReset}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 text-sm"
+              >
+                Reset Profile
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -307,132 +360,146 @@ const Dashboard = ({ user, onLogout }) => {
             <h3 className="text-xl font-semibold text-white mb-4">
               {measurements ? 'Update' : 'Add'} Your Measurements
             </h3>
-            <form onSubmit={handleMeasurementSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white/80 text-sm font-medium mb-2">
-                    Height (feet & inches)
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      name="height_feet"
-                      defaultValue={measurements?.height ? Math.floor(measurements.height / 12) : ''}
-                      className="input-field flex-1"
-                      placeholder="5"
-                      min="3"
-                      max="8"
-                      required
-                    />
-                    <span className="text-white/60 self-center">ft</span>
-                    <input
-                      type="number"
-                      name="height_inches"
-                      defaultValue={measurements?.height ? Math.round(measurements.height % 12) : ''}
-                      className="input-field flex-1"
-                      placeholder="8"
-                      min="0"
-                      max="11"
-                      required
-                    />
-                    <span className="text-white/60 self-center">in</span>
+            <form onSubmit={handleMeasurementSubmit} className="space-y-6 max-h-96 overflow-y-auto">
+              {/* Basic Info Section */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-white border-b border-white/20 pb-2">Basic Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Height (feet & inches)</label>
+                    <div className="flex gap-2">
+                      <input type="number" name="height_feet" defaultValue={measurements?.height ? Math.floor(measurements.height / 12) : ''} className="input-field flex-1" placeholder="5" min="3" max="8" required />
+                      <span className="text-white/60 self-center">ft</span>
+                      <input type="number" name="height_inches" defaultValue={measurements?.height ? Math.round(measurements.height % 12) : ''} className="input-field flex-1" placeholder="8" min="0" max="11" required />
+                      <span className="text-white/60 self-center">in</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Weight (lbs)</label>
+                    <input type="number" name="weight" defaultValue={measurements?.weight || ''} className="input-field" placeholder="150" min="80" max="400" step="0.5" required />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-white/80 text-sm font-medium mb-2">
-                    Weight (lbs)
-                  </label>
-                  <input
-                    type="number"
-                    name="weight"
-                    defaultValue={measurements?.weight || ''}
-                    className="input-field"
-                    placeholder="150"
-                    min="80"
-                    max="400"
-                    required
-                  />
+              </div>
+
+              {/* Head/Neck Section */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-white border-b border-white/20 pb-2">Head & Neck</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Head Circumference (inches)</label>
+                    <input type="number" name="head_circumference" defaultValue={measurements?.head_circumference || ''} className="input-field" placeholder="22" min="20" max="26" step="0.25" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Neck Circumference (inches)</label>
+                    <input type="number" name="neck_circumference" defaultValue={measurements?.neck_circumference || ''} className="input-field" placeholder="15" min="12" max="20" step="0.25" />
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white/80 text-sm font-medium mb-2">
-                    Chest (inches)
-                  </label>
-                  <input
-                    type="number"
-                    name="chest"
-                    defaultValue={measurements?.chest || ''}
-                    className="input-field"
-                    placeholder="36"
-                    min="28"
-                    max="60"
-                    step="0.5"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white/80 text-sm font-medium mb-2">
-                    Waist (inches)
-                  </label>
-                  <input
-                    type="number"
-                    name="waist"
-                    defaultValue={measurements?.waist || ''}
-                    className="input-field"
-                    placeholder="32"
-                    min="24"
-                    max="50"
-                    step="0.5"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white/80 text-sm font-medium mb-2">
-                    Hips (inches)
-                  </label>
-                  <input
-                    type="number"
-                    name="hips"
-                    defaultValue={measurements?.hips || ''}
-                    className="input-field"
-                    placeholder="38"
-                    min="28"
-                    max="55"
-                    step="0.5"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-white/80 text-sm font-medium mb-2">
-                    Shoulder Width (inches)
-                  </label>
-                  <input
-                    type="number"
-                    name="shoulder_width"
-                    defaultValue={measurements?.shoulder_width || ''}
-                    className="input-field"
-                    placeholder="18"
-                    min="14"
-                    max="24"
-                    step="0.5"
-                    required
-                  />
+
+              {/* Upper Body Section */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-white border-b border-white/20 pb-2">Upper Body</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Chest (inches)</label>
+                    <input type="number" name="chest_circumference" defaultValue={measurements?.chest_circumference || measurements?.chest || ''} className="input-field" placeholder="36" min="28" max="60" step="0.5" required />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Bust (inches)</label>
+                    <input type="number" name="bust_circumference" defaultValue={measurements?.bust_circumference || ''} className="input-field" placeholder="36" min="28" max="60" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Underbust (inches)</label>
+                    <input type="number" name="underbust_circumference" defaultValue={measurements?.underbust_circumference || ''} className="input-field" placeholder="32" min="26" max="50" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Waist (inches)</label>
+                    <input type="number" name="waist_circumference" defaultValue={measurements?.waist_circumference || measurements?.waist || ''} className="input-field" placeholder="32" min="24" max="50" step="0.5" required />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Shoulder Width (inches)</label>
+                    <input type="number" name="shoulder_width" defaultValue={measurements?.shoulder_width || ''} className="input-field" placeholder="18" min="14" max="24" step="0.5" required />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Arm Length (inches)</label>
+                    <input type="number" name="arm_length" defaultValue={measurements?.arm_length || ''} className="input-field" placeholder="24" min="18" max="30" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Forearm Length (inches)</label>
+                    <input type="number" name="forearm_length" defaultValue={measurements?.forearm_length || ''} className="input-field" placeholder="11" min="8" max="14" step="0.25" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Bicep (inches)</label>
+                    <input type="number" name="bicep_circumference" defaultValue={measurements?.bicep_circumference || ''} className="input-field" placeholder="12" min="8" max="20" step="0.25" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Wrist (inches)</label>
+                    <input type="number" name="wrist_circumference" defaultValue={measurements?.wrist_circumference || ''} className="input-field" placeholder="6.5" min="5" max="9" step="0.25" />
+                  </div>
                 </div>
               </div>
-              <div className="flex space-x-4">
-                <button type="submit" className="btn-primary flex-1">
-                  Save Measurements
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowMeasurements(false)}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
+
+              {/* Lower Body Section */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-white border-b border-white/20 pb-2">Lower Body</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Hips (inches)</label>
+                    <input type="number" name="hip_circumference" defaultValue={measurements?.hip_circumference || measurements?.hips || ''} className="input-field" placeholder="38" min="28" max="55" step="0.5" required />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Thigh (inches)</label>
+                    <input type="number" name="thigh_circumference" defaultValue={measurements?.thigh_circumference || ''} className="input-field" placeholder="22" min="16" max="32" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Knee (inches)</label>
+                    <input type="number" name="knee_circumference" defaultValue={measurements?.knee_circumference || ''} className="input-field" placeholder="15" min="12" max="20" step="0.25" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Calf (inches)</label>
+                    <input type="number" name="calf_circumference" defaultValue={measurements?.calf_circumference || ''} className="input-field" placeholder="14" min="10" max="20" step="0.25" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Ankle (inches)</label>
+                    <input type="number" name="ankle_circumference" defaultValue={measurements?.ankle_circumference || ''} className="input-field" placeholder="8.5" min="7" max="12" step="0.25" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Inseam (inches)</label>
+                    <input type="number" name="inseam_length" defaultValue={measurements?.inseam_length || ''} className="input-field" placeholder="32" min="26" max="38" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Outseam (inches)</label>
+                    <input type="number" name="outseam_length" defaultValue={measurements?.outseam_length || ''} className="input-field" placeholder="42" min="36" max="48" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Rise (inches)</label>
+                    <input type="number" name="rise_length" defaultValue={measurements?.rise_length || ''} className="input-field" placeholder="11" min="8" max="15" step="0.25" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Torso Section */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-white border-b border-white/20 pb-2">Torso</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Torso Length (inches)</label>
+                    <input type="number" name="torso_length" defaultValue={measurements?.torso_length || ''} className="input-field" placeholder="25" min="20" max="32" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Back Length (inches)</label>
+                    <input type="number" name="back_length" defaultValue={measurements?.back_length || ''} className="input-field" placeholder="17" min="14" max="22" step="0.5" />
+                  </div>
+                  <div>
+                    <label className="block text-white/80 text-sm font-medium mb-2">Sleeve Length (inches)</label>
+                    <input type="number" name="sleeve_length" defaultValue={measurements?.sleeve_length || ''} className="input-field" placeholder="25" min="20" max="30" step="0.5" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-4 pt-4 border-t border-white/20">
+                <button type="submit" className="btn-primary flex-1">Save Measurements</button>
+                <button type="button" onClick={() => setShowMeasurements(false)} className="btn-secondary flex-1">Cancel</button>
               </div>
             </form>
           </div>
