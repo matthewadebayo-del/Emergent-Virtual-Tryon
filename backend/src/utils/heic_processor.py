@@ -12,7 +12,7 @@ import mimetypes
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def convert_heic_to_jpeg(heic_base64_or_bytes) -> bytes:
+def convert_heic_to_jpeg(heic_base64_or_bytes) -> str:
     """
     Convert HEIC image (base64 string or bytes) to JPEG format with enhanced error handling
     
@@ -81,7 +81,7 @@ def convert_heic_to_jpeg(heic_base64_or_bytes) -> bytes:
         jpeg_bytes = output_buffer.getvalue()
         logger.info(f"JPEG conversion complete: {len(jpeg_bytes)} bytes")
         
-        return jpeg_bytes
+        return base64.b64encode(jpeg_bytes).decode('utf-8')
         
     except Exception as e:
         logger.error(f"HEIC to JPEG conversion failed: {str(e)}")
