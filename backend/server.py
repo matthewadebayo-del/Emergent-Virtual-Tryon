@@ -137,8 +137,12 @@ SECRET_KEY = "your-secret-key-change-this-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Create the main app without a prefix
-app = FastAPI()
+# Create the main app without a prefix with increased request size limits for HEIC processing
+app = FastAPI(
+    title="VirtualFit API",
+    description="Virtual Try-On API with HEIC support",
+    version="1.0.0"
+)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
