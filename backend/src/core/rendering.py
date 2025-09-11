@@ -66,10 +66,14 @@ class BlenderSubprocessRenderer:
                 script_content = f"""
 import bpy
 import os
+import sys
+
+print("🚀 Starting Blender headless rendering script...")
 
 # Clear existing mesh objects
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
+print("✅ Scene cleared")
 
 if os.path.exists('{body_path}'):
     bpy.ops.import_scene.obj(filepath='{body_path}')
@@ -85,27 +89,71 @@ else:
 
 # Set up scene for rendering
 scene = bpy.context.scene
+print("✅ Scene context acquired")
 
-# Configure render settings
+print("🔧 Configuring headless rendering settings...")
+
 scene.render.engine = 'CYCLES'
 scene.cycles.device = 'CPU'
+scene.cycles.samples = 32  # Reduced samples for faster rendering
+scene.cycles.preview_samples = 16
+scene.cycles.use_denoising = True  # Enable denoising for better quality with fewer samples
+
 scene.render.resolution_x = 512
 scene.render.resolution_y = 512
 scene.render.resolution_percentage = 100
+scene.render.image_settings.file_format = 'PNG'
+scene.render.image_settings.color_mode = 'RGB'
+scene.render.image_settings.compression = 15  # PNG compression
+
+scene.render.use_file_extension = True
+scene.render.use_overwrite = True
+
+print(f"✅ Render settings configured: {{scene.render.engine}} engine, {{scene.cycles.device}} device")
 
 bpy.ops.object.light_add(type='SUN', location=(5, 5, 10))
 sun = bpy.context.object
 sun.data.energy = 3.0
+print("✅ Sun light added")
 
 bpy.ops.object.camera_add(location=(7, -7, 5))
 camera = bpy.context.object
 camera.rotation_euler = (1.1, 0, 0.785)
 scene.camera = camera
+print("✅ Camera configured")
+
+output_dir = os.path.dirname('{output_path}')
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"✅ Output directory created: {{output_dir}}")
 
 scene.render.filepath = '{output_path}'
-bpy.ops.render.render(write_still=True)
+print(f"🎯 Output path set: {{'{output_path}'}}")
 
-print(f"✅ Render completed: {{'{output_path}'}}")
+try:
+    print("🎬 Starting render operation...")
+    bpy.ops.render.render(write_still=True)
+    print("✅ Render operation completed")
+    
+    if os.path.exists('{output_path}'):
+        file_size = os.path.getsize('{output_path}')
+        print(f"✅ Render output verified: {{file_size}} bytes")
+        if file_size == 0:
+            print("❌ ERROR: Output file is 0 bytes!")
+            sys.exit(1)
+    else:
+        print("❌ ERROR: Output file was not created!")
+        print(f"❌ Expected file: {{'{output_path}'}}")
+        print(f"❌ Directory contents: {{os.listdir(output_dir) if os.path.exists(output_dir) else 'Directory does not exist'}}")
+        sys.exit(1)
+        
+except Exception as e:
+    print(f"❌ ERROR during rendering: {{str(e)}}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+
+print(f"🎉 Render completed successfully: {{'{output_path}'}}")
 """
                 
                 script_path = os.path.join(temp_dir, "render_script.py")
