@@ -485,27 +485,31 @@ const VirtualTryOn = ({ user, onLogout }) => {
           img.onerror = async () => {
             console.log('Client-side HEIC processing failed, trying backend conversion...');
             
-            // Fallback to backend conversion with aggressive compression
-            const base64Data = heicBase64.split(',')[1] || heicBase64;
-            const compressedData = base64Data.substring(0, Math.floor(base64Data.length * 0.5)); // Truncate to 50%
-            
-            const response = await axios.post('/v1/convert-heic', {
-              heic_base64: compressedData
-            });
-            
-            const result = response.data;
-            const jpegBase64 = result.jpeg_base64;
-            
-            console.log('HEIC converted via backend successfully');
-            
-            if (type === 'user') {
-              setUserImage(jpegBase64);
-              setUserImagePreview(jpegBase64);
-              console.log('HEIC user image converted and set successfully');
-            } else if (type === 'clothing') {
-              setClothingImage(jpegBase64);
-              setClothingImagePreview(jpegBase64);
-              console.log('HEIC clothing image converted and set successfully');
+            try {
+              // Fallback to backend conversion
+              const base64Data = heicBase64.split(',')[1] || heicBase64;
+              
+              const response = await axios.post('/v1/convert-heic', {
+                heic_base64: base64Data
+              });
+              
+              const result = response.data;
+              const jpegBase64 = result.jpeg_base64;
+              
+              console.log('HEIC converted via backend successfully');
+              
+              if (type === 'user') {
+                setUserImage(jpegBase64);
+                setUserImagePreview(jpegBase64);
+                console.log('HEIC user image converted and set successfully');
+              } else if (type === 'clothing') {
+                setClothingImage(jpegBase64);
+                setClothingImagePreview(jpegBase64);
+                console.log('HEIC clothing image converted and set successfully');
+              }
+            } catch (backendError) {
+              console.error('Backend HEIC conversion failed:', backendError);
+              alert('HEIC file could not be processed. Please convert to JPG/PNG format or try a different image.');
             }
           };
           
