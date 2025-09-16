@@ -489,21 +489,11 @@ const VirtualTryOn = ({ user, onLogout }) => {
             const base64Data = heicBase64.split(',')[1] || heicBase64;
             const compressedData = base64Data.substring(0, Math.floor(base64Data.length * 0.5)); // Truncate to 50%
             
-            const response = await fetch('/api/v1/convert-heic', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                heic_base64: compressedData
-              })
+            const response = await axios.post('/v1/convert-heic', {
+              heic_base64: compressedData
             });
             
-            if (!response.ok) {
-              throw new Error(`Backend conversion failed: ${response.statusText}`);
-            }
-            
-            const result = await response.json();
+            const result = response.data;
             const jpegBase64 = result.jpeg_base64;
             
             console.log('HEIC converted via backend successfully');
