@@ -1,6 +1,8 @@
 import os
 import subprocess
 import tempfile
+import base64
+import io
 from pathlib import Path
 from typing import Optional, Tuple, Union
 from PIL import Image, ExifTags
@@ -9,6 +11,81 @@ import mimetypes
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+def convert_heic_to_jpeg(heic_base64_or_bytes) -> str:
+    """
+    Convert HEIC image (base64 string or bytes) to JPEG format with enhanced error handling
+    
+    Args:
+        heic_base64_or_bytes: Base64 encoded HEIC image data or raw bytes
+        
+    Returns:
+        JPEG image data as bytes
+    """
+    try:
+        if isinstance(heic_base64_or_bytes, str):
+            logger.info(f"Starting HEIC conversion from base64, input length: {len(heic_base64_or_bytes)}")
+            
+            # Validate base64 input
+            if not heic_base64_or_bytes:
+                raise ValueError("Empty HEIC base64 data provided")
+            
+            missing_padding = len(heic_base64_or_bytes) % 4
+            if missing_padding:
+                heic_base64_or_bytes += '=' * (4 - missing_padding)
+                logger.info(f"Added {4 - missing_padding} padding characters")
+            
+            try:
+                heic_bytes = base64.b64decode(heic_base64_or_bytes)
+                logger.info(f"Base64 decoded successfully: {len(heic_bytes)} bytes")
+            except Exception as decode_error:
+                raise ValueError(f"Base64 decoding failed: {str(decode_error)}")
+        else:
+            heic_bytes = heic_base64_or_bytes
+            logger.info(f"Starting HEIC conversion from bytes: {len(heic_bytes)} bytes")
+        
+        # Validate minimum file size
+        if len(heic_bytes) < 100:
+            raise ValueError(f"HEIC data too small: {len(heic_bytes)} bytes")
+        
+        try:
+            import pillow_heif
+            heif_file = pillow_heif.open_heif(heic_bytes)
+            logger.info(f"HEIC file opened successfully: {heif_file.size} {heif_file.mode}")
+            
+            # Convert to PIL Image
+            image = Image.frombytes(
+                heif_file.mode,
+                heif_file.size,
+                heif_file.data,
+                "raw",
+            )
+            logger.info(f"PIL Image created: {image.size} {image.mode}")
+            
+        except Exception as heic_error:
+            logger.warning(f"HEIC processing failed, trying as regular image: {str(heic_error)}")
+            try:
+                image = Image.open(io.BytesIO(heic_bytes))
+                logger.info(f"Fallback image opened: {image.format} {image.size} {image.mode}")
+            except Exception as img_error:
+                raise ValueError(f"Cannot open as HEIC or regular image: HEIC error: {str(heic_error)}, Image error: {str(img_error)}")
+        
+        # Convert to RGB if needed
+        if image.mode in ('RGBA', 'LA', 'P'):
+            logger.info(f"Converting from {image.mode} to RGB")
+            image = image.convert('RGB')
+        
+        # Convert to JPEG
+        output_buffer = io.BytesIO()
+        image.save(output_buffer, format='JPEG', quality=85, optimize=True)
+        jpeg_bytes = output_buffer.getvalue()
+        logger.info(f"JPEG conversion complete: {len(jpeg_bytes)} bytes")
+        
+        return base64.b64encode(jpeg_bytes).decode('utf-8')
+        
+    except Exception as e:
+        logger.error(f"HEIC to JPEG conversion failed: {str(e)}")
+        raise Exception(f"HEIC to JPEG conversion failed: {str(e)}")
 
 class HEICProcessor:
     """

@@ -86,6 +86,7 @@ RUN pip install --no-cache-dir \
     openai>=1.0.0 \
     bcrypt>=4.0.1 \
     pillow>=10.0.0 \
+    pillow-heif>=0.13.0 \
     fal-client \
     mediapipe==0.10.21 \
     trimesh[easy]==4.0.5 \

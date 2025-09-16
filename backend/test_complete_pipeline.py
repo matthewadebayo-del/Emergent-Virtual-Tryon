@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
 """
-Test script for the complete 3D virtual try-on pipeline
+Test script for the complete virtual try-on pipeline including HEIC processing
 """
 
 import sys
 import os
 import tempfile
 import base64
+import json
+import requests
 from PIL import Image
 import numpy as np
 
 sys.path.insert(0, '/home/ubuntu/repos/Emergent-Virtual-Tryon/backend')
 
-from src.core.model_manager import ModelManager
-from src.core.body_reconstruction import BodyReconstructor
-from src.core.garment_fitting import GarmentFitter
-from src.core.rendering import PhotorealisticRenderer
-from src.core.ai_enhancement import AIEnhancer
-
-model_manager = ModelManager()
+from src.core.model_manager import model_manager
 
 def create_test_image():
     """Create a simple test image for testing"""
@@ -58,18 +54,11 @@ def create_test_image():
 
 def test_3d_pipeline():
     """Test the complete 3D virtual try-on pipeline"""
-    print("🧪 Testing 3D Virtual Try-On Pipeline")
-    print("=" * 50)
+    print("🧪 Testing Complete 3D Virtual Try-On Pipeline")
+    print("=" * 60)
     
     try:
-        print("1. Initializing modules...")
-        body_reconstructor = model_manager.get_body_reconstructor()
-        garment_fitter = model_manager.get_garment_fitter()
-        renderer = model_manager.get_renderer()
-        ai_enhancer = model_manager.get_ai_enhancer()
-        print("✅ All modules initialized successfully")
-        
-        print("\n2. Creating test image...")
+        print("1. Creating test image...")
         test_image = create_test_image()
         
         # Convert to bytes
@@ -77,10 +66,15 @@ def test_3d_pipeline():
         img_bytes = io.BytesIO()
         test_image.save(img_bytes, format='PNG')
         image_bytes = img_bytes.getvalue()
-        print("✅ Test image created")
+        print(f"✅ Test image created: {len(image_bytes)} bytes")
         
         # Stage 1: Body Reconstruction
-        print("\n3. Testing body reconstruction...")
+        print("\n2. Testing body reconstruction...")
+        body_reconstructor = model_manager.get_body_reconstructor()
+        if body_reconstructor is None:
+            print("❌ Body reconstructor not available")
+            return False
+            
         body_result = body_reconstructor.process_image_bytes(image_bytes)
         body_mesh = body_result['body_mesh']
         measurements = body_result['measurements']
@@ -88,14 +82,24 @@ def test_3d_pipeline():
         print(f"   Measurements: {measurements}")
         
         # Stage 2: Garment Fitting
-        print("\n4. Testing garment fitting...")
+        print("\n3. Testing garment fitting...")
+        garment_fitter = model_manager.get_garment_fitter()
+        if garment_fitter is None:
+            print("❌ Garment fitter not available")
+            return False
+            
         fitted_garment = garment_fitter.fit_garment_to_body(
             body_mesh, "shirts", "t_shirt"
         )
         print(f"✅ Garment fitted with {len(fitted_garment.vertices)} vertices")
         
         # Stage 3: Rendering
-        print("\n5. Testing rendering...")
+        print("\n4. Testing rendering...")
+        renderer = model_manager.get_renderer()
+        if renderer is None:
+            print("❌ Renderer not available")
+            return False
+            
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
             rendered_path = renderer.render_scene(
                 body_mesh, fitted_garment, temp_file.name,
@@ -110,8 +114,8 @@ def test_3d_pipeline():
                 print(f"   Is placeholder: {is_placeholder}")
                 
                 try:
-                    test_img = Image.open(rendered_path)
-                    print(f"   Image info: {test_img.format} {test_img.size}")
+                    rendered_image = Image.open(rendered_path)
+                    print(f"   Image info: {rendered_image.format} {rendered_image.size}")
                 except Exception as img_error:
                     print(f"❌ Rendered file is not a valid image: {str(img_error)}")
                     return False
@@ -120,13 +124,17 @@ def test_3d_pipeline():
                 return False
         
         # Stage 4: AI Enhancement
-        print("\n6. Testing AI enhancement...")
-        rendered_image = Image.open(rendered_path)
+        print("\n5. Testing AI enhancement...")
+        ai_enhancer = model_manager.get_ai_enhancer()
+        if ai_enhancer is None:
+            print("❌ AI enhancer not available")
+            return False
+            
         enhanced_image = ai_enhancer.enhance_realism(rendered_image, test_image)
         print(f"✅ AI enhancement complete: {enhanced_image.size}")
         
-        print("\n" + "=" * 50)
-        print("🎉 3D Virtual Try-On Pipeline Test SUCCESSFUL!")
+        print("\n" + "=" * 60)
+        print("🎉 Complete 3D Virtual Try-On Pipeline Test SUCCESSFUL!")
         print("All modules are working correctly and can process images end-to-end.")
         
         return True
@@ -137,6 +145,50 @@ def test_3d_pipeline():
         traceback.print_exc()
         return False
 
+def test_heic_conversion():
+    """Test HEIC conversion functionality"""
+    print("\n🧪 Testing HEIC Conversion")
+    print("=" * 40)
+    
+    try:
+        test_image = create_test_image()
+        
+        import io
+        img_bytes = io.BytesIO()
+        test_image.save(img_bytes, format='JPEG')
+        jpeg_bytes = img_bytes.getvalue()
+        
+        test_base64 = base64.b64encode(jpeg_bytes).decode('utf-8')
+        print(f"✅ Test base64 created: {len(test_base64)} characters")
+        
+        from server import convert_heic_to_jpeg
+        
+        try:
+            result = convert_heic_to_jpeg(test_base64)
+            print(f"✅ HEIC conversion test successful: {len(result)} characters")
+            return True
+        except Exception as conv_error:
+            print(f"❌ HEIC conversion failed: {str(conv_error)}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ HEIC test failed: {str(e)}")
+        return False
+
 if __name__ == "__main__":
-    success = test_3d_pipeline()
-    sys.exit(0 if success else 1)
+    print("🚀 Starting Complete Virtual Try-On Pipeline Tests")
+    print("=" * 70)
+    
+    heic_success = test_heic_conversion()
+    
+    pipeline_success = test_3d_pipeline()
+    
+    print("\n" + "=" * 70)
+    print("📊 TEST RESULTS SUMMARY")
+    print(f"HEIC Conversion: {'✅ PASS' if heic_success else '❌ FAIL'}")
+    print(f"3D Pipeline: {'✅ PASS' if pipeline_success else '❌ FAIL'}")
+    
+    overall_success = heic_success and pipeline_success
+    print(f"Overall: {'🎉 ALL TESTS PASSED' if overall_success else '❌ SOME TESTS FAILED'}")
+    
+    sys.exit(0 if overall_success else 1)
