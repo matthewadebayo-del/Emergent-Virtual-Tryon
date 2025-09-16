@@ -34,6 +34,8 @@ RUN apt-get update && apt-get install -y \
     libgles2-mesa-dev \
     libfreetype6 \
     libfontconfig1 \
+    libheif1 \
+    libheif-dev \
     blender \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
