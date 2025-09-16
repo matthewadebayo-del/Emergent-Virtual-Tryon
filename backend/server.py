@@ -141,22 +141,29 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 app = FastAPI(
     title="VirtualFit API",
     description="Virtual Try-On API with HEIC support",
-    version="1.0.0",
-    max_request_size=10 * 1024 * 1024
+    version="1.0.0"
 )
 
 # Add middleware to handle larger request bodies for HEIC processing
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.exceptions import HTTPException
 
-class LargeRequestMiddleware(BaseHTTPMiddleware):
+class FileSizeMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, max_size: int = 10 * 1024 * 1024):  # 10MB default
+        super().__init__(app)
+        self.max_size = max_size
+
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in ["/api/v1/convert-heic", "/api/tryon", "/api/api/v1/tryon/3d"]:
-            request.scope["body_size_limit"] = 10 * 1024 * 1024  # 10MB
+        # Check content-length header for file size
+        if request.headers.get("content-length"):
+            content_length = int(request.headers["content-length"])
+            if content_length > self.max_size:
+                raise HTTPException(status_code=413, detail="File too large")
         return await call_next(request)
 
-app.add_middleware(LargeRequestMiddleware)
+app.add_middleware(FileSizeMiddleware, max_size=10 * 1024 * 1024)  # 10MB limit
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
