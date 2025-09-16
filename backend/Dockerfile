@@ -87,6 +87,7 @@ RUN pip install --no-cache-dir \
     bcrypt>=4.0.1 \
     pillow>=10.0.0 \
     pillow-heif>=0.13.0 \
+    pyheif \
     fal-client \
     mediapipe==0.10.21 \
     trimesh[easy]==4.0.5 \
@@ -164,9 +165,9 @@ import sys\n\
 # Test core 3D dependencies (critical)\n\
 try:\n\
     import trimesh, mediapipe, open3d\n\
-    print('Core 3D dependencies: OK')\n\
+    print(\'Core 3D dependencies: OK\')\n\
 except ImportError as e:\n\
-    print(f'Critical 3D dependency missing: {e}')\n\
+    print(f\'Critical 3D dependency missing: {e}\')\n\
     sys.exit(1)\n\
 \n\
 # Test Blender subprocess (no bpy import needed)\n\
@@ -175,23 +176,23 @@ try:\n\
     result = subprocess.run(['blender', '--version'], capture_output=True, text=True, timeout=10)\n\
     if result.returncode == 0:\n\
         version = result.stdout.split('\\n')[0] if result.stdout else 'Unknown'\n\
-        print(f'Blender subprocess: OK - {version}')\n\
+        print(f\'Blender subprocess: OK - {version}\')\n\
     else:\n\
-        print('Blender subprocess: Failed - using fallback rendering')\n\
+        print(\'Blender subprocess: Failed - using fallback rendering\')\n\
 except Exception as e:\n\
-    print(f'Blender subprocess unavailable: {e} - using fallback rendering')\n\
+    print(f\'Blender subprocess unavailable: {e} - using fallback rendering\')\n\
 \n\
 # Test AI dependencies (non-critical)\n\
 try:\n\
     import torch, transformers, diffusers\n\
-    print('AI dependencies: OK')\n\
+    print(\'AI dependencies: OK\')\n\
 except ImportError as e:\n\
-    print(f'AI dependencies unavailable: {e}')\n\
-    print('AI enhancement will be disabled')\n\
+    print(f\'AI dependencies unavailable: {e}\')\n\
+    print(\'AI enhancement will be disabled\')\n\
     import os\n\
-    os.environ['DISABLE_AI_ENHANCEMENT'] = 'true'\n\
+    os.environ[\'DISABLE_AI_ENHANCEMENT\'] = \'true\'\n\
 \n\
-print('Startup checks complete')\n\
+print(\'Startup checks complete\')\n\
 "\n\
 \n\
 echo "Starting application..."\n\
