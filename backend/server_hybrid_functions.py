@@ -34,13 +34,19 @@ async def process_hybrid_3d_tryon(
         
         # Stage 1: 3D Body Reconstruction (MediaPipe + SMPL)
         print("🎯 Stage 1: 3D Body Reconstruction using MediaPipe...")
-        body_result = model_manager.get_body_reconstructor().process_image_bytes(
-            user_image_bytes
-        )
+        
+        body_reconstructor = model_manager.get_body_reconstructor()
+        if body_reconstructor is None:
+            raise Exception("Body reconstructor not available")
+            
+        body_result = body_reconstructor.process_image_bytes(user_image_bytes)
         body_mesh = body_result["body_mesh"]
         body_measurements = body_result["measurements"]
         
-        print(f"✅ Body reconstruction complete: {len(body_mesh.vertices)} vertices")
+        if hasattr(body_mesh, 'vertices'):
+            print(f"✅ Body reconstruction complete: {len(body_mesh.vertices)} vertices")
+        else:
+            print(f"✅ Body reconstruction complete: basic mesh")
         print(f"📏 Extracted measurements: {body_measurements.get('measurement_source', 'unknown')}")
         
         # Stage 2: Physics-based Garment Fitting (PyBullet)
@@ -62,7 +68,11 @@ async def process_hybrid_3d_tryon(
             garment_type = "pants"
             garment_subtype = "chinos"
         
-        fitted_garment = model_manager.get_garment_fitter().fit_garment_to_body(
+        garment_fitter = model_manager.get_garment_fitter()
+        if garment_fitter is None:
+            raise Exception("Garment fitter not available")
+            
+        fitted_garment = garment_fitter.fit_garment_to_body(
             body_mesh, garment_type, garment_subtype
         )
         
@@ -85,7 +95,11 @@ async def process_hybrid_3d_tryon(
             elif "wool" in clothing_description.lower():
                 fabric_type = "wool"
             
-            rendered_path = model_manager.get_renderer().render_scene(
+            renderer = model_manager.get_renderer()
+            if renderer is None:
+                raise Exception("Renderer not available")
+                
+            rendered_path = renderer.render_scene(
                 body_mesh,
                 fitted_garment,
                 temp_render.name,
@@ -100,7 +114,11 @@ async def process_hybrid_3d_tryon(
         print("✨ Stage 4: AI Enhancement using Stable Diffusion...")
         
         original_image = Image.open(io.BytesIO(user_image_bytes))
-        enhanced_image = model_manager.get_ai_enhancer().enhance_realism(
+        ai_enhancer = model_manager.get_ai_enhancer()
+        if ai_enhancer is None:
+            raise Exception("AI enhancer not available")
+            
+        enhanced_image = ai_enhancer.enhance_realism(
             rendered_image, original_image
         )
         

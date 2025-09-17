@@ -171,16 +171,21 @@ class GarmentFitter:
         dress = trimesh.util.concatenate([body, sleeve_left, sleeve_right])
         return dress
 
-    def fit_garment_to_body(
-        self, body_mesh: trimesh.Trimesh, garment_type: str, garment_subtype: str
-    ) -> trimesh.Trimesh:
+    def fit_garment_to_body(self, body_mesh, garment_type: str, garment_subtype: str):
         """Fit garment template to specific body with physics simulation"""
+        if not TRIMESH_AVAILABLE:
+            print("⚠️ Trimesh not available, using basic garment representation")
+            return self._create_basic_garment_dict(garment_type, garment_subtype, body_mesh)
+            
         if garment_type not in self.garment_templates:
             garment_type = "shirts"
         if garment_subtype not in self.garment_templates[garment_type]:
             garment_subtype = list(self.garment_templates[garment_type].keys())[0]
 
         template = self.garment_templates[garment_type][garment_subtype]
+        if template is None:
+            return self._create_basic_garment_dict(garment_type, garment_subtype, body_mesh)
+            
         body_measurements = self._analyze_body_measurements(body_mesh)
         
         enhanced_measurements = getattr(body_mesh, 'enhanced_measurements', None)
@@ -207,12 +212,33 @@ class GarmentFitter:
             fitted_garment = scaled_garment
 
         return fitted_garment
+    
+    def _create_basic_garment_dict(self, garment_type: str, garment_subtype: str, body_mesh) -> Dict[str, Any]:
+        """Create basic garment representation when trimesh unavailable"""
+        return {
+            'type': 'basic_garment',
+            'garment_type': garment_type,
+            'garment_subtype': garment_subtype,
+            'vertices': [],
+            'faces': [],
+            'fitted': True,
+            'body_measurements': getattr(body_mesh, 'measurements', {})
+        }
 
-    def _analyze_body_measurements(
-        self, body_mesh: trimesh.Trimesh
-    ) -> Dict[str, float]:
+    def _analyze_body_measurements(self, body_mesh) -> Dict[str, float]:
         """Extract detailed body measurements from mesh"""
-        vertices = body_mesh.vertices
+        if hasattr(body_mesh, 'vertices'):
+            vertices = body_mesh.vertices
+        else:
+            # Handle basic mesh dict
+            return {
+                "chest_width": 0.5,
+                "waist_width": 0.4,
+                "hip_width": 0.45,
+                "torso_length": 0.6,
+                "chest_circumference": 1.0,
+                "waist_circumference": 0.8,
+            }
 
         measurements = {
             "chest_width": float(np.max(vertices[:, 0]) - np.min(vertices[:, 0])),
