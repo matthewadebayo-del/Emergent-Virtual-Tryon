@@ -81,7 +81,9 @@ def convert_heic_to_jpeg(heic_base64_or_bytes) -> str:
         jpeg_bytes = output_buffer.getvalue()
         logger.info(f"JPEG conversion complete: {len(jpeg_bytes)} bytes")
         
-        return base64.b64encode(jpeg_bytes).decode('utf-8')
+        jpeg_base64 = base64.b64encode(jpeg_bytes).decode('utf-8')
+        logger.info(f"JPEG base64 encoded successfully: {len(jpeg_base64)} characters")
+        return jpeg_base64
         
     except Exception as e:
         logger.error(f"HEIC to JPEG conversion failed: {str(e)}")

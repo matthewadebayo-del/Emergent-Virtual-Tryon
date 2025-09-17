@@ -1582,8 +1582,9 @@ async def convert_heic_endpoint(request: Request):
         heic_bytes = base64.b64decode(heic_base64)
         logger.info(f"HEIC bytes decoded: {len(heic_bytes)} bytes")
         
-        # Convert to JPEG
-        jpeg_base64 = convert_heic_to_jpeg(heic_bytes)
+        # Convert to JPEG using bytes
+        jpeg_bytes = convert_heic_to_jpeg(heic_bytes)
+        jpeg_base64 = base64.b64encode(jpeg_bytes).decode('utf-8')
         logger.info(f"HEIC conversion successful, JPEG base64 length: {len(jpeg_base64)}")
         
         return {

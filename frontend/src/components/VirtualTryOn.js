@@ -75,9 +75,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
       let cleanImage = user.captured_image;
       // Clean base64 data if it contains Python byte notation
       if (cleanImage.includes("b'") || cleanImage.includes('b"')) {
-        cleanImage = cleanImage.replace(/^data:image\/[^;]+;base64,b['"]/, 'data:image/jpeg;base64,');
-        cleanImage = cleanImage.replace(/['"]$/, '');
+        console.log('Cleaning Python byte notation from stored image');
+        cleanImage = cleanImage.replace(/b['"]/, '').replace(/['"]$/, '');
         cleanImage = cleanImage.replace(/\\x[0-9a-fA-F]{2}/g, '');
+        if (!cleanImage.startsWith('data:image/')) {
+          cleanImage = 'data:image/jpeg;base64,' + cleanImage;
+        }
       }
       setUserImage(cleanImage);
       setUserImagePreview(cleanImage);
@@ -504,7 +507,16 @@ const VirtualTryOn = ({ user, onLogout }) => {
               });
               
               const result = response.data;
-              const jpegBase64 = result.jpeg_base64;
+              let jpegBase64 = result.jpeg_base64;
+              
+              // Clean any Python byte notation that might be present
+              if (jpegBase64.includes("b'") || jpegBase64.includes('b"')) {
+                console.log('Cleaning Python byte notation from backend response');
+                jpegBase64 = jpegBase64.replace(/b['"]/, '').replace(/['"]$/, '');
+                if (!jpegBase64.startsWith('data:image/')) {
+                  jpegBase64 = 'data:image/jpeg;base64,' + jpegBase64;
+                }
+              }
               
               console.log('HEIC converted via backend successfully');
               
@@ -554,9 +566,11 @@ const VirtualTryOn = ({ user, onLogout }) => {
       // Clean base64 data - remove Python byte string notation if present
       if (base64.includes("b'") || base64.includes('b"')) {
         console.log('Cleaning Python byte string notation from base64');
-        base64 = base64.replace(/^data:image\/[^;]+;base64,b['"]/, 'data:image/jpeg;base64,');
-        base64 = base64.replace(/['"]$/, '');
+        base64 = base64.replace(/b['"]/, '').replace(/['"]$/, '');
         base64 = base64.replace(/\\x[0-9a-fA-F]{2}/g, '');
+        if (!base64.startsWith('data:image/')) {
+          base64 = 'data:image/jpeg;base64,' + base64;
+        }
       }
       
       if (!base64 || !base64.startsWith('data:image/')) {
