@@ -1,7 +1,7 @@
 import os
 
-DISABLE_AI_FOR_DEBUGGING = True
-EMERGENCY_BYPASS = True
+DISABLE_AI_FOR_DEBUGGING = False
+EMERGENCY_BYPASS = False
 DISABLE_AI = os.environ.get('DISABLE_AI', 'false').lower() == 'true'
 import logging
 from typing import Any, Dict

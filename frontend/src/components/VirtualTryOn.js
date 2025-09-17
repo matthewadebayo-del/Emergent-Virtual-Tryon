@@ -13,9 +13,11 @@ import {
   Zap,
   CheckCircle,
   Video,
-  Square
+  Square,
+  HelpCircle
 } from 'lucide-react';
 import axios from 'axios';
+import PhotoGuideModal from './PhotoGuideModal';
 
 const VirtualTryOn = ({ user, onLogout }) => {
   const location = useLocation();
@@ -49,6 +51,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [processingType, setProcessingType] = useState('default'); // 'default' or 'premium'
   const [userHeight, setUserHeight] = useState(''); // Height in cm for measurement reference
+  const [showPhotoGuide, setShowPhotoGuide] = useState(false);
   
   const fileInputRef = useRef(null);
   const clothingInputRef = useRef(null);
@@ -743,18 +746,69 @@ const VirtualTryOn = ({ user, onLogout }) => {
         {step === 0 && (
           <div className="max-w-4xl mx-auto">
             <div className="card text-center">
-              <h2 className="text-2xl font-bold text-white mb-6">Take Your Full Body Photo</h2>
+              <div className="flex items-center justify-center mb-6">
+                <h2 className="text-2xl font-bold text-white mr-4">Take Your Full Body Photo</h2>
+                <button
+                  onClick={() => setShowPhotoGuide(true)}
+                  className="text-blue-400 hover:text-blue-300 transition-colors"
+                  title="View photo guide"
+                >
+                  <HelpCircle className="w-6 h-6" />
+                </button>
+              </div>
               <p className="text-white/70 mb-4">
-                Position yourself in good lighting, stand straight, and make sure your full body is visible. 
-                We'll automatically extract your measurements and create your personalized avatar.
+                Follow the positioning guide below to capture accurate full-body measurements. 
+                Our AI will extract 20+ body measurements for precise virtual try-on fitting.
               </p>
               
-              <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg max-w-2xl mx-auto">
-                <h3 className="text-blue-200 font-medium mb-3">Photo Guidelines for Best Results</h3>
-                <div className="text-sm text-blue-100/80 space-y-2">
-                  <p><strong className="text-blue-200">Positioning:</strong> Stand 6-8 feet from camera, arms slightly away from body</p>
-                  <p><strong className="text-blue-200">Lighting:</strong> Use natural or bright lighting with plain background</p>
-                  <p><strong className="text-blue-200">Frame:</strong> Ensure full body is visible in frame</p>
+              <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg max-w-3xl mx-auto">
+                <h3 className="text-blue-200 font-medium mb-4">📏 Full Body Measurement Capture Guidelines</h3>
+                <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-100/80">
+                  <div className="space-y-3">
+                    <div>
+                      <strong className="text-blue-200">📍 Body Position:</strong>
+                      <ul className="mt-1 space-y-1 text-xs">
+                        <li>• Stand straight, feet shoulder-width apart</li>
+                        <li>• Arms slightly away from body (T-pose)</li>
+                        <li>• Face camera directly, look straight ahead</li>
+                        <li>• Wear form-fitting clothes (not loose)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong className="text-blue-200">📐 Distance & Frame:</strong>
+                      <ul className="mt-1 space-y-1 text-xs">
+                        <li>• Stand 6-8 feet from camera</li>
+                        <li>• Full body visible: head to feet</li>
+                        <li>• Leave space around body edges</li>
+                        <li>• Camera at chest height</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <strong className="text-blue-200">💡 Lighting & Background:</strong>
+                      <ul className="mt-1 space-y-1 text-xs">
+                        <li>• Use natural daylight or bright indoor light</li>
+                        <li>• Plain, contrasting background</li>
+                        <li>• Avoid shadows on body</li>
+                        <li>• No backlighting or glare</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong className="text-blue-200">🎯 For Best Measurements:</strong>
+                      <ul className="mt-1 space-y-1 text-xs">
+                        <li>• Shoulders, waist, hips clearly visible</li>
+                        <li>• Arms and legs not overlapping body</li>
+                        <li>• Stand on flat surface</li>
+                        <li>• Remove bulky accessories</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-blue-600/20 rounded border border-blue-500/30">
+                  <p className="text-blue-200 text-xs text-center">
+                    <strong>📊 Measurements Captured:</strong> Height, Chest, Waist, Hips, Shoulders, Arms, Legs, Torso + 15 additional body points for precise fitting
+                  </p>
                 </div>
               </div>
               
@@ -1279,9 +1333,16 @@ const VirtualTryOn = ({ user, onLogout }) => {
           <div className="max-w-2xl mx-auto">
             <div className="card text-center">
               <h2 className="text-2xl font-bold text-white mb-6">Upload Your Full Body Photo</h2>
-              <p className="text-white/70 mb-8">
-                Upload a clear, full-body photo taken from the front. This helps us create accurate measurements and better try-on results.
-              </p>
+              <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg max-w-2xl mx-auto">
+                <h3 className="text-orange-200 font-medium mb-3">📋 Photo Requirements for Accurate Measurements</h3>
+                <div className="text-sm text-orange-100/80 space-y-2">
+                  <p><strong className="text-orange-200">Essential:</strong> Full body visible from head to feet</p>
+                  <p><strong className="text-orange-200">Pose:</strong> Stand straight, arms slightly away from body</p>
+                  <p><strong className="text-orange-200">Clothing:</strong> Form-fitting clothes (avoid loose/baggy items)</p>
+                  <p><strong className="text-orange-200">Background:</strong> Plain wall or contrasting background</p>
+                  <p><strong className="text-orange-200">Quality:</strong> Clear, well-lit, no blur or shadows</p>
+                </div>
+              </div>
               
               {!userImagePreview ? (
                 <div>
@@ -1290,8 +1351,9 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Camera className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-                    <p className="text-white/80 text-lg mb-2">Click to upload your photo</p>
-                    <p className="text-white/60 text-sm">Supports JPG, PNG (Max 10MB)</p>
+                    <p className="text-white/80 text-lg mb-2">Click to upload your full-body photo</p>
+                    <p className="text-white/60 text-sm">JPG, PNG, HEIC supported (Max 10MB)</p>
+                    <p className="text-white/50 text-xs mt-2">Ensure full body is visible for accurate measurements</p>
                   </div>
                   <div className="mt-6">
                     <button
@@ -1873,6 +1935,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
             {countdown > 0 ? countdown : 'SMILE!'}
           </div>
         )}
+
+        {/* Photo Guide Modal */}
+        <PhotoGuideModal 
+          isOpen={showPhotoGuide} 
+          onClose={() => setShowPhotoGuide(false)} 
+        />
       </div>
     </div>
   );
