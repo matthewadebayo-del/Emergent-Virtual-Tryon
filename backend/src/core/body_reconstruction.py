@@ -339,8 +339,30 @@ class BodyReconstructor:
         }
 
         measurements = self._validate_measurements(measurements)
-
-        return measurements
+        
+        # Convert measurements to cm for consistency
+        measurements_cm = {}
+        for key, value in measurements.items():
+            if key in ['confidence_scores', 'overall_confidence', 'pixel_to_inch_ratio', 'measurement_source']:
+                measurements_cm[key] = value
+            else:
+                measurements_cm[key + '_cm'] = value * 2.54 if isinstance(value, (int, float)) else value
+                measurements_cm[key] = value  # Keep original for backward compatibility
+        
+        return measurements_cm
+    
+    def _create_basic_mesh_dict(self, measurements: Dict[str, float]) -> Dict[str, Any]:
+        """Create basic mesh representation as dict when trimesh unavailable"""
+        return {
+            'type': 'basic_mesh',
+            'measurements': measurements,
+            'vertices': [],
+            'faces': [],
+            'chest_radius': measurements.get('chest_width', 20) / 2 / 100,
+            'waist_radius': measurements.get('waist_width', 15) / 2 / 100,
+            'hip_radius': measurements.get('hip_width', 18) / 2 / 100,
+            'height': measurements.get('torso_length', 24) / 100
+        }
 
     def _validate_measurements(
         self, measurements: Dict[str, float]

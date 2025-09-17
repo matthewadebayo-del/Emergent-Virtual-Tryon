@@ -794,10 +794,7 @@ async def virtual_tryon(
         print(f"Processing type: {processing_type}")
 
         if not openai_client:
-            print("ERROR: Image generation service not available")
-            raise HTTPException(
-                status_code=500, detail="Image generation service not available"
-            )
+            print("WARNING: OpenAI client not available, will use fallback")
 
         # Validate inputs
         if not user_image_base64:
@@ -881,27 +878,6 @@ async def virtual_tryon(
             "Photorealistic Rendering → AI Enhancement"
         )
 
-        # Stage 1: 3D Body Reconstruction
-        print("🔍 Stage 1: 3D Body Reconstruction...")
-        try:
-            user_image_bytes = base64.b64decode(user_image_base64)
-            print(f"✅ User image decoded: {len(user_image_bytes)} bytes")
-
-            # Check if 3D pipeline is available
-            if model_manager.get_body_reconstructor() is None:
-                print("❌ 3D pipeline not available, falling back to API-based processing")
-                # Fall through to existing API processing
-            else:
-                print("✅ 3D pipeline available, using hybrid approach")
-                return await process_hybrid_3d_tryon(
-                    user_image_bytes, clothing_item_url, measurements, 
-                    current_user, processing_type, clothing_description
-                )
-
-        except Exception as e:
-            print(f"❌ 3D pipeline initialization failed: {str(e)}")
-            print("🔄 Falling back to API-based processing...")
-
         # Stage 2: Get Clothing Item Information
         print("👔 Stage 2: Clothing Item Analysis...")
         clothing_item_url = None
@@ -938,6 +914,10 @@ async def virtual_tryon(
                 raise HTTPException(
                     status_code=422, detail="Invalid clothing image format"
                 )
+        
+        # Create temp_dir if not exists
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir())
 
         # Stage 3: AI Virtual Try-On Processing
         if processing_type == "premium" and FAL_KEY:
@@ -1013,37 +993,14 @@ async def virtual_tryon(
                 print(f"⚠️ fal.ai processing failed: {str(fal_error)}")
                 print("🔄 Falling back to placeholder generation...")
                 
-                # Create placeholder image as fallback
-                from PIL import Image, ImageDraw
-                import io
-                
-                placeholder = Image.new('RGB', (512, 512), color='lightblue')
-                draw = ImageDraw.Draw(placeholder)
-                draw.text((200, 250), "Virtual Try-On\nResult", fill='black')
-                
-                img_buffer = io.BytesIO()
-                placeholder.save(img_buffer, format='PNG')
-                images = [img_buffer.getvalue()]
+                # Re-raise the fal.ai error
+                raise fal_error
 
-        # If 3D pipeline failed or unavailable, fall back to API processing
-        if processing_type != "premium" or not FAL_KEY:
-            print("🎨 Using OpenAI DALL-E 3 as fallback...")
-            
-            # Create a simple placeholder image for now
-            from PIL import Image, ImageDraw
-            import io
-            
-            # Create a 512x512 placeholder image
-            placeholder = Image.new('RGB', (512, 512), color='lightblue')
-            draw = ImageDraw.Draw(placeholder)
-            draw.text((200, 250), "Virtual Try-On\nResult", fill='black')
-            
-            # Convert to bytes
-            img_buffer = io.BytesIO()
-            placeholder.save(img_buffer, format='PNG')
-            images = [img_buffer.getvalue()]
-            
-            print(f"✅ Placeholder image generated: {len(images[0])} bytes")
+        # If we reach here, 3D pipeline failed - raise error
+        raise HTTPException(
+            status_code=500, 
+            detail="3D virtual try-on pipeline unavailable. Please try again later."
+        )
 
         # Stage 4: Post-Processing and Quality Enhancement
         print("✨ Stage 4: Post-Processing and Quality Enhancement...")
