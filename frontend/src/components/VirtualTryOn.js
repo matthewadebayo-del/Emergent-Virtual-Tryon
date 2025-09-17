@@ -69,8 +69,15 @@ const VirtualTryOn = ({ user, onLogout }) => {
     }
 
     if (user.captured_image && !userImage) {
-      setUserImage(user.captured_image);
-      setUserImagePreview(user.captured_image);
+      let cleanImage = user.captured_image;
+      // Clean base64 data if it contains Python byte notation
+      if (cleanImage.includes("b'") || cleanImage.includes('b"')) {
+        cleanImage = cleanImage.replace(/^data:image\/[^;]+;base64,b['"]/, 'data:image/jpeg;base64,');
+        cleanImage = cleanImage.replace(/['"]$/, '');
+        cleanImage = cleanImage.replace(/\\x[0-9a-fA-F]{2}/g, '');
+      }
+      setUserImage(cleanImage);
+      setUserImagePreview(cleanImage);
     }
 
     if ((cameraFirst || (!user.captured_image && step === 0)) && step === 0) {
@@ -537,9 +544,17 @@ const VirtualTryOn = ({ user, onLogout }) => {
   const handleStandardImageFile = (file, type) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const base64 = e.target.result;
+      let base64 = e.target.result;
       console.log('File read successfully, base64 length:', base64.length);
       console.log('Base64 preview:', base64.substring(0, 100) + '...');
+      
+      // Clean base64 data - remove Python byte string notation if present
+      if (base64.includes("b'") || base64.includes('b"')) {
+        console.log('Cleaning Python byte string notation from base64');
+        base64 = base64.replace(/^data:image\/[^;]+;base64,b['"]/, 'data:image/jpeg;base64,');
+        base64 = base64.replace(/['"]$/, '');
+        base64 = base64.replace(/\\x[0-9a-fA-F]{2}/g, '');
+      }
       
       if (!base64 || !base64.startsWith('data:image/')) {
         console.error('Invalid image data format');
