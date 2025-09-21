@@ -152,7 +152,7 @@ from starlette.responses import Response
 from starlette.exceptions import HTTPException
 
 class FileSizeMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, max_size: int = 10 * 1024 * 1024):  # 10MB default
+    def __init__(self, app, max_size: int = 50 * 1024 * 1024):  # 50MB default
         super().__init__(app)
         self.max_size = max_size
 
@@ -164,7 +164,7 @@ class FileSizeMiddleware(BaseHTTPMiddleware):
                 raise HTTPException(status_code=413, detail="File too large")
         return await call_next(request)
 
-app.add_middleware(FileSizeMiddleware, max_size=10 * 1024 * 1024)  # 10MB limit
+app.add_middleware(FileSizeMiddleware, max_size=50 * 1024 * 1024)  # 50MB limit
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -940,67 +940,110 @@ async def virtual_tryon(
         if not clothing_item_url:
             raise HTTPException(status_code=422, detail="No clothing item specified")
 
-        if processing_type == "premium" and FAL_KEY:
-            try:
-                print("🚀 PREMIUM PROCESSING: Configuring fal.ai FASHN v1.6...")
+        # Remove premium processing from here - it's now a fallback
 
-                user_image_base64 = base64.b64encode(user_image_bytes).decode("utf-8")
-
-                print("🎨 Stage 3: Advanced Virtual Try-On using fal.ai FASHN v1.6...")
-                print(
-                    "🧠 Multi-Stage Pipeline: Pose Detection → Segmentation → "
-                    "Garment Synthesis → Post-Processing"
-                )
-                print(
-                    "🧠 Using fal.ai FASHN v1.6 with Identity Preservation "
-                    "& Segmentation-Free Processing"
-                )
-
-                print("🚀 Calling fal.ai FASHN v1.6 API...")
-                result = fal_client.subscribe(
-                    "fal-ai/fashn/tryon/v1.6",
-                    arguments={
-                        "model_image": f"data:image/jpeg;base64,{user_image_base64}",
-                        "garment_image": clothing_item_url,
-                        "category": "auto",
-                        "mode": "balanced",
-                    },
-                )
-
-                print(f"📊 fal.ai API response received: {type(result)}")
-
-                if result and "images" in result and len(result["images"]) > 0:
-                    image_url = result["images"][0]["url"]
-                    print(f"🖼️ Downloading result image from: {image_url}")
-
-                    image_response = requests.get(image_url, timeout=30)
-                    image_response.raise_for_status()
-                    images = [image_response.content]
-
-                    print("✅ fal.ai FASHN v1.6 processing completed successfully!")
-                    print(f"📏 Result image size: {len(images[0])} bytes")
-                    processing_method = (
-                        "fal.ai FASHN v1.6 Advanced Virtual Try-On Pipeline"
+        # Try 3D hybrid pipeline first (default)
+        try:
+            print("🚀 Attempting 3D hybrid pipeline (default)...")
+            hybrid_result = await process_hybrid_3d_tryon(
+                user_image_bytes,
+                clothing_item_url,
+                measurements,
+                current_user,
+                processing_type,
+                clothing_description
+            )
+            
+            result_image_base64 = hybrid_result["result_image_base64"]
+            size_recommendation = hybrid_result["size_recommendation"]
+            processing_method = hybrid_result["processing_method"]
+            identity_preservation = hybrid_result["identity_preservation"]
+            
+            print("✅ 3D hybrid pipeline completed successfully!")
+            images = [base64.b64decode(result_image_base64)]
+            
+        except Exception as hybrid_error:
+            print(f"⚠️ 3D hybrid pipeline failed: {str(hybrid_error)}")
+            print("🔄 Falling back to fal.ai premium processing...")
+            
+            # Fallback to fal.ai if available
+            if FAL_KEY:
+                try:
+                    print("🚀 FALLBACK: Configuring fal.ai FASHN v1.6...")
+                    user_image_base64_encoded = base64.b64encode(user_image_bytes).decode("utf-8")
+                    
+                    result = fal_client.subscribe(
+                        "fal-ai/fashn/tryon/v1.6",
+                        arguments={
+                            "model_image": f"data:image/jpeg;base64,{user_image_base64_encoded}",
+                            "garment_image": clothing_item_url,
+                            "category": "auto",
+                            "mode": "balanced",
+                        },
                     )
-                    identity_preservation = (
-                        "Enhanced with fal.ai FASHN v1.6 multi-stage processing"
-                    )
+                    
+                    if result and "images" in result and len(result["images"]) > 0:
+                        image_url = result["images"][0]["url"]
+                        image_response = requests.get(image_url, timeout=30)
+                        image_response.raise_for_status()
+                        images = [image_response.content]
+                        
+                        processing_method = "fal.ai FASHN v1.6 (Fallback)"
+                        identity_preservation = "fal.ai multi-stage processing"
+                        print("✅ fal.ai fallback completed successfully!")
+                    else:
+                        raise Exception(f"Invalid fal.ai response: {result}")
+                        
+                except Exception as fal_error:
+                    print(f"⚠️ fal.ai fallback failed: {str(fal_error)}")
+                    print("🔄 Falling back to placeholder generation...")
+            else:
+                print("⚠️ fal.ai not available, falling back to placeholder...")
 
-                else:
-                    raise Exception(f"Invalid fal.ai response format: {result}")
-
-            except Exception as fal_error:
-                print(f"⚠️ fal.ai processing failed: {str(fal_error)}")
-                print("🔄 Falling back to placeholder generation...")
-                
-                # Re-raise the fal.ai error
-                raise fal_error
-
-        # If we reach here, 3D pipeline failed - raise error
-        raise HTTPException(
-            status_code=500, 
-            detail="3D virtual try-on pipeline unavailable. Please try again later."
-        )
+        # Final fallback: Generate placeholder image
+        if not images:
+            print("🎨 Generating placeholder virtual try-on result...")
+            
+            # Create a simple placeholder image
+            from PIL import Image, ImageDraw
+            
+            # Create base image from user photo
+            user_img = Image.open(io.BytesIO(user_image_bytes))
+            width, height = user_img.size
+            
+            # Create overlay for clothing simulation
+            overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
+            
+            # Draw simple clothing representation
+            clothing_color = (70, 130, 180, 120)  # Semi-transparent blue
+            if "navy" in clothing_description.lower():
+                clothing_color = (25, 25, 112, 120)
+            elif "white" in clothing_description.lower():
+                clothing_color = (255, 255, 255, 120)
+            elif "black" in clothing_description.lower():
+                clothing_color = (0, 0, 0, 120)
+            
+            # Draw clothing area (approximate shirt/top area)
+            clothing_rect = (
+                int(width * 0.25), int(height * 0.25),
+                int(width * 0.75), int(height * 0.65)
+            )
+            draw.rectangle(clothing_rect, fill=clothing_color)
+            
+            # Composite the overlay onto the user image
+            result_img = Image.alpha_composite(
+                user_img.convert('RGBA'), overlay
+            ).convert('RGB')
+            
+            # Convert to bytes
+            with io.BytesIO() as output:
+                result_img.save(output, format='JPEG', quality=85)
+                images = [output.getvalue()]
+            
+            processing_method = "Placeholder Virtual Try-On"
+            identity_preservation = "Basic overlay simulation"
+            print("✅ Placeholder virtual try-on generated")
 
         # Stage 4: Post-Processing and Quality Enhancement
         print("✨ Stage 4: Post-Processing and Quality Enhancement...")

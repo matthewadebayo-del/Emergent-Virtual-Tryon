@@ -1,0 +1,97 @@
+# Full 3D Virtual Try-On Stack for Compute Engine
+# Complete MediaPipe + PyBullet + Blender + Stable Diffusion pipeline
+
+FROM ubuntu:20.04
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Install system dependencies for full 3D stack
+RUN apt-get update && apt-get install -y \
+    python3.9 \
+    python3.9-dev \
+    python3-pip \
+    build-essential \
+    cmake \
+    pkg-config \
+    wget \
+    curl \
+    git \
+    # OpenCV dependencies
+    libopencv-dev \
+    python3-opencv \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    # MediaPipe dependencies
+    libgstreamer1.0-0 \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    # PyBullet dependencies
+    libbullet-dev \
+    libbullet-extras-dev \
+    # Blender dependencies
+    blender \
+    xvfb \
+    # Additional 3D libraries
+    libfreeimage3 \
+    libfreeimage-dev \
+    libassimp5 \
+    libassimp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up Python 3.9 as default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1
+
+# Upgrade pip
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements-full-3d.txt .
+
+# Install Python dependencies with full 3D stack
+RUN pip3 install --no-cache-dir -r requirements-full-3d.txt
+
+# Install additional 3D processing libraries
+RUN pip3 install --no-cache-dir \
+    bpy==3.6.0 \
+    mathutils \
+    bmesh \
+    gpu \
+    freestyle
+
+# Copy application code
+COPY . .
+
+# Set environment variables for 3D features
+ENV ENABLE_3D_FEATURES=true
+ENV ENABLE_AI_ENHANCEMENT=true
+ENV BLENDER_HEADLESS=true
+ENV DISPLAY=:99
+
+# Create necessary directories
+RUN mkdir -p /app/temp /app/models /app/cache
+
+# Set permissions
+RUN chmod +x /app/backend/server.py
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Start command with virtual display for Blender
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1024x768x24 & python3 -m uvicorn backend.server:app --host 0.0.0.0 --port 8000 --workers 1"]

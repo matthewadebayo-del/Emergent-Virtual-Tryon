@@ -1,0 +1,79 @@
+# Full 3D Virtual Try-On Stack Requirements
+# Complete dependencies for MediaPipe + PyBullet + Blender + Stable Diffusion
+
+# Core FastAPI and web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+aiofiles==23.2.1
+
+# Database
+motor==3.3.2
+pymongo==4.6.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# Image Processing & Computer Vision
+opencv-python-headless==4.8.1.78
+Pillow==10.1.0
+numpy==1.24.3
+scipy==1.11.4
+
+# 3D Processing Stack
+mediapipe==0.10.7
+trimesh==4.0.5
+pybullet==3.2.5
+open3d==0.18.0
+
+# AI/ML Stack
+torch==2.1.1
+torchvision==0.16.1
+transformers==4.35.2
+diffusers==0.24.0
+accelerate==0.25.0
+huggingface-hub==0.19.4
+
+# Stable Diffusion Dependencies
+xformers==0.0.22.post7
+safetensors==0.4.1
+controlnet-aux==0.0.7
+
+# Blender Python API (bpy)
+# Note: Install Blender system-wide, bpy module comes with it
+
+# Physics Simulation
+pymunk==6.5.1
+bullet3==3.25
+
+# 3D Mesh Processing
+meshio==5.3.4
+pyglet==2.0.10
+rtree==1.1.0
+
+# Scientific Computing
+scikit-learn==1.3.2
+matplotlib==3.8.2
+
+# Utilities
+requests==2.31.0
+python-dotenv==1.0.0
+pydantic==2.5.0
+starlette==0.27.0
+
+# CORS
+python-cors==1.0.0
+
+# Development
+pytest==7.4.3
+black==23.11.0
+isort==5.12.0
+
+# Memory optimization
+psutil==5.9.6
+gc-python-utils==1.0.0
+
+# GPU acceleration (optional)
+nvidia-ml-py==12.535.133
