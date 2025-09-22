@@ -112,9 +112,12 @@ async def process_hybrid_3d_tryon(
             
             renderer = model_manager.get_renderer()
             if renderer is None:
-                print("⚠️ Renderer not available, creating placeholder render")
+                print("⚠️ Renderer not available, using image processing fallback")
                 original_image = Image.open(io.BytesIO(user_image_bytes))
-                rendered_image = original_image.copy()
+                # Create a basic virtual try-on using image processing
+                rendered_image = create_basic_virtual_tryon(
+                    original_image, clothing_description, fabric_color
+                )
             else:
                 rendered_path = renderer.render_scene(
                     body_mesh,
@@ -188,6 +191,72 @@ async def process_hybrid_3d_tryon(
     except Exception as e:
         logger.error(f"❌ Hybrid 3D + AI pipeline failed: {str(e)}")
         raise Exception(f"Hybrid 3D + AI processing failed: {str(e)}")
+
+
+def create_basic_virtual_tryon(original_image, clothing_description, fabric_color):
+    """
+    Basic virtual try-on using image processing when 3D rendering is unavailable
+    """
+    try:
+        from PIL import ImageDraw, ImageFilter, ImageEnhance
+        import numpy as np
+        
+        # Convert to RGB if needed
+        if original_image.mode != 'RGB':
+            original_image = original_image.convert('RGB')
+        
+        # Create a copy to work with
+        result_image = original_image.copy()
+        width, height = result_image.size
+        
+        # Create clothing overlay based on description
+        overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        
+        # Estimate torso area (simplified)
+        torso_top = int(height * 0.25)  # Approximate shoulder area
+        torso_bottom = int(height * 0.65)  # Approximate waist area
+        torso_left = int(width * 0.3)
+        torso_right = int(width * 0.7)
+        
+        # Convert fabric_color to RGB if it's a tuple
+        if isinstance(fabric_color, tuple) and len(fabric_color) >= 3:
+            color_rgb = tuple(int(c * 255) for c in fabric_color[:3])
+        else:
+            color_rgb = (50, 100, 200)  # Default blue
+        
+        # Draw clothing shape based on type
+        if "shirt" in clothing_description.lower() or "polo" in clothing_description.lower():
+            # Draw shirt shape
+            draw.rectangle(
+                [torso_left, torso_top, torso_right, torso_bottom],
+                fill=color_rgb + (120,)  # Semi-transparent
+            )
+            # Add sleeves
+            sleeve_width = int(width * 0.15)
+            draw.rectangle(
+                [torso_left - sleeve_width, torso_top, torso_left, int(torso_bottom * 0.7)],
+                fill=color_rgb + (100,)
+            )
+            draw.rectangle(
+                [torso_right, torso_top, torso_right + sleeve_width, int(torso_bottom * 0.7)],
+                fill=color_rgb + (100,)
+            )
+        
+        # Apply overlay with blending
+        result_image = Image.alpha_composite(
+            result_image.convert('RGBA'), overlay
+        ).convert('RGB')
+        
+        # Enhance the result
+        enhancer = ImageEnhance.Contrast(result_image)
+        result_image = enhancer.enhance(1.1)
+        
+        return result_image
+        
+    except Exception as e:
+        print(f"Basic virtual try-on failed: {e}")
+        return original_image
 
 
 def calculate_enhanced_size_recommendation(

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+
 import { Link, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -18,6 +18,127 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import PhotoGuideModal from './PhotoGuideModal';
+
+// 🔧 Frontend Fix for Virtual Try-On Display
+const VirtualTryOnResult = ({ apiResponse }) => {
+  const [debugMode, setDebugMode] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  
+  // Debug the API response
+  console.log('🔍 API Response Debug:', {
+    hasResult: !!apiResponse?.result,
+    resultLength: apiResponse?.result?.length,
+    resultType: typeof apiResponse?.result,
+    firstChars: apiResponse?.result?.substring(0, 50)
+  });
+
+  // Handle image loading errors
+  const handleImageError = (e) => {
+    console.error('❌ Image failed to load:', e);
+    setImageError(true);
+  };
+
+  const handleImageLoad = (e) => {
+    console.log('✅ Image loaded successfully:', {
+      width: e.target.naturalWidth,
+      height: e.target.naturalHeight,
+      src: e.target.src.substring(0, 100) + '...'
+    });
+    setImageError(false);
+  };
+
+  // Check if we have valid base64 data
+  const hasValidResult = apiResponse?.result && 
+                        typeof apiResponse.result === 'string' &&
+                        apiResponse.result.length > 1000; // Should be substantial
+
+  if (!hasValidResult) {
+    return (
+      <div className="bg-red-500/20 p-4 rounded-lg border border-red-500/50">
+        <h3 className="text-red-200 font-semibold mb-2">❌ No valid result data</h3>
+        <pre className="text-red-200/80 text-xs overflow-auto max-h-32">{JSON.stringify(apiResponse, null, 2)}</pre>
+      </div>
+    );
+  }
+
+  // Ensure proper base64 format
+  const imageData = apiResponse.result.startsWith('data:') 
+    ? apiResponse.result 
+    : `data:image/jpeg;base64,${apiResponse.result}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-center">
+        <button 
+          onClick={() => setDebugMode(!debugMode)}
+          className="btn-secondary text-sm"
+        >
+          🔍 Toggle Debug Mode
+        </button>
+      </div>
+
+      {debugMode && (
+        <div className="bg-blue-500/20 p-4 rounded-lg border border-blue-500/50">
+          <h4 className="text-blue-200 font-semibold mb-2">🔍 Debug Information</h4>
+          <ul className="text-blue-200/80 text-sm space-y-1">
+            <li>Result length: {apiResponse.result.length} characters</li>
+            <li>Estimated size: {Math.round(apiResponse.result.length * 0.75 / 1024)}KB</li>
+            <li>Starts with data URL: {apiResponse.result.startsWith('data:') ? '✅' : '❌'}</li>
+            <li>Base64 format check: {/^[A-Za-z0-9+/]*={0,2}$/.test(apiResponse.result.replace('data:image/jpeg;base64,', '')) ? '✅' : '❌'}</li>
+          </ul>
+          
+          <details className="mt-2">
+            <summary className="text-blue-200 cursor-pointer">Raw Response (first 200 chars)</summary>
+            <pre className="text-blue-200/70 text-xs mt-2 overflow-auto max-h-32">{JSON.stringify(apiResponse, null, 2).substring(0, 500)}...</pre>
+          </details>
+        </div>
+      )}
+
+      <div className="flex justify-center">
+        {imageError ? (
+          <div className="bg-red-500/20 p-6 rounded-lg border border-red-500/50 text-center">
+            <h3 className="text-red-200 font-semibold mb-2">❌ Image Display Error</h3>
+            <p className="text-red-200/80 text-sm mb-4">The API returned data but the image couldn't be displayed.</p>
+            <button 
+              onClick={() => {
+                // Try to download the raw data
+                const link = document.createElement('a');
+                link.href = imageData;
+                link.download = 'tryon-result.jpg';
+                link.click();
+              }}
+              className="btn-primary text-sm"
+            >
+              💾 Download Raw Image
+            </button>
+          </div>
+        ) : (
+          <img
+            src={imageData}
+            alt="Virtual Try-On Result"
+            className="max-w-full max-h-96 object-contain rounded-lg shadow-lg border-2 border-white/20"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+        )}
+      </div>
+
+      {/* Test direct base64 display */}
+      {debugMode && (
+        <div className="bg-purple-500/20 p-4 rounded-lg border border-purple-500/50">
+          <h4 className="text-purple-200 font-semibold mb-2">🧪 Direct Base64 Test</h4>
+          <img 
+            src={`data:image/jpeg;base64,${apiResponse.result.replace(/^data:image\/[^;]+;base64,/, '')}`}
+            alt="Direct Base64 Test"
+            className="max-w-48 border border-red-500 rounded"
+            onLoad={() => console.log('✅ Direct base64 test passed')}
+            onError={() => console.log('❌ Direct base64 test failed')}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
 
 const VirtualTryOn = ({ user, onLogout }) => {
   const location = useLocation();
@@ -435,8 +556,8 @@ const VirtualTryOn = ({ user, onLogout }) => {
         return;
       }
       
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+      if (file.size > 50 * 1024 * 1024) {
+        alert('File size must be less than 50MB');
         return;
       }
 
@@ -556,12 +677,75 @@ const VirtualTryOn = ({ user, onLogout }) => {
     }
   };
 
-  const handleStandardImageFile = (file, type) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      let base64 = e.target.result;
-      console.log('File read successfully, base64 length:', base64.length);
-      console.log('Base64 preview:', base64.substring(0, 100) + '...');
+  const compressImage = (file, maxSizeKB = 800) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions to keep under size limit
+        let { width, height } = img;
+        const maxWidth = 1200;
+        const maxHeight = 1600;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Try different quality levels to get under size limit
+        let quality = 0.8;
+        let compressedBase64;
+        
+        do {
+          compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          const sizeKB = (compressedBase64.length * 0.75) / 1024; // Approximate size
+          
+          if (sizeKB <= maxSizeKB || quality <= 0.1) break;
+          quality -= 0.1;
+        } while (quality > 0.1);
+        
+        console.log(`Image compressed: ${file.size} bytes -> ${Math.round((compressedBase64.length * 0.75))} bytes (quality: ${quality})`);
+        resolve(compressedBase64);
+      };
+      
+      img.onerror = () => resolve(null);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => img.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleStandardImageFile = async (file, type) => {
+    try {
+      // Compress image if it's too large
+      const fileSizeKB = file.size / 1024;
+      let base64;
+      
+      if (fileSizeKB > 800) {
+        console.log(`Large file detected (${Math.round(fileSizeKB)}KB), compressing...`);
+        base64 = await compressImage(file, 800);
+        if (!base64) {
+          throw new Error('Compression failed');
+        }
+      } else {
+        // File is small enough, read directly
+        base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+      
+      console.log('File processed successfully, base64 length:', base64.length);
       
       // Clean base64 data - remove Python byte string notation if present
       if (base64.includes("b'") || base64.includes('b"')) {
@@ -588,14 +772,10 @@ const VirtualTryOn = ({ user, onLogout }) => {
         setClothingImagePreview(base64);
         console.log('Clothing image set successfully');
       }
-    };
-    
-    reader.onerror = (error) => {
-      console.error('File reading failed:', error);
-      alert('Failed to read the selected file. Please try again.');
-    };
-    
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('File processing failed:', error);
+      alert('Failed to process the selected file. Please try again.');
+    }
   };
 
   const handleProductSelect = (product) => {
@@ -1784,67 +1964,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Virtual Try-On</h3>
-                  {tryonResult.result_image_base64 ? (
-                    <img 
-                      src={`data:image/png;base64,${tryonResult.result_image_base64}`}
-                      alt="Try-on result" 
-                      className="w-full max-h-96 object-contain rounded-lg shadow-lg"
-                      onLoad={() => {
-                        console.log('Try-on result image loaded successfully');
-                        console.log('Image dimensions loaded');
-                      }}
-                      onError={(e) => {
-                        console.error('Failed to load try-on result image');
-                        console.error('Base64 data length:', tryonResult.result_image_base64?.length);
-                        console.error('Base64 preview:', tryonResult.result_image_base64?.substring(0, 100));
-                        console.error('Image src:', e.target.src.substring(0, 100));
-                        console.error('Full tryonResult object:', tryonResult);
-                        
-                        try {
-                          const base64Data = tryonResult.result_image_base64;
-                          if (base64Data && base64Data.length > 0) {
-                            console.log('Base64 data appears valid, length:', base64Data.length);
-                            const byteCharacters = atob(base64Data);
-                            const byteNumbers = new Array(byteCharacters.length);
-                            for (let i = 0; i < byteCharacters.length; i++) {
-                              byteNumbers[i] = byteCharacters.charCodeAt(i);
-                            }
-                            const byteArray = new Uint8Array(byteNumbers);
-                            const blob = new Blob([byteArray], {type: 'image/png'});
-                            const blobUrl = URL.createObjectURL(blob);
-                            console.log('Created blob URL as fallback:', blobUrl);
-                            e.target.src = blobUrl;
-                          } else {
-                            console.error('Base64 data is empty or invalid');
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }
-                        } catch (blobError) {
-                          console.error('Failed to create blob URL fallback:', blobError);
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'block';
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full max-h-96 bg-gray-700 rounded-lg shadow-lg flex items-center justify-center">
-                      <div className="text-center">
-                        <p className="text-white/60">Processing failed - no result image available</p>
-                        <p className="text-white/40 text-sm mt-2">Check console for debugging information</p>
-                        {tryonResult && (
-                          <p className="text-white/40 text-xs mt-1">
-                            Response received: {JSON.stringify(Object.keys(tryonResult))}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <div style={{display: 'none'}} className="w-full max-h-96 bg-red-700 rounded-lg shadow-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <p className="text-white/60">Image failed to load</p>
-                      <p className="text-white/40 text-sm mt-2">Check console for error details</p>
-                    </div>
-                  </div>
+                  <VirtualTryOnResult apiResponse={{result: tryonResult.result_image_base64}} />
                 </div>
               </div>
 
