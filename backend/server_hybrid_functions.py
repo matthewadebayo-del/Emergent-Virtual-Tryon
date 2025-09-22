@@ -54,7 +54,7 @@ async def process_hybrid_3d_tryon(
         if hasattr(body_mesh, 'vertices'):
             print(f"✅ Body reconstruction complete: {len(body_mesh.vertices)} vertices")
         else:
-            print(f"✅ Body reconstruction complete: basic mesh")
+            print("✅ Body reconstruction complete: basic mesh")
         print(f"📏 Extracted measurements: {body_measurements.get('measurement_source', 'unknown')}")
         
         # Stage 2: Physics-based Garment Fitting (PyBullet)
