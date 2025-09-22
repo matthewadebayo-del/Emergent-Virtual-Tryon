@@ -145,6 +145,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Override FastAPI's default multipart form size limit
+from fastapi.routing import APIRoute
+from pydantic import Field
+from typing import Any
+
+class LargeBodyRoute(APIRoute):
+    def get_route_handler(self) -> Any:
+        original_route_handler = super().get_route_handler()
+        async def custom_route_handler(request):
+            request.scope["body_max_size"] = 50 * 1024 * 1024  # 50MB
+            return await original_route_handler(request)
+        return custom_route_handler
+
+app.router.route_class = LargeBodyRoute
+
 # Add middleware to handle larger request bodies for HEIC processing
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
