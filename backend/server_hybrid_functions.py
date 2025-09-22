@@ -49,7 +49,7 @@ async def process_hybrid_3d_tryon(
             body_measurements = body_result["measurements"]
             
         if body_reconstructor is not None:
-
+            print("✅ Using MediaPipe body reconstruction")
         
         if hasattr(body_mesh, 'vertices'):
             print(f"✅ Body reconstruction complete: {len(body_mesh.vertices)} vertices")
@@ -89,7 +89,7 @@ async def process_hybrid_3d_tryon(
             )
             
         if garment_fitter is not None:
-
+            print("✅ Using PyBullet garment fitting")
         
         print(f"✅ Garment fitting complete: {garment_type}/{garment_subtype}")
         print("🔬 Physics simulation applied for realistic draping")
@@ -126,8 +126,8 @@ async def process_hybrid_3d_tryon(
                 rendered_image = Image.open(rendered_path)
                 
             if renderer is not None:
-
-            print(f"✅ Photorealistic rendering complete: {rendered_path}")
+                print("✅ Using Blender photorealistic rendering")
+            print(f"✅ Photorealistic rendering complete")
         
         # Stage 4: AI Enhancement (Stable Diffusion)
         print("✨ Stage 4: AI Enhancement using Stable Diffusion...")
@@ -143,7 +143,7 @@ async def process_hybrid_3d_tryon(
             )
             
         if ai_enhancer is not None:
-
+            print("✅ Using Stable Diffusion AI enhancement")
         
         print("✅ AI enhancement complete - identity preservation applied")
         
