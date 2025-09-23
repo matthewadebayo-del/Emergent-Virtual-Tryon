@@ -51,12 +51,17 @@ class BodyReconstructor:
         self.smpl_model = self._load_smpl_model()
 
     def _load_smpl_model(self):
-        """Load SMPL-X model with fallback"""
+        """Load license-free parametric body model"""
         try:
-            print("⚠️ SMPL-X model not available, using basic mesh generation")
-            return None
+            from .parametric_body_model import create_license_free_body, ParametricHumanModel, EllipsoidBodyModel
+            self.parametric_model = ParametricHumanModel()
+            self.ellipsoid_model = EllipsoidBodyModel()
+            print("✅ License-free parametric body model loaded successfully")
+            return True
         except Exception as e:
-            print(f"⚠️ Failed to load SMPL-X model: {e}")
+            print(f"⚠️ Parametric body model failed to load: {e}")
+            self.parametric_model = None
+            self.ellipsoid_model = None
             return None
 
     def extract_pose_landmarks(self, image: np.ndarray) -> Dict[str, Any]:
@@ -416,9 +421,16 @@ class BodyReconstructor:
     def create_enhanced_body_mesh(
         self, measurements: Dict[str, float]
     ) -> trimesh.Trimesh:
-        """Create enhanced body mesh with better proportions"""
-        if self.smpl_model is not None:
-            return self._generate_smpl_mesh(measurements)
+        """Create enhanced body mesh using license-free parametric model"""
+        if self.smpl_model is not None and self.ellipsoid_model is not None:
+            # Use license-free parametric body model
+            try:
+                body_mesh = self.ellipsoid_model.create_simple_body(measurements)
+                print("✅ Created body mesh using license-free parametric model")
+                return body_mesh
+            except Exception as e:
+                print(f"⚠️ Parametric model failed: {e}, using basic mesh")
+                return self._create_enhanced_basic_mesh(measurements)
         else:
             return self._create_enhanced_basic_mesh(measurements)
 
