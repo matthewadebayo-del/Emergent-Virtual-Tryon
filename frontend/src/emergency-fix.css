@@ -1,0 +1,46 @@
+/* 🔧 Emergency CSS Fix - Add this to force real image display */
+
+/* Hide any placeholder/loading states */
+.virtual-tryon-placeholder,
+.loading-placeholder,
+.result-placeholder {
+  display: none !important;
+}
+
+/* Force the actual result image to show */
+.tryon-image,
+.result-image,
+img[src*="iVBORw0KGgo"] {
+  display: block !important;
+  z-index: 9999 !important;
+  position: relative !important;
+  max-width: 100% !important;
+  height: auto !important;
+  background: white !important;
+  border: 3px solid green !important; /* Green border to confirm it's showing */
+}
+
+/* Hide the geometric placeholder specifically */
+.placeholder-container,
+.geometric-placeholder,
+div[style*="background"],
+svg[*="placeholder"] {
+  display: none !important;
+}
+
+/* Force container to show content */
+.image-container,
+.result-container {
+  background: white !important;
+  min-height: 400px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Debug border around the whole result area */
+.tryon-result {
+  border: 2px solid red !important;
+  background: yellow !important;
+  padding: 10px !important;
+}
