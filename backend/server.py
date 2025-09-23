@@ -6,7 +6,9 @@ import os
 import sys
 import tempfile
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
+import sys
+import io, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -1782,6 +1784,41 @@ async def get_garment_measurements(
 @app.get("/")
 async def root():
     return {"status": "healthy", "service": "virtualfit-backend"}
+
+@app.get("/debug")
+async def debug_pipeline():
+    """Debug endpoint to test all pipeline components"""
+    try:
+        from debug_pipeline import debug_pipeline_components, debug_model_manager, test_basic_image_processing
+        
+        # Capture debug output
+        import io
+        import sys
+        
+        old_stdout = sys.stdout
+        sys.stdout = captured_output = io.StringIO()
+        
+        try:
+            debug_pipeline_components()
+            debug_model_manager()
+            test_basic_image_processing()
+        finally:
+            sys.stdout = old_stdout
+        
+        debug_output = captured_output.getvalue()
+        
+        return {
+            "status": "debug_complete",
+            "debug_output": debug_output,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            "status": "debug_failed",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 
 @app.get("/health") 
