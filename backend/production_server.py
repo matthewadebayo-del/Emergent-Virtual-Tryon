@@ -442,8 +442,8 @@ class AIEnhancer:
         if not self.initialized or not self.pipeline:
             return rendered_image
         
-        print("[AI] Enhancing image realism")
-        print(f"[AI] Using strength: 0.8, guidance: 10.0, steps: 30")
+        print(f"[AI] Enhancing image realism with {garment_description}")
+        print(f"[AI] Using strength: 0.3, guidance: 7.5, steps: 20 (pose-preserving)")
         
         try:
             # Use the user's original image as base instead of rendered 3D scene
