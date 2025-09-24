@@ -441,7 +441,7 @@ class AIEnhancer:
         if not self.initialized or not self.pipeline:
             return rendered_image
         
-        print(f"[AI] Enhancing image realism with prompt: {prompt}")
+        print("[AI] Enhancing image realism")
         print(f"[AI] Using strength: 0.8, guidance: 10.0, steps: 30")
         
         try:
