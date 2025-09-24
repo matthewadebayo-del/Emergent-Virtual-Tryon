@@ -269,14 +269,7 @@ class ProductionVirtualTryOn:
         if not self.ai_enhancer:
             return await self._process_fallback(user_image, garment_image)
         
-        # Get garment description from product data
-        garment_description = "clothing item"
-        if product_id:
-            product = await db.products.find_one({"id": product_id})
-            if product:
-                garment_description = f"{product.get('name', 'clothing item').lower()}"
-        
-        result_image = self.ai_enhancer.generate_tryon(user_image, garment_image, garment_description)
+        result_image = self.ai_enhancer.generate_tryon(user_image, garment_image)
         
         return {
             "result_image": result_image,
@@ -385,32 +378,14 @@ class MeshProcessor:
     
     def render_scene(self, fitted_result: dict) -> bytes:
         """Render the final 3D scene to 2D image"""
-        print("[MESH] Rendering 3D scene with trimesh")
+        print("[MESH] Rendering 3D scene")
         
-        try:
-            # Get the fitted mesh
-            fitted_mesh = fitted_result["fitted_mesh"]
-            
-            # Create a scene with the fitted garment
-            scene = trimesh.Scene([fitted_mesh])
-            
-            # Set up camera and lighting
-            scene.camera.resolution = [512, 512]
-            scene.camera.fov = [60, 60]
-            
-            # Render the scene to image
-            rendered_data = scene.save_image(resolution=[512, 512])
-            
-            return rendered_data
-            
-        except Exception as e:
-            print(f"[MESH] 3D rendering failed: {e}, using fallback")
-            # Fallback to a basic rendered appearance
-            img = Image.new('RGB', (512, 512), color='white')
-            
-            with io.BytesIO() as output:
-                img.save(output, format='JPEG')
-                return output.getvalue()
+        # Create a simple rendered image (placeholder)
+        img = Image.new('RGB', (512, 512), color='lightblue')
+        
+        with io.BytesIO() as output:
+            img.save(output, format='JPEG')
+            return output.getvalue()
     
     def create_base_tryon(self, body_mesh: dict, garment_image: bytes) -> bytes:
         """Create base try-on result"""
@@ -628,6 +603,8 @@ async def virtual_tryon(
         measurements = current_user.measurements or {
             "height": 170, "weight": 70, "chest": 90, "waist": 75, "hips": 95, "shoulder_width": 45
         }
+        
+
         
 
         
