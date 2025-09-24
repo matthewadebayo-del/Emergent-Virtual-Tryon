@@ -252,8 +252,6 @@ class ProductionVirtualTryOn:
         
         # Step 5: AI enhancement with garment info
         if self.ai_enhancer:
-            # Get garment description from the virtual try-on context
-            garment_description = "clothing item"  # Will be passed from API
             enhanced_image = self.ai_enhancer.enhance_realism(rendered_image, user_image, garment_description)
         else:
             enhanced_image = rendered_image
