@@ -441,7 +441,8 @@ class AIEnhancer:
         if not self.initialized or not self.pipeline:
             return rendered_image
         
-        print("[AI] Enhancing image realism")
+        print(f"[AI] Enhancing image realism with prompt: {prompt}")
+        print(f"[AI] Using strength: 0.8, guidance: 10.0, steps: 30")
         
         try:
             # Convert bytes to PIL Images
@@ -469,6 +470,7 @@ class AIEnhancer:
                 
         except Exception as e:
             print(f"[AI] Enhancement failed: {e}")
+            print(f"[AI] Returning original rendered image")
             return rendered_image
     
     def generate_tryon(self, user_image: bytes, garment_image: bytes, garment_description: str = "white t-shirt") -> bytes:
