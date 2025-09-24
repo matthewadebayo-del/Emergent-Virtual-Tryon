@@ -445,19 +445,18 @@ class AIEnhancer:
         print(f"[AI] Using strength: 0.8, guidance: 10.0, steps: 30")
         
         try:
-            # Convert bytes to PIL Images
-            rendered_pil = Image.open(io.BytesIO(rendered_image))
+            # Use the user's original image as base instead of rendered 3D scene
             reference_pil = Image.open(io.BytesIO(reference_image))
             
             # Resize to standard size
-            rendered_pil = rendered_pil.resize((512, 512))
+            reference_pil = reference_pil.resize((512, 512))
             
             # Use Stable Diffusion for enhancement with specific garment
             prompt = "photorealistic person wearing white t-shirt, high quality, detailed clothing, natural lighting"
             
             enhanced = self.pipeline(
                 prompt=prompt,
-                image=rendered_pil,
+                image=reference_pil,
                 strength=0.8,
                 guidance_scale=10.0,
                 num_inference_steps=30
