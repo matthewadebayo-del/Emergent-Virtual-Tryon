@@ -457,9 +457,9 @@ class AIEnhancer:
             enhanced = self.pipeline(
                 prompt=prompt,
                 image=rendered_pil,
-                strength=0.3,
-                guidance_scale=7.5,
-                num_inference_steps=20
+                strength=0.8,
+                guidance_scale=10.0,
+                num_inference_steps=30
             ).images[0]
             
             # Convert back to bytes
