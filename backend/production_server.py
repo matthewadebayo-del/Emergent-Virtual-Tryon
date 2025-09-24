@@ -454,14 +454,14 @@ class AIEnhancer:
             reference_pil = reference_pil.resize((512, 512))
             
             # Use Stable Diffusion for enhancement with dynamic garment
-            prompt = "photorealistic person wearing white t-shirt, high quality, detailed clothing, natural lighting"
+            prompt = "photorealistic portrait, natural lighting, full body shot, maintain original pose, person wearing white t-shirt"
             
             enhanced = self.pipeline(
                 prompt=prompt,
                 image=reference_pil,
-                strength=0.8,
-                guidance_scale=10.0,
-                num_inference_steps=30
+                strength=0.3,
+                guidance_scale=7.5,
+                num_inference_steps=20
             ).images[0]
             
             # Convert back to bytes
