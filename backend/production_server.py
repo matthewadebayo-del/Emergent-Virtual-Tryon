@@ -604,6 +604,11 @@ async def virtual_tryon(
             "height": 170, "weight": 70, "chest": 90, "waist": 75, "hips": 95, "shoulder_width": 45
         }
         
+        # Force AI-only mode for better results until 3D rendering is improved
+        if processing_mode == "full_3d":
+            processing_mode = "ai_only"
+            print("[API] Switching to AI-only mode for better visual results")
+        
         # Process virtual try-on
         result = await production_engine.process_virtual_tryon(
             user_image_bytes, garment_image_bytes, measurements, processing_mode
