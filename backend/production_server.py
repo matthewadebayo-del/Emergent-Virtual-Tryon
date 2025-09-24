@@ -443,7 +443,7 @@ class AIEnhancer:
             return rendered_image
         
         print(f"[AI] Enhancing image realism with {garment_description}")
-        print(f"[AI] Using strength: 0.5, guidance: 7.5, steps: 20 (balanced garment+pose)")
+        print(f"[AI] Using strength: 0.3, guidance: 7.5, steps: 20 (pose-preserving)")
         
         try:
             # Use the user's original image as base instead of rendered 3D scene
@@ -458,7 +458,7 @@ class AIEnhancer:
             enhanced = self.pipeline(
                 prompt=prompt,
                 image=reference_pil,
-                strength=0.5,
+                strength=0.3,
                 guidance_scale=7.5,
                 num_inference_steps=20
             ).images[0]
