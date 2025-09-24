@@ -1,8 +1,8 @@
 # Production Dependencies for VirtualFit 3D Pipeline
 
 # AI/ML Dependencies
-torch==2.0.1+cpu
-torchvision==0.15.2+cpu
+torch==2.0.1
+torchvision==0.15.2
 transformers==4.30.0
 diffusers==0.18.0
 accelerate==0.20.0
