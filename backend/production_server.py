@@ -568,6 +568,7 @@ async def login(login_data: UserLogin):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @api_router.post("/virtual-tryon")
+@api_router.post("/tryon")
 async def virtual_tryon(
     user_image_base64: str = Form(...),
     garment_image_base64: Optional[str] = Form(None),
