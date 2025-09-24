@@ -451,8 +451,8 @@ class AIEnhancer:
             # Resize to standard size
             rendered_pil = rendered_pil.resize((512, 512))
             
-            # Use Stable Diffusion for enhancement
-            prompt = "photorealistic person wearing clothing, high quality, detailed"
+            # Use Stable Diffusion for enhancement with specific garment
+            prompt = "photorealistic person wearing white t-shirt, high quality, detailed clothing, natural lighting"
             
             enhanced = self.pipeline(
                 prompt=prompt,
