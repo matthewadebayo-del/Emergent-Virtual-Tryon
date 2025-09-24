@@ -642,6 +642,23 @@ async def save_measurements(
     )
     return {"message": "Measurements saved successfully"}
 
+@api_router.get("/tryon-history")
+async def get_tryon_history(current_user: User = Depends(get_current_user)):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        results = await db.tryon_results.find({"user_id": current_user.id}).to_list(100)
+        formatted_results = []
+        for result in results:
+            if "_id" in result:
+                del result["_id"]
+            formatted_results.append(result)
+        return formatted_results
+    except Exception as e:
+        print(f"Error in get_tryon_history: {str(e)}")
+        return []
+
 @app.get("/")
 async def root():
     return {
