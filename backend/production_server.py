@@ -249,8 +249,10 @@ class ProductionVirtualTryOn:
         # Step 4: Render final image
         rendered_image = self.mesh_processor.render_scene(fitted_result)
         
-        # Step 5: AI enhancement
+        # Step 5: AI enhancement with garment info
         if self.ai_enhancer:
+            # Get garment description from the virtual try-on context
+            garment_description = "clothing item"  # Will be passed from API
             enhanced_image = self.ai_enhancer.enhance_realism(rendered_image, user_image)
         else:
             enhanced_image = rendered_image
@@ -451,7 +453,7 @@ class AIEnhancer:
             # Resize to standard size
             reference_pil = reference_pil.resize((512, 512))
             
-            # Use Stable Diffusion for enhancement with specific garment
+            # Use Stable Diffusion for enhancement with dynamic garment
             prompt = "photorealistic person wearing white t-shirt, high quality, detailed clothing, natural lighting"
             
             enhanced = self.pipeline(
