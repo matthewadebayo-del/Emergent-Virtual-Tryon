@@ -796,15 +796,31 @@ const VirtualTryOn = ({ user, onLogout }) => {
     }
   };
 
-  const handleProductSelect = (product) => {
+  const handleProductSelect = async (product) => {
     console.log('🎯 Product selected:', {
       id: product.id,
       name: product.name,
-      fullProduct: product
+      image_url: product.image_url
     });
     setSelectedProduct(product);
-    setClothingImage(null);
-    setClothingImagePreview(null);
+    
+    // Download and convert product image to base64
+    try {
+      const response = await fetch(product.image_url);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result;
+        setClothingImage(base64);
+        setClothingImagePreview(base64);
+        console.log('✅ Product image downloaded and set');
+      };
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.error('❌ Failed to download product image:', error);
+      setClothingImage(null);
+      setClothingImagePreview(null);
+    }
     
     // Clear previous selections
     document.querySelectorAll('.product-selected').forEach(el => {
