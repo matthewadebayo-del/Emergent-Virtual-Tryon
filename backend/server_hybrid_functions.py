@@ -29,6 +29,7 @@ async def process_hybrid_3d_tryon(
     try:
         print("🚀 HYBRID 3D + AI PIPELINE: Starting complete processing...")
         print("📊 Pipeline: 3D Body → Garment Fitting → Rendering → AI Enhancement")
+        print(f"[DEBUG] Clothing description: {clothing_description}")
         
         from src.core.model_manager import model_manager
         
@@ -141,15 +142,20 @@ async def process_hybrid_3d_tryon(
             print("⚠️ AI enhancer not available, using rendered image")
             enhanced_image = rendered_image
         else:
-            # Pass clothing description to AI enhancer for better garment application
-            if hasattr(ai_enhancer, 'enhance_realism_with_garment'):
-                print(f"[AI] Using new 3D-guided enhancement method")
+            # Force use of new method with fallback
+            print(f"[AI] Attempting 3D-guided enhancement method")
+            try:
                 enhanced_image = ai_enhancer.enhance_realism_with_garment(
                     rendered_image, original_image, clothing_description
                 )
-            else:
-                print(f"[AI] Fallback to original enhancement method")
-                # Fallback to original method
+                print(f"[AI] 3D-guided enhancement completed successfully")
+            except AttributeError:
+                print(f"[AI] Method not found, using fallback")
+                enhanced_image = ai_enhancer.enhance_realism(
+                    rendered_image, original_image
+                )
+            except Exception as e:
+                print(f"[AI] Enhancement failed: {e}, using fallback")
                 enhanced_image = ai_enhancer.enhance_realism(
                     rendered_image, original_image
                 )
