@@ -14,8 +14,15 @@ from typing import Dict, List, Optional
 
 import aiofiles
 import bcrypt
-import cv2
-import fal_client
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+    
+try:
+    import fal_client
+except ImportError:
+    fal_client = None
 import numpy as np
 import requests
 from dotenv import load_dotenv
@@ -36,25 +43,25 @@ from server_hybrid_functions import process_hybrid_3d_tryon
 
 heic_processor = HEICProcessor()
 
-print("✅ 3D virtual try-on modules configured for lazy loading")
+print("[OK] 3D virtual try-on modules configured for lazy loading")
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-print("🚀 STARTING SERVER.PY - VERY FIRST LINE")
-print("🔍 DEBUGGING: About to check environment variables...")
+print("[START] STARTING SERVER.PY - VERY FIRST LINE")
+print("[DEBUG] DEBUGGING: About to check environment variables...")
 
-print("🔍 DEBUG: Environment variables containing 'MONGO':")
+print("[DEBUG] Environment variables containing 'MONGO':")
 for key, value in os.environ.items():
     if "MONGO" in key.upper():
         print(f"  {key} = {repr(value)}")
 
-print("🔍 DEBUG: Environment variables containing 'DB':")
+print("[DEBUG] Environment variables containing 'DB':")
 for key, value in os.environ.items():
     if "DB" in key.upper():
         print(f"  {key} = {repr(value)}")
 
-print("🔍 DEBUG: Environment variables containing 'SECRET':")
+print("[DEBUG] Environment variables containing 'SECRET':")
 for key, value in os.environ.items():
     if "SECRET" in key.upper():
         print(
@@ -67,18 +74,18 @@ for key, value in os.environ.items():
 FAL_KEY = os.getenv("FAL_KEY")
 if FAL_KEY:
     os.environ["FAL_KEY"] = FAL_KEY
-    print("🔑 fal.ai client configured with API key")
+    print("[OK] fal.ai client configured with API key")
 else:
-    print("⚠️ FAL_KEY not found, fal.ai integration will be disabled")
+    print("[WARN] FAL_KEY not found, fal.ai integration will be disabled")
 
 # MongoDB connection - defer initialization to prevent startup blocking
-print("🔍 DEBUGGING: Getting MONGO_URL from environment...")
+print("[DEBUG] DEBUGGING: Getting MONGO_URL from environment...")
 mongo_url = os.environ.get("MONGO_URL")
 db_name = os.environ.get("DB_NAME", "virtualfit_production")
 
-print(f"🔍 DEBUG: Raw MONGO_URL from environment: {repr(mongo_url)}")
-print(f"🔍 DEBUG: MONGO_URL type: {type(mongo_url)}")
-print(f"🔍 DEBUG: MONGO_URL length: {len(mongo_url) if mongo_url else 'None'}")
+print(f"[DEBUG] Raw MONGO_URL from environment: {repr(mongo_url)}")
+print(f"[DEBUG] MONGO_URL type: {type(mongo_url)}")
+print(f"[DEBUG] MONGO_URL length: {len(mongo_url) if mongo_url else 'None'}")
 
 if mongo_url:
     print(f"🔍 DEBUG: MONGO_URL first 50 chars: {repr(mongo_url[:50])}")
