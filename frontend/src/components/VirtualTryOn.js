@@ -26,14 +26,14 @@ const VirtualTryOnResult = ({ apiResponse }) => {
   const [debugMode, setDebugMode] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-
-  
-  // Debug the API response
+  // Debug the API response - check the correct property name
   console.log('🔍 API Response Debug:', {
+    hasResultImageBase64: !!apiResponse?.result_image_base64,
     hasResult: !!apiResponse?.result,
+    resultImageLength: apiResponse?.result_image_base64?.length,
     resultLength: apiResponse?.result?.length,
-    resultType: typeof apiResponse?.result,
-    firstChars: apiResponse?.result?.substring(0, 50)
+    apiKeys: Object.keys(apiResponse || {}),
+    firstChars: (apiResponse?.result_image_base64 || apiResponse?.result)?.substring(0, 50)
   });
 
   // Add debug function to window
@@ -60,24 +60,28 @@ const VirtualTryOnResult = ({ apiResponse }) => {
     setImageError(false);
   };
 
+  // Get the correct image data - check both possible property names
+  const imageBase64 = apiResponse?.result_image_base64 || apiResponse?.result;
+  
   // Check if we have valid base64 data
-  const hasValidResult = apiResponse?.result && 
-                        typeof apiResponse.result === 'string' &&
-                        apiResponse.result.length > 1000; // Should be substantial
+  const hasValidResult = imageBase64 && 
+                        typeof imageBase64 === 'string' &&
+                        imageBase64.length > 1000; // Should be substantial
 
   if (!hasValidResult) {
     return (
       <div className="bg-red-500/20 p-4 rounded-lg border border-red-500/50">
         <h3 className="text-red-200 font-semibold mb-2">❌ No valid result data</h3>
+        <p className="text-red-200/80 text-sm mb-2">Expected property: result_image_base64</p>
         <pre className="text-red-200/80 text-xs overflow-auto max-h-32">{JSON.stringify(apiResponse, null, 2)}</pre>
       </div>
     );
   }
 
   // Ensure proper base64 format
-  const imageData = apiResponse.result.startsWith('data:') 
-    ? apiResponse.result 
-    : `data:image/jpeg;base64,${apiResponse.result}`;
+  const imageData = imageBase64.startsWith('data:') 
+    ? imageBase64 
+    : `data:image/jpeg;base64,${imageBase64}`;
 
   return (
     <div className="space-y-4">
@@ -94,10 +98,10 @@ const VirtualTryOnResult = ({ apiResponse }) => {
         <div className="bg-blue-500/20 p-4 rounded-lg border border-blue-500/50">
           <h4 className="text-blue-200 font-semibold mb-2">🔍 Debug Information</h4>
           <ul className="text-blue-200/80 text-sm space-y-1">
-            <li>Result length: {apiResponse.result.length} characters</li>
-            <li>Estimated size: {Math.round(apiResponse.result.length * 0.75 / 1024)}KB</li>
-            <li>Starts with data URL: {apiResponse.result.startsWith('data:') ? '✅' : '❌'}</li>
-            <li>Base64 format check: {/^[A-Za-z0-9+/]*={0,2}$/.test(apiResponse.result.replace('data:image/jpeg;base64,', '')) ? '✅' : '❌'}</li>
+            <li>Result length: {imageBase64.length} characters</li>
+            <li>Estimated size: {Math.round(imageBase64.length * 0.75 / 1024)}KB</li>
+            <li>Starts with data URL: {imageBase64.startsWith('data:') ? '✅' : '❌'}</li>
+            <li>Base64 format check: {/^[A-Za-z0-9+/]*={0,2}$/.test(imageBase64.replace('data:image/jpeg;base64,', '')) ? '✅' : '❌'}</li>
           </ul>
           
           <details className="mt-2">
@@ -141,7 +145,7 @@ const VirtualTryOnResult = ({ apiResponse }) => {
         <div className="bg-purple-500/20 p-4 rounded-lg border border-purple-500/50">
           <h4 className="text-purple-200 font-semibold mb-2">🧪 Direct Base64 Test</h4>
           <img 
-            src={`data:image/jpeg;base64,${apiResponse.result.replace(/^data:image\/[^;]+;base64,/, '')}`}
+            src={`data:image/jpeg;base64,${imageBase64.replace(/^data:image\/[^;]+;base64,/, '')}`}
             alt="Direct Base64 Test"
             className="max-w-48 border border-red-500 rounded"
             onLoad={() => console.log('✅ Direct base64 test passed')}
@@ -2034,7 +2038,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Virtual Try-On</h3>
-                  <VirtualTryOnResult apiResponse={{result: tryonResult.result_image_base64}} />
+                  <VirtualTryOnResult apiResponse={tryonResult} />
                 </div>
               </div>
 
