@@ -659,6 +659,24 @@ async def get_tryon_history(current_user: User = Depends(get_current_user)):
         print(f"Error in get_tryon_history: {str(e)}")
         return []
 
+@api_router.get("/products")
+async def get_products():
+    """Get all products from the database"""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        products = await db.products.find().to_list(1000)
+        formatted_products = []
+        for product in products:
+            if "_id" in product:
+                del product["_id"]
+            formatted_products.append(product)
+        return formatted_products
+    except Exception as e:
+        print(f"Error in get_products: {str(e)}")
+        return []
+
 @app.get("/")
 async def root():
     return {
