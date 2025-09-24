@@ -25,27 +25,8 @@ import '../emergency-fix.css';
 const VirtualTryOnResult = ({ apiResponse }) => {
   const [debugMode, setDebugMode] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [forceShowImage, setForceShowImage] = useState(false);
 
-  // Emergency force display
-  useEffect(() => {
-    if (apiResponse?.result) {
-      setForceShowImage(true);
-      console.log('🚀 FORCING IMAGE DISPLAY');
-      
-      setTimeout(() => {
-        const imgElements = document.querySelectorAll('img');
-        imgElements.forEach(img => {
-          if (img.src.includes('iVBORw0KGgo') || img.classList.contains('tryon-image')) {
-            img.style.display = 'block';
-            img.style.zIndex = '9999';
-            img.style.border = '3px solid green';
-            console.log('✅ Updated existing image element');
-          }
-        });
-      }, 100);
-    }
-  }, [apiResponse]);
+
   
   // Debug the API response
   console.log('🔍 API Response Debug:', {
@@ -169,26 +150,7 @@ const VirtualTryOnResult = ({ apiResponse }) => {
         </div>
       )}
 
-      {/* Emergency Image Display */}
-      {forceShowImage && apiResponse?.result && (
-        <div style={{
-          position: 'fixed',
-          top: '10px',
-          right: '10px',
-          zIndex: 10000,
-          background: 'white',
-          border: '3px solid green',
-          padding: '10px',
-          maxWidth: '300px'
-        }}>
-          <h4 style={{color: 'black'}}>🚨 EMERGENCY IMAGE DISPLAY</h4>
-          <img 
-            src={`data:image/png;base64,${apiResponse.result}`}
-            style={{ maxWidth: '100%', height: 'auto' }}
-            alt="Emergency Display"
-          />
-        </div>
-      )}
+
     </div>
   );
 };
