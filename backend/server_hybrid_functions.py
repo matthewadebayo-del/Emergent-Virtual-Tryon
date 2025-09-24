@@ -143,10 +143,12 @@ async def process_hybrid_3d_tryon(
         else:
             # Pass clothing description to AI enhancer for better garment application
             if hasattr(ai_enhancer, 'enhance_realism_with_garment'):
+                print(f"[AI] Using new 3D-guided enhancement method")
                 enhanced_image = ai_enhancer.enhance_realism_with_garment(
                     rendered_image, original_image, clothing_description
                 )
             else:
+                print(f"[AI] Fallback to original enhancement method")
                 # Fallback to original method
                 enhanced_image = ai_enhancer.enhance_realism(
                     rendered_image, original_image

@@ -9,7 +9,7 @@ import shutil
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 if DISABLE_AI or DISABLE_AI_FOR_DEBUGGING:
     AI_ENHANCEMENT_AVAILABLE = False
@@ -49,11 +49,14 @@ class FixedAIEnhancer:
             return
             
         self.models_loaded = False
-        self._try_load_models()
+        self.pipe = None
+        # Don't load models immediately - load on first use to save startup time
+        print("[AI] AI Enhancer initialized - models will load on first use")
     
     def _try_load_models(self):
         """Try to load Stable Diffusion models with error handling"""
         try:
+            print("[AI] Attempting to load Stable Diffusion models...")
             logger.info("🤖 Attempting to load Stable Diffusion models...")
             
             import torch
@@ -61,23 +64,35 @@ class FixedAIEnhancer:
             
             # Check CUDA availability
             device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"[AI] Using device: {device}")
             logger.info(f"Using device: {device}")
             
-            # Try to load model
+            # Try to load model with reduced memory usage
+            print("[AI] Loading Stable Diffusion pipeline...")
             self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-                "stabilityai/stable-diffusion-2-1",
+                "runwayml/stable-diffusion-v1-5",  # Use smaller, more reliable model
                 torch_dtype=torch.float16 if device == "cuda" else torch.float32,
                 safety_checker=None,
-                requires_safety_checker=False
+                requires_safety_checker=False,
+                low_cpu_mem_usage=True
             ).to(device)
             
+            # Enable memory efficient attention if available
+            if hasattr(self.pipe, 'enable_attention_slicing'):
+                self.pipe.enable_attention_slicing()
+            if hasattr(self.pipe, 'enable_model_cpu_offload'):
+                self.pipe.enable_model_cpu_offload()
+            
             self.models_loaded = True
+            print("[AI] ✅ Stable Diffusion models loaded successfully")
             logger.info("✅ Stable Diffusion models loaded successfully")
             
         except ImportError as e:
+            print(f"[AI] ⚠️ Required libraries not available: {e}")
             logger.warning(f"⚠️ Required libraries not available: {e}")
             self.models_loaded = False
         except Exception as e:
+            print(f"[AI] ⚠️ Could not load Stable Diffusion models: {e}")
             logger.warning(f"⚠️ Could not load Stable Diffusion models: {e}")
             self.models_loaded = False
     
@@ -248,7 +263,13 @@ class FixedAIEnhancer:
         strength: float = 0.3,
     ) -> Image.Image:
         """Enhanced method using 3D rendered image as reference guide"""
+        # Try to load models if not already loaded
+        if not self.models_loaded and self.pipe is None:
+            print("[AI] Loading models on first use...")
+            self._try_load_models()
+        
         if not self.models_loaded:
+            print("[AI] Stable Diffusion not available, using 3D-guided fallback")
             logger.info("⚠️ Stable Diffusion not available, creating basic virtual try-on")
             return self._blend_3d_with_original(rendered_image, original_photo)
 
@@ -258,6 +279,8 @@ class FixedAIEnhancer:
             garment_prompt = self._create_3d_guided_prompt(photo_style, clothing_description)
             negative_prompt = self._create_negative_prompt()
 
+            print(f"[AI] Enhancing image realism with {clothing_description}")
+            print(f"[AI] Using 3D-guided enhancement with strength: {strength}")
             logger.info(f"[AI] Enhancing image realism with {clothing_description}")
             logger.info(f"[AI] Using strength: {strength}, guidance: 7.5, steps: 20 (pose-preserving)")
 
@@ -284,6 +307,7 @@ class FixedAIEnhancer:
             # Blend with 3D positioning information
             final_result = self._blend_with_3d_reference(refined, rendered_image, original_photo)
 
+            print("[AI] 3D-guided enhancement completed")
             logger.info("✅ AI garment application with 3D guidance completed")
             return final_result
 
@@ -359,25 +383,48 @@ class FixedAIEnhancer:
     def _blend_3d_with_original(self, rendered_image: Image.Image, original_photo: Image.Image) -> Image.Image:
         """Fallback: Blend 3D rendered image with original photo"""
         try:
-            # Extract garment from 3D render and apply to original
-            garment_mask = self._extract_garment_mask(rendered_image)
+            print("[AI] Creating 3D-guided fallback blend")
             
-            if garment_mask is not None:
-                # Resize images to match if needed
-                if rendered_image.size != original_photo.size:
-                    rendered_image = rendered_image.resize(original_photo.size)
-                    garment_mask = garment_mask.resize(original_photo.size)
-                
-                # Blend using the mask
-                result = Image.composite(rendered_image, original_photo, garment_mask)
-                logger.info("✅ 3D-guided fallback blending completed")
-                return result
-            else:
-                return self._create_basic_virtual_tryon_with_description(original_photo, "white t-shirt")
+            # Resize rendered image to match original if needed
+            if rendered_image.size != original_photo.size:
+                rendered_image = rendered_image.resize(original_photo.size, Image.Resampling.LANCZOS)
+            
+            # Convert images to RGBA for blending
+            original_rgba = original_photo.convert('RGBA')
+            rendered_rgba = rendered_image.convert('RGBA')
+            
+            # Create a simple blend - use rendered image for torso area
+            width, height = original_photo.size
+            
+            # Create mask for torso area where garment should be
+            from PIL import ImageDraw
+            mask = Image.new('L', (width, height), 0)
+            draw = ImageDraw.Draw(mask)
+            
+            # Define torso area
+            torso_top = int(height * 0.2)
+            torso_bottom = int(height * 0.7)
+            torso_left = int(width * 0.25)
+            torso_right = int(width * 0.75)
+            
+            # Draw elliptical mask for torso
+            draw.ellipse([torso_left, torso_top, torso_right, torso_bottom], fill=255)
+            
+            # Apply gaussian blur to soften edges
+            mask = mask.filter(ImageFilter.GaussianBlur(radius=10))
+            
+            # Blend images using the mask
+            result = Image.composite(rendered_rgba, original_rgba, mask)
+            
+            print("[AI] 3D-guided fallback blend completed")
+            logger.info("✅ 3D-guided fallback blending completed")
+            return result.convert('RGB')
                 
         except Exception as e:
+            print(f"[AI] 3D blending failed: {e}")
             logger.error(f"3D blending failed: {e}")
-            return original_photo
+            # Final fallback - create visible garment overlay
+            return self._create_basic_virtual_tryon_with_description(original_photo, "white t-shirt")
     
     def _create_specific_garment_prompt(self, style_info: Dict[str, Any], clothing_description: str) -> str:
         """Create prompt specifically for the described garment"""
