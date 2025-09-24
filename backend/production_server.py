@@ -212,7 +212,8 @@ class ProductionVirtualTryOn:
         user_image: bytes, 
         garment_image: bytes, 
         measurements: dict,
-        mode: str = "full_3d"
+        mode: str = "full_3d",
+        garment_description: str = "clothing item"
     ) -> dict:
         """
         Production virtual try-on processing with multiple modes
@@ -221,7 +222,7 @@ class ProductionVirtualTryOn:
             print(f"[PROCESS] Starting virtual try-on in {mode} mode")
             
             if mode == "full_3d" and self.mesh_processor and self.physics_engine:
-                return await self._process_full_3d(user_image, garment_image, measurements)
+                return await self._process_full_3d(user_image, garment_image, measurements, garment_description)
             elif mode == "ai_only" and self.ai_enhancer:
                 return await self._process_ai_only(user_image, garment_image)
             elif mode == "hybrid":
@@ -233,7 +234,7 @@ class ProductionVirtualTryOn:
             print(f"[ERROR] Virtual try-on processing failed: {e}")
             return await self._process_fallback(user_image, garment_image)
     
-    async def _process_full_3d(self, user_image: bytes, garment_image: bytes, measurements: dict) -> dict:
+    async def _process_full_3d(self, user_image: bytes, garment_image: bytes, measurements: dict, garment_description: str = "clothing item") -> dict:
         """Full 3D pipeline with mesh processing and physics simulation"""
         print("[3D] Processing full 3D virtual try-on")
         
@@ -253,7 +254,7 @@ class ProductionVirtualTryOn:
         if self.ai_enhancer:
             # Get garment description from the virtual try-on context
             garment_description = "clothing item"  # Will be passed from API
-            enhanced_image = self.ai_enhancer.enhance_realism(rendered_image, user_image)
+            enhanced_image = self.ai_enhancer.enhance_realism(rendered_image, user_image, garment_description)
         else:
             enhanced_image = rendered_image
         
@@ -438,7 +439,7 @@ class AIEnhancer:
         self.initialized = AI_AVAILABLE
         self.pipeline = ai_pipeline
     
-    def enhance_realism(self, rendered_image: bytes, reference_image: bytes) -> bytes:
+    def enhance_realism(self, rendered_image: bytes, reference_image: bytes, garment_description: str = "clothing item") -> bytes:
         """Enhance rendered image with AI for photorealism"""
         if not self.initialized or not self.pipeline:
             return rendered_image
@@ -454,7 +455,7 @@ class AIEnhancer:
             reference_pil = reference_pil.resize((512, 512))
             
             # Use Stable Diffusion for enhancement with dynamic garment
-            prompt = "photorealistic portrait, natural lighting, full body shot, maintain original pose, person wearing white t-shirt"
+            prompt = f"photorealistic portrait, natural lighting, full body shot, maintain original pose, person wearing {garment_description}"
             
             enhanced = self.pipeline(
                 prompt=prompt,
@@ -607,15 +608,22 @@ async def virtual_tryon(
             "height": 170, "weight": 70, "chest": 90, "waist": 75, "hips": 95, "shoulder_width": 45
         }
         
-
+        # Get garment description for AI
+        garment_description = "clothing item"
+        if product_id:
+            product = await db.products.find_one({"id": product_id})
+            if product:
+                garment_description = product.get('name', 'clothing item').lower()
         
 
         
 
         
-        # Process virtual try-on
+
+        
+        # Process virtual try-on with garment description
         result = await production_engine.process_virtual_tryon(
-            user_image_bytes, garment_image_bytes, measurements, processing_mode
+            user_image_bytes, garment_image_bytes, measurements, processing_mode, garment_description
         )
         
         # Encode result image
