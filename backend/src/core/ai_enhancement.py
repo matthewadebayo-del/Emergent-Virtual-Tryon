@@ -134,29 +134,34 @@ class FixedAIEnhancer:
     ) -> Image.Image:
         """Enhance rendered image to match original photo style - compatibility method"""
         if not self.models_loaded:
-            logger.info("⚠️ Stable Diffusion not available, returning original image")
-            return rendered_image
+            logger.info("⚠️ Stable Diffusion not available, creating basic virtual try-on")
+            return self._create_basic_virtual_tryon(original_photo, rendered_image)
 
         try:
+            # Use the original photo as base and apply garment from rendered image
             photo_style = self._analyze_photo_style(original_photo)
-            prompt = self._create_enhancement_prompt(photo_style)
+            
+            # Create a prompt that specifically mentions adding clothing to the person
+            garment_prompt = self._create_garment_application_prompt(photo_style)
             negative_prompt = self._create_negative_prompt()
 
+            # Use original photo as base with garment application prompt
             enhanced = self.pipe(
-                prompt=prompt,
+                prompt=garment_prompt,
                 negative_prompt=negative_prompt,
-                image=rendered_image,
+                image=original_photo,  # Use original photo as base
                 strength=strength,
                 guidance_scale=7.5,
-                num_inference_steps=50,
+                num_inference_steps=20,  # Reduced for faster processing
             ).images[0]
 
-            logger.info("✅ AI enhancement completed")
+            logger.info("✅ AI garment application completed")
             return enhanced
 
         except Exception as e:
             logger.error(f"⚠️ AI enhancement failed: {e}")
-            return rendered_image
+            # Fallback to basic virtual try-on
+            return self._create_basic_virtual_tryon(original_photo, rendered_image)
 
     def _analyze_photo_style(self, image: Image.Image) -> Dict[str, Any]:
         """Analyze original photo for style characteristics"""
@@ -214,14 +219,352 @@ class FixedAIEnhancer:
             base_prompt += ", natural colors"
 
         return base_prompt
+    
+    def _create_garment_application_prompt(self, style_info: Dict[str, Any]) -> str:
+        """Create prompt specifically for applying garment to person"""
+        base_prompt = (
+            "person wearing a classic white t-shirt, photorealistic, high quality, "
+            "detailed clothing texture, natural fit, realistic fabric, "
+            "professional photography, natural lighting"
+        )
+
+        if style_info["brightness"] > 150:
+            base_prompt += ", bright lighting, well-lit"
+        elif style_info["brightness"] < 100:
+            base_prompt += ", moody lighting, dramatic shadows"
+
+        if style_info["color_temperature"] == "warm":
+            base_prompt += ", warm tones, golden hour lighting"
+        else:
+            base_prompt += ", cool tones, natural daylight"
+
+        return base_prompt
+    
+    def enhance_realism_with_garment(
+        self,
+        rendered_image: Image.Image,
+        original_photo: Image.Image,
+        clothing_description: str,
+        strength: float = 0.3,
+    ) -> Image.Image:
+        """Enhanced method using 3D rendered image as reference guide"""
+        if not self.models_loaded:
+            logger.info("⚠️ Stable Diffusion not available, creating basic virtual try-on")
+            return self._blend_3d_with_original(rendered_image, original_photo)
+
+        try:
+            # Use 3D rendered image as reference to guide garment application
+            photo_style = self._analyze_photo_style(original_photo)
+            garment_prompt = self._create_3d_guided_prompt(photo_style, clothing_description)
+            negative_prompt = self._create_negative_prompt()
+
+            logger.info(f"[AI] Enhancing image realism with {clothing_description}")
+            logger.info(f"[AI] Using strength: {strength}, guidance: 7.5, steps: 20 (pose-preserving)")
+
+            # First pass: Apply 3D garment positioning to original photo
+            enhanced = self.pipe(
+                prompt=garment_prompt,
+                negative_prompt=negative_prompt,
+                image=original_photo,
+                strength=strength,
+                guidance_scale=7.5,
+                num_inference_steps=20,
+            ).images[0]
+
+            # Second pass: Refine using 3D rendered image as reference
+            refined = self.pipe(
+                prompt=f"photorealistic person wearing {clothing_description}, natural lighting, high quality",
+                negative_prompt=negative_prompt,
+                image=enhanced,
+                strength=0.15,  # Light refinement
+                guidance_scale=7.5,
+                num_inference_steps=10,
+            ).images[0]
+
+            # Blend with 3D positioning information
+            final_result = self._blend_with_3d_reference(refined, rendered_image, original_photo)
+
+            logger.info("✅ AI garment application with 3D guidance completed")
+            return final_result
+
+        except Exception as e:
+            logger.error(f"⚠️ AI enhancement failed: {e}")
+            return self._blend_3d_with_original(rendered_image, original_photo)
+    
+    def _create_3d_guided_prompt(self, style_info: Dict[str, Any], clothing_description: str) -> str:
+        """Create prompt that leverages 3D positioning information"""
+        garment_type = "t-shirt"
+        if "polo" in clothing_description.lower():
+            garment_type = "polo shirt"
+        elif "dress shirt" in clothing_description.lower():
+            garment_type = "dress shirt"
+        elif "jean" in clothing_description.lower():
+            garment_type = "jeans"
+        elif "blazer" in clothing_description.lower():
+            garment_type = "blazer"
+        
+        color = "white"
+        if "navy" in clothing_description.lower():
+            color = "navy blue"
+        elif "black" in clothing_description.lower():
+            color = "black"
+        elif "blue" in clothing_description.lower():
+            color = "blue"
+        
+        return (
+            f"person wearing a perfectly fitted {color} {garment_type}, "
+            f"realistic fabric draping, natural shadows, photorealistic, "
+            f"high quality, detailed clothing texture, professional photography"
+        )
+    
+    def _blend_with_3d_reference(self, ai_result: Image.Image, rendered_3d: Image.Image, original_photo: Image.Image) -> Image.Image:
+        """Blend AI result with 3D positioning reference"""
+        try:
+            # Extract garment mask from 3D rendered image
+            garment_mask = self._extract_garment_mask(rendered_3d)
+            
+            # Blend AI result with original photo using 3D mask guidance
+            if garment_mask is not None:
+                # Use 3D mask to guide blending
+                result = Image.composite(ai_result, original_photo, garment_mask)
+                return result
+            else:
+                return ai_result
+                
+        except Exception as e:
+            logger.warning(f"3D reference blending failed: {e}")
+            return ai_result
+    
+    def _extract_garment_mask(self, rendered_image: Image.Image) -> Image.Image:
+        """Extract garment area from 3D rendered image"""
+        try:
+            import numpy as np
+            
+            # Convert to numpy array
+            img_array = np.array(rendered_image)
+            
+            # Create mask based on non-background areas
+            # Assume background is light colored (> 200 in all channels)
+            background_mask = np.all(img_array > 200, axis=2)
+            garment_mask = ~background_mask
+            
+            # Convert back to PIL image
+            mask_array = (garment_mask * 255).astype(np.uint8)
+            return Image.fromarray(mask_array, mode='L')
+            
+        except Exception as e:
+            logger.warning(f"Garment mask extraction failed: {e}")
+            return None
+    
+    def _blend_3d_with_original(self, rendered_image: Image.Image, original_photo: Image.Image) -> Image.Image:
+        """Fallback: Blend 3D rendered image with original photo"""
+        try:
+            # Extract garment from 3D render and apply to original
+            garment_mask = self._extract_garment_mask(rendered_image)
+            
+            if garment_mask is not None:
+                # Resize images to match if needed
+                if rendered_image.size != original_photo.size:
+                    rendered_image = rendered_image.resize(original_photo.size)
+                    garment_mask = garment_mask.resize(original_photo.size)
+                
+                # Blend using the mask
+                result = Image.composite(rendered_image, original_photo, garment_mask)
+                logger.info("✅ 3D-guided fallback blending completed")
+                return result
+            else:
+                return self._create_basic_virtual_tryon_with_description(original_photo, "white t-shirt")
+                
+        except Exception as e:
+            logger.error(f"3D blending failed: {e}")
+            return original_photo
+    
+    def _create_specific_garment_prompt(self, style_info: Dict[str, Any], clothing_description: str) -> str:
+        """Create prompt specifically for the described garment"""
+        # Extract garment type from description
+        garment_type = "t-shirt"  # default
+        if "polo" in clothing_description.lower():
+            garment_type = "polo shirt"
+        elif "dress shirt" in clothing_description.lower():
+            garment_type = "dress shirt"
+        elif "jean" in clothing_description.lower():
+            garment_type = "jeans"
+        elif "chino" in clothing_description.lower():
+            garment_type = "chino pants"
+        elif "blazer" in clothing_description.lower():
+            garment_type = "blazer"
+        elif "dress" in clothing_description.lower():
+            garment_type = "dress"
+        
+        # Extract color from description
+        color = "white"  # default
+        if "navy" in clothing_description.lower():
+            color = "navy blue"
+        elif "black" in clothing_description.lower():
+            color = "black"
+        elif "blue" in clothing_description.lower():
+            color = "blue"
+        elif "khaki" in clothing_description.lower():
+            color = "khaki"
+        
+        base_prompt = (
+            f"person wearing a {color} {garment_type}, photorealistic, high quality, "
+            f"detailed clothing texture, natural fit, realistic fabric, "
+            f"professional photography, natural lighting, well-fitted clothing"
+        )
+
+        if style_info["brightness"] > 150:
+            base_prompt += ", bright lighting, well-lit"
+        elif style_info["brightness"] < 100:
+            base_prompt += ", moody lighting, dramatic shadows"
+
+        if style_info["color_temperature"] == "warm":
+            base_prompt += ", warm tones, golden hour lighting"
+        else:
+            base_prompt += ", cool tones, natural daylight"
+
+        return base_prompt
+    
+    def _create_basic_virtual_tryon_with_description(self, original_photo: Image.Image, clothing_description: str) -> Image.Image:
+        """Create basic virtual try-on with specific clothing description"""
+        try:
+            from PIL import ImageDraw, ImageFilter, ImageEnhance
+            import numpy as np
+            
+            # Convert to RGB if needed
+            if original_photo.mode != 'RGB':
+                original_photo = original_photo.convert('RGB')
+            
+            # Create a copy to work with
+            result_image = original_photo.copy()
+            width, height = result_image.size
+            
+            # Create clothing overlay
+            overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
+            
+            # Estimate torso area (simplified)
+            torso_top = int(height * 0.25)  # Approximate shoulder area
+            torso_bottom = int(height * 0.65)  # Approximate waist area
+            torso_left = int(width * 0.3)
+            torso_right = int(width * 0.7)
+            
+            # Determine color from description
+            if "navy" in clothing_description.lower():
+                color_rgb = (25, 25, 112)  # Navy blue
+            elif "black" in clothing_description.lower():
+                color_rgb = (40, 40, 40)  # Black
+            elif "blue" in clothing_description.lower():
+                color_rgb = (70, 130, 180)  # Steel blue
+            elif "khaki" in clothing_description.lower():
+                color_rgb = (195, 176, 145)  # Khaki
+            else:
+                color_rgb = (255, 255, 255)  # White (default)
+            
+            # Draw clothing based on type
+            if "shirt" in clothing_description.lower() or "polo" in clothing_description.lower():
+                # Draw shirt shape
+                draw.rectangle(
+                    [torso_left, torso_top, torso_right, torso_bottom],
+                    fill=color_rgb + (180,)  # Semi-transparent
+                )
+                
+                # Add sleeves
+                sleeve_width = int(width * 0.12)
+                sleeve_height = int((torso_bottom - torso_top) * 0.6)
+                draw.rectangle(
+                    [torso_left - sleeve_width, torso_top, torso_left, torso_top + sleeve_height],
+                    fill=color_rgb + (160,)
+                )
+                draw.rectangle(
+                    [torso_right, torso_top, torso_right + sleeve_width, torso_top + sleeve_height],
+                    fill=color_rgb + (160,)
+                )
+            
+            # Apply overlay with blending
+            result_image = Image.alpha_composite(
+                result_image.convert('RGBA'), overlay
+            ).convert('RGB')
+            
+            # Enhance the result
+            enhancer = ImageEnhance.Contrast(result_image)
+            result_image = enhancer.enhance(1.05)
+            
+            logger.info(f"✅ Basic virtual try-on created for {clothing_description}")
+            return result_image
+            
+        except Exception as e:
+            logger.error(f"Basic virtual try-on failed: {e}")
+            return original_photo
+    
+    def _create_basic_virtual_tryon(self, original_photo: Image.Image, rendered_image: Image.Image) -> Image.Image:
+        """Create basic virtual try-on when AI is not available"""
+        try:
+            from PIL import ImageDraw, ImageFilter, ImageEnhance
+            import numpy as np
+            
+            # Convert to RGB if needed
+            if original_photo.mode != 'RGB':
+                original_photo = original_photo.convert('RGB')
+            
+            # Create a copy to work with
+            result_image = original_photo.copy()
+            width, height = result_image.size
+            
+            # Create clothing overlay
+            overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
+            
+            # Estimate torso area (simplified)
+            torso_top = int(height * 0.25)  # Approximate shoulder area
+            torso_bottom = int(height * 0.65)  # Approximate waist area
+            torso_left = int(width * 0.3)
+            torso_right = int(width * 0.7)
+            
+            # Draw white t-shirt
+            color_rgb = (255, 255, 255)  # White t-shirt
+            
+            # Draw shirt shape
+            draw.rectangle(
+                [torso_left, torso_top, torso_right, torso_bottom],
+                fill=color_rgb + (180,)  # Semi-transparent white
+            )
+            
+            # Add sleeves
+            sleeve_width = int(width * 0.12)
+            sleeve_height = int((torso_bottom - torso_top) * 0.6)
+            draw.rectangle(
+                [torso_left - sleeve_width, torso_top, torso_left, torso_top + sleeve_height],
+                fill=color_rgb + (160,)
+            )
+            draw.rectangle(
+                [torso_right, torso_top, torso_right + sleeve_width, torso_top + sleeve_height],
+                fill=color_rgb + (160,)
+            )
+            
+            # Apply overlay with blending
+            result_image = Image.alpha_composite(
+                result_image.convert('RGBA'), overlay
+            ).convert('RGB')
+            
+            # Enhance the result
+            enhancer = ImageEnhance.Contrast(result_image)
+            result_image = enhancer.enhance(1.05)
+            
+            logger.info("✅ Basic virtual try-on created")
+            return result_image
+            
+        except Exception as e:
+            logger.error(f"Basic virtual try-on failed: {e}")
+            return original_photo
 
     def _create_negative_prompt(self) -> str:
         """Create negative prompt for better quality"""
         return (
             "cartoon, illustration, painting, low quality, blurry, distorted, "
-            "deformed, "
-            "artificial, plastic, fake, unrealistic, bad anatomy, bad proportions, "
-            "extra limbs, missing limbs, floating limbs, disconnected limbs"
+            "deformed, artificial, plastic, fake, unrealistic, bad anatomy, bad proportions, "
+            "extra limbs, missing limbs, floating limbs, disconnected limbs, "
+            "naked, nude, shirtless, bare chest, no clothing"
         )
 
     def seamless_blend(

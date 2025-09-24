@@ -141,9 +141,16 @@ async def process_hybrid_3d_tryon(
             print("⚠️ AI enhancer not available, using rendered image")
             enhanced_image = rendered_image
         else:
-            enhanced_image = ai_enhancer.enhance_realism(
-                rendered_image, original_image
-            )
+            # Pass clothing description to AI enhancer for better garment application
+            if hasattr(ai_enhancer, 'enhance_realism_with_garment'):
+                enhanced_image = ai_enhancer.enhance_realism_with_garment(
+                    rendered_image, original_image, clothing_description
+                )
+            else:
+                # Fallback to original method
+                enhanced_image = ai_enhancer.enhance_realism(
+                    rendered_image, original_image
+                )
             
         if ai_enhancer is not None:
             print("✅ Using Stable Diffusion AI enhancement")
