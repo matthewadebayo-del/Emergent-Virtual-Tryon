@@ -443,7 +443,7 @@ class AIEnhancer:
             return rendered_image
         
         print(f"[AI] Enhancing image realism with {garment_description}")
-        print(f"[AI] Using strength: 0.3, guidance: 7.5, steps: 20 (pose-preserving)")
+        print(f"[AI] Using strength: 0.5, guidance: 7.5, steps: 20 (balanced garment+pose)")
         
         try:
             # Use the user's original image as base instead of rendered 3D scene
@@ -458,7 +458,7 @@ class AIEnhancer:
             enhanced = self.pipeline(
                 prompt=prompt,
                 image=reference_pil,
-                strength=0.3,
+                strength=0.5,
                 guidance_scale=7.5,
                 num_inference_steps=20
             ).images[0]
@@ -609,9 +609,13 @@ async def virtual_tryon(
         # Get garment description for AI
         garment_description = "clothing item"
         if product_id:
+            print(f"[DEBUG] Looking for product_id: {product_id}")
             product = await db.products.find_one({"id": product_id})
             if product:
+                print(f"[DEBUG] Found product: {product.get('name')}")
                 garment_description = product.get('name', 'clothing item').lower()
+            else:
+                print(f"[DEBUG] Product not found for id: {product_id}")
         
 
         
