@@ -269,24 +269,20 @@ const VirtualTryOn = ({ user, onLogout }) => {
 
   const fetchProducts = async () => {
     try {
-      console.log('Fetching products...');
+      console.log('📦 Fetching products from backend...');
       const response = await axios.get('/products');
-      console.log('Products response:', response.data);
+      console.log('✅ Products fetched successfully:', {
+        count: response.data.length,
+        products: response.data.map(p => ({ id: p.id, name: p.name }))
+      });
       setProducts(response.data);
     } catch (error) {
-      console.error('Failed to fetch products:', error);
-      // Set some default products if API fails
-      setProducts([
-        {
-          id: 'fallback-1',
-          name: 'Classic White T-Shirt',
-          category: 'shirts',
-          sizes: ['XS', 'S', 'M', 'L', 'XL'],
-          image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400',
-          description: 'Comfortable cotton white t-shirt',
-          price: 29.99
-        }
-      ]);
+      console.error('❌ Failed to fetch products:', error);
+      console.error('Error details:', error.response?.data);
+      
+      // Don't use fallback products - show error instead
+      alert('Failed to load products. Please refresh the page and try again.');
+      setProducts([]);
     }
   };
 
@@ -801,10 +797,19 @@ const VirtualTryOn = ({ user, onLogout }) => {
   };
 
   const handleProductSelect = (product) => {
-    console.log('Selected product:', product);
+    console.log('🎯 Product selected:', {
+      id: product.id,
+      name: product.name,
+      fullProduct: product
+    });
     setSelectedProduct(product);
     setClothingImage(null);
     setClothingImagePreview(null);
+    
+    // Clear previous selections
+    document.querySelectorAll('.product-selected').forEach(el => {
+      el.classList.remove('product-selected');
+    });
     
     // Visual feedback for selection
     const productElement = document.querySelector(`[data-product-id="${product.id}"]`);
@@ -838,7 +843,12 @@ const VirtualTryOn = ({ user, onLogout }) => {
       // Create FormData for the request
       const formData = new FormData();
       formData.append('user_image_base64', userImageBase64);
-      formData.append('product_id', selectedProduct?.id || '');
+      
+      // Ensure we're sending the correct product_id
+      const productId = selectedProduct?.id || '';
+      console.log('📦 Final product_id being sent:', productId);
+      formData.append('product_id', productId);
+      
       formData.append('clothing_image_base64', clothingImageBase64 || '');
       formData.append('use_stored_measurements', String(useStoredMeasurements && (user.measurements || measurements)));
       formData.append('processing_type', processingType);
@@ -847,8 +857,13 @@ const VirtualTryOn = ({ user, onLogout }) => {
         formData.append('user_height_cm', parseFloat(userHeight).toString());
       }
 
-      console.log('Sending try-on FormData with product_id:', selectedProduct?.id);
-      console.log('Processing type:', processingType);
+      console.log('🚀 Sending try-on request with:', {
+        product_id: selectedProduct?.id,
+        product_name: selectedProduct?.name,
+        processing_type: processingType,
+        has_user_image: !!userImageBase64,
+        has_clothing_image: !!clothingImageBase64
+      });
 
       const response = await axios.post('/tryon', formData, {
         headers: {
@@ -1799,8 +1814,13 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   <h3 className="text-lg font-semibold text-white mb-4">Product Catalog</h3>
                   {products.length === 0 ? (
                     <div className="text-center py-8">
-                      <p className="text-white/60">Loading products...</p>
-                      <div className="spinner mx-auto mt-4"></div>
+                      <p className="text-white/60">No products available</p>
+                      <button 
+                        onClick={fetchProducts}
+                        className="btn-primary mt-4"
+                      >
+                        Retry Loading Products
+                      </button>
                     </div>
                   ) : (
                     <div className="product-grid">
@@ -1944,6 +1964,18 @@ const VirtualTryOn = ({ user, onLogout }) => {
                   </div>
                 )}
               </div>
+
+              {/* Debug: Show selected product */}
+              {selectedProduct && (
+                <div className="mb-6 p-4 bg-green-500/20 rounded-lg border border-green-500/50">
+                  <h4 className="text-green-200 font-medium mb-2">✅ Selected Product</h4>
+                  <div className="text-green-200/80 text-sm">
+                    <p><strong>Name:</strong> {selectedProduct.name}</p>
+                    <p><strong>ID:</strong> {selectedProduct.id}</p>
+                    <p><strong>Price:</strong> ${selectedProduct.price}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="text-center">
                 <button

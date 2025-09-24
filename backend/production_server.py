@@ -987,7 +987,7 @@ async def initialize_sample_data():
             print("📦 Creating sample product catalog...")
             sample_products = [
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": "white-tshirt-001",
                     "name": "Classic White T-Shirt",
                     "category": "shirts",
                     "sizes": ["XS", "S", "M", "L", "XL"],
@@ -999,7 +999,7 @@ async def initialize_sample_data():
                     "price": 29.99,
                 },
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": "blue-jeans-002",
                     "name": "Blue Denim Jeans",
                     "category": "pants",
                     "sizes": ["28", "30", "32", "34", "36"],
@@ -1011,7 +1011,7 @@ async def initialize_sample_data():
                     "price": 79.99,
                 },
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": "black-blazer-003",
                     "name": "Black Blazer",
                     "category": "jackets",
                     "sizes": ["XS", "S", "M", "L", "XL"],
@@ -1023,7 +1023,7 @@ async def initialize_sample_data():
                     "price": 149.99,
                 },
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": "summer-dress-004",
                     "name": "Summer Dress",
                     "category": "dresses",
                     "sizes": ["XS", "S", "M", "L", "XL"],
@@ -1035,7 +1035,7 @@ async def initialize_sample_data():
                     "price": 89.99,
                 },
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": "navy-polo-005",
                     "name": "Navy Polo Shirt",
                     "category": "shirts",
                     "sizes": ["XS", "S", "M", "L", "XL"],
@@ -1047,7 +1047,7 @@ async def initialize_sample_data():
                     "price": 45.99,
                 },
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": "khaki-chinos-006",
                     "name": "Khaki Chinos",
                     "category": "pants",
                     "sizes": ["28", "30", "32", "34", "36"],
