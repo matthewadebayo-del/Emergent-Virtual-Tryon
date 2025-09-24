@@ -269,7 +269,9 @@ class ProductionVirtualTryOn:
         if not self.ai_enhancer:
             return await self._process_fallback(user_image, garment_image)
         
-        result_image = self.ai_enhancer.generate_tryon(user_image, garment_image)
+        # Get garment description for better AI prompts
+        garment_description = "white cotton t-shirt"
+        result_image = self.ai_enhancer.generate_tryon(user_image, garment_image, garment_description)
         
         return {
             "result_image": result_image,
@@ -471,7 +473,7 @@ class AIEnhancer:
             print(f"[AI] Enhancement failed: {e}")
             return rendered_image
     
-    def generate_tryon(self, user_image: bytes, garment_image: bytes) -> bytes:
+    def generate_tryon(self, user_image: bytes, garment_image: bytes, garment_description: str = "white t-shirt") -> bytes:
         """Generate virtual try-on using AI"""
         if not self.initialized or not self.pipeline:
             raise Exception("AI pipeline not available")
@@ -481,14 +483,14 @@ class AIEnhancer:
         try:
             user_pil = Image.open(io.BytesIO(user_image)).resize((512, 512))
             
-            prompt = "person wearing the clothing item, photorealistic, high quality"
+            prompt = f"person wearing {garment_description}, photorealistic, high quality, detailed clothing, natural lighting"
             
             result = self.pipeline(
                 prompt=prompt,
                 image=user_pil,
-                strength=0.5,
-                guidance_scale=7.5,
-                num_inference_steps=30
+                strength=0.7,
+                guidance_scale=8.0,
+                num_inference_steps=40
             ).images[0]
             
             with io.BytesIO() as output:
