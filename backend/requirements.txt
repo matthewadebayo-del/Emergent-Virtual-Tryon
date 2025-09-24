@@ -55,7 +55,7 @@ torch==2.1.0
 torchvision==0.16.0
 torchaudio==2.1.0
 transformers>=4.35.0
-diffusers==0.21.0
+diffusers>=0.21.0
 huggingface-hub>=0.35.0
 tokenizers>=0.22.0
 accelerate>=0.20.3
