@@ -269,8 +269,13 @@ class ProductionVirtualTryOn:
         if not self.ai_enhancer:
             return await self._process_fallback(user_image, garment_image)
         
-        # Get garment description for better AI prompts
-        garment_description = "white cotton t-shirt"
+        # Get garment description from product data
+        garment_description = "clothing item"
+        if product_id:
+            product = await db.products.find_one({"id": product_id})
+            if product:
+                garment_description = f"{product.get('name', 'clothing item').lower()}"
+        
         result_image = self.ai_enhancer.generate_tryon(user_image, garment_image, garment_description)
         
         return {
