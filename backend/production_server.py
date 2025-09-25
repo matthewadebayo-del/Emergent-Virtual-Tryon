@@ -938,16 +938,24 @@ async def virtual_tryon(
         user_image_bytes = base64.b64decode(user_image_base64)
         user_image = Image.open(io.BytesIO(user_image_bytes))
         
-        # Get garment image
+        # Get garment image with detailed logging
         garment_image_bytes = None
         if garment_image_base64:
+            print(f"[API] Using uploaded garment image (base64)")
             garment_image_bytes = base64.b64decode(garment_image_base64)
         elif product_id:
+            print(f"[API] Looking up product: {product_id}")
             product = await db.products.find_one({"id": product_id})
             if not product:
                 raise HTTPException(status_code=404, detail="Product not found")
+            
+            print(f"[API] Found product: {product.get('name', 'Unknown')}")
+            print(f"[API] Product description: {product.get('description', 'No description')}")
+            print(f"[API] Product image URL: {product.get('image_url', 'No URL')}")
+            
             response = requests.get(product["image_url"])
             garment_image_bytes = response.content
+            print(f"[API] Downloaded image size: {len(garment_image_bytes)} bytes")
         else:
             raise HTTPException(status_code=400, detail="No garment specified")
         
