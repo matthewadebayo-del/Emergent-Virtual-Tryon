@@ -570,7 +570,7 @@ class EnhancedPipelineController:
                         else:
                             # Validate required data
                             required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
-                            pose_landmarks = customer_analysis_data.get('pose_landmarks', {})
+                            pose_landmarks = customer_analysis_data.get('pose_landmarks', customer_analysis_data.get('pose_keypoints', {}))
                             
                             missing_landmarks = []
                             for landmark in required_landmarks:
@@ -607,7 +607,7 @@ class EnhancedPipelineController:
                         
                         # Validate required data
                         required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
-                        pose_landmarks = customer_analysis_data.get('pose_landmarks', {})
+                        pose_landmarks = customer_analysis_data.get('pose_landmarks', customer_analysis_data.get('pose_keypoints', {}))
                         
                         missing_landmarks = []
                         for landmark in required_landmarks:
