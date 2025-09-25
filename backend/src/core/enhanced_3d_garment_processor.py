@@ -534,22 +534,78 @@ class Enhanced3DGarmentProcessor:
         customer_analysis: Dict[str, Any]
     ) -> Image.Image:
         """Render the fitted garment on customer"""
+        from PIL import ImageDraw
         
         # Get garment colors and properties
         material_props = fitted_mesh.get("material_properties", {})
         base_color = material_props.get("base_color", [0.5, 0.5, 0.5])
+        garment_type = fitted_mesh.get("garment_type", "t-shirt")
         
         # Convert to RGB 0-255
         rgb_color = tuple(int(c * 255) for c in base_color[:3])
         
-        # Create rendered image
+        # Create base image with person silhouette
         width, height = 512, 512
         rendered = Image.new("RGB", (width, height), (240, 240, 240))
+        draw = ImageDraw.Draw(rendered)
         
-        # Apply garment color and basic shape
-        garment_layer = Image.new("RGB", (width, height), rgb_color)
+        # Draw person silhouette
+        person_center = (width // 2, height // 2 + 50)
+        person_width = 120
+        person_height = 200
         
-        # Simple composite (real implementation would use 3D rendering)
-        rendered.paste(garment_layer, (0, 0))
+        # Body outline
+        draw.ellipse([
+            person_center[0] - person_width//2, person_center[1] - person_height//2,
+            person_center[0] + person_width//2, person_center[1] + person_height//2
+        ], fill=(220, 200, 180), outline=(200, 180, 160))
+        
+        # Draw garment based on type
+        if garment_type in ["t-shirt", "polo_shirt", "dress_shirt"]:
+            self._draw_shirt(draw, person_center, rgb_color, fitted_mesh)
+        elif garment_type in ["jeans", "chinos"]:
+            self._draw_pants(draw, person_center, rgb_color, fitted_mesh)
+        elif garment_type == "dress":
+            self._draw_dress(draw, person_center, rgb_color, fitted_mesh)
+        elif garment_type == "blazer":
+            self._draw_blazer(draw, person_center, rgb_color, fitted_mesh)
         
         return rendered
+    
+    def _draw_shirt(self, draw, center, color, mesh_data):
+        """Draw shirt on person"""
+        x, y = center
+        # Main shirt body
+        draw.rectangle([x-60, y-80, x+60, y+40], fill=color, outline=tuple(max(0, c-20) for c in color))
+        # Sleeves
+        draw.rectangle([x-85, y-80, x-60, y-30], fill=color)
+        draw.rectangle([x+60, y-80, x+85, y-30], fill=color)
+    
+    def _draw_pants(self, draw, center, color, mesh_data):
+        """Draw pants on person"""
+        x, y = center
+        # Waist area
+        draw.rectangle([x-40, y-20, x+40, y+20], fill=color, outline=tuple(max(0, c-20) for c in color))
+        # Left leg
+        draw.rectangle([x-35, y+20, x-5, y+120], fill=color)
+        # Right leg  
+        draw.rectangle([x+5, y+20, x+35, y+120], fill=color)
+    
+    def _draw_dress(self, draw, center, color, mesh_data):
+        """Draw dress on person"""
+        x, y = center
+        # Bodice
+        draw.rectangle([x-50, y-80, x+50, y], fill=color, outline=tuple(max(0, c-20) for c in color))
+        # Skirt (flared)
+        draw.polygon([(x-50, y), (x+50, y), (x+70, y+100), (x-70, y+100)], fill=color)
+    
+    def _draw_blazer(self, draw, center, color, mesh_data):
+        """Draw blazer on person"""
+        x, y = center
+        # Main blazer body
+        draw.rectangle([x-65, y-90, x+65, y+30], fill=color, outline=tuple(max(0, c-30) for c in color))
+        # Sleeves
+        draw.rectangle([x-90, y-90, x-65, y-40], fill=color)
+        draw.rectangle([x+65, y-90, x+90, y-40], fill=color)
+        # Lapels
+        draw.polygon([(x-10, y-90), (x-30, y-70), (x-10, y-50)], fill=tuple(max(0, c-10) for c in color))
