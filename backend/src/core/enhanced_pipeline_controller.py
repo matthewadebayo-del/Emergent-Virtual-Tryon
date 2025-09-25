@@ -181,14 +181,16 @@ class EnhancedPipelineController:
         if not colors or len(colors) == 0:
             return {"valid": False, "error": "Garment color extraction failed"}
         
-        # Check if garment has actual visual features
+        # Check if garment has actual visual features - be more lenient
         if self._is_garment_too_plain(colors):
+            print(f"[VALIDATION] Garment considered too plain: {colors}")
             return {"valid": False, "error": "Garment appears to have no distinct visual features"}
         
         texture_features = garment_analysis.get("texture_features", {})
         print(f"[VALIDATION] Texture features: {texture_features}")
+        print(f"[VALIDATION] Texture complexity: {texture_features.get('complexity', 0)} (threshold: 0.05)")
         
-        if not texture_features or texture_features.get("contrast", 0) < 0.1:
+        if not texture_features or texture_features.get("complexity", 0) < 0.05:
             return {"valid": False, "error": "Garment texture analysis failed"}
         
         return {"valid": True}
@@ -212,7 +214,7 @@ class EnhancedPipelineController:
         avg_gray = np.mean(gray_values)
         variance = np.var(gray_values)
         
-        return avg_gray > 200 and variance < 100
+        return avg_gray > 220 and variance < 50  # More lenient thresholds
     
     def _run_fitting_algorithm(
         self, 
