@@ -31,7 +31,7 @@ A full-stack virtual try-on application built with React frontend and FastAPI ba
 - MongoDB (for production) or in-memory database (for development)
 - OpenAI API key for virtual try-on functionality
 
-## 🏃‍♂️ Quick Start
+## 🏃♂️ Quick Start
 
 ### 1. Clone and Setup
 
@@ -175,16 +175,21 @@ For comprehensive testing instructions, see [LOCALHOST_TESTING_GUIDE.md](./LOCAL
 ### Current Deployment
 - **Frontend**: https://virtual-tryon-app-a8pe83vz.devinapps.com
 - **Status**: Deployed with clean VirtualFit branding
-- **Backend**: Localhost testing only (see limitations below)
+- **Backend**: Production server requires update (see [PRODUCTION_UPDATE_INSTRUCTIONS.md](./PRODUCTION_UPDATE_INSTRUCTIONS.md))
 
-### Known Limitations
-- **CORS Issue**: Dev environment tunnel services require authentication that blocks CORS headers
-- **Workaround**: Use localhost testing as primary method before proper deployment
-- **Solution**: Proper cloud deployment planned after localhost testing completion
+### Known Issues
+- **Production Server**: Running outdated SAFE mode instead of comprehensive try-on system
+- **Solution**: Update production server code and restart (detailed instructions provided)
 
 ## 🎆 Recent Major Enhancements
 
-### Comprehensive Virtual Try-On System (Latest Update)
+### Production Server Update Required (Latest)
+- **Issue**: Production server using outdated SAFE mode causing identical before/after images
+- **Root Cause**: Server running old code with `USE_COMPREHENSIVE_TRYON = False`
+- **Solution**: Update production server code and restart to enable comprehensive try-on system
+- **Status**: Instructions provided in [PRODUCTION_UPDATE_INSTRUCTIONS.md](./PRODUCTION_UPDATE_INSTRUCTIONS.md)
+
+### Comprehensive Virtual Try-On System (Previous Update)
 - **Complete SAFE Mode Replacement**: Implemented 12-step comprehensive region-based virtual try-on system
 - **Region-Based Processing**: Precise garment type detection with 5 supported categories (TOP, BOTTOM, SHOES, DRESS, OUTERWEAR)
 - **Advanced Landmark Validation**: Confidence-based pose detection with 0.7+ threshold requirements
@@ -192,7 +197,7 @@ For comprehensive testing instructions, see [LOCALHOST_TESTING_GUIDE.md](./LOCAL
 - **Performance Monitoring**: Real-time processing time tracking with performance threshold alerts
 - **Intelligent Configuration**: Dynamic garment type mapping with combination support (outfits, sets)
 
-### System Overhaul (Previous Update)
+### System Overhaul (Earlier Update)
 - **Fixed Critical Rendering Issue**: Resolved garment visibility problem in final virtual try-on images
 - **Computer Vision Integration**: Implemented comprehensive image analysis for both garments and customers
 - **Advanced 3D Processing**: Built realistic garment mesh creation with material-specific properties
@@ -241,6 +246,7 @@ The application is configured for localhost development with proper CORS setting
 ## 📚 Additional Documentation
 
 - [Localhost Testing Guide](./LOCALHOST_TESTING_GUIDE.md) - Comprehensive testing instructions
+- [Production Update Instructions](./PRODUCTION_UPDATE_INSTRUCTIONS.md) - Fix for SAFE mode issue
 - [AI Providers Guide](./AI_PROVIDERS_GUIDE.md) - AI integration documentation
 - [AWS Deployment Guide](./AWS_DEPLOYMENT_GUIDE.md) - Cloud deployment instructions
 - [GCP Firebase Guide](./GCP_FIREBASE_DEPLOYMENT_GUIDE.md) - Firebase deployment options
@@ -262,6 +268,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Support
 
 For issues, questions, or contributions:
+- Check the [Production Update Instructions](./PRODUCTION_UPDATE_INSTRUCTIONS.md) for server update issues
 - Check the [Localhost Testing Guide](./LOCALHOST_TESTING_GUIDE.md) for testing instructions
 - Review API documentation at http://localhost:8000/docs
 - Create an issue in the GitHub repository
