@@ -128,7 +128,7 @@ app = FastAPI(
 )
 
 # CORS middleware - ensure proper configuration
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://34.41.28.147:8000,*")
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://virtual-tryon-app-a8pe83vz.devinapps.com,*")
 print(f"[CORS] Configured origins: {cors_origins}")
 
 app.add_middleware(
