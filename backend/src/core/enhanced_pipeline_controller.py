@@ -568,14 +568,29 @@ class EnhancedPipelineController:
                             print(f"[ERROR] Could not load image: {customer_image}")
                             final_result_image = customer_image
                         else:
-                            # Validate required data
+                            # Validate required data with debug logging
                             required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
-                            pose_landmarks = customer_analysis_data.get('pose_landmarks', customer_analysis_data.get('pose_keypoints', {}))
+                            pose_landmarks = customer_analysis_data.get('pose_landmarks', {})
+                            pose_keypoints = customer_analysis_data.get('pose_keypoints', {})
+                            
+                            print(f"[DEBUG] pose_landmarks type: {type(pose_landmarks)}, keys: {list(pose_landmarks.keys()) if isinstance(pose_landmarks, dict) else 'not dict'}")
+                            print(f"[DEBUG] pose_keypoints type: {type(pose_keypoints)}, keys: {list(pose_keypoints.keys()) if isinstance(pose_keypoints, dict) else 'not dict'}")
+                            
+                            # Use pose_keypoints if pose_landmarks is empty
+                            landmarks_to_use = pose_landmarks if pose_landmarks else pose_keypoints
+                            print(f"[DEBUG] Using landmarks: {type(landmarks_to_use)}, sample: {dict(list(landmarks_to_use.items())[:2]) if isinstance(landmarks_to_use, dict) else landmarks_to_use}")
                             
                             missing_landmarks = []
                             for landmark in required_landmarks:
-                                if landmark not in pose_landmarks or pose_landmarks[landmark].get('confidence', 0) < 0.7:
+                                if landmark not in landmarks_to_use:
                                     missing_landmarks.append(landmark)
+                                    print(f"[DEBUG] {landmark}: MISSING")
+                                else:
+                                    landmark_data = landmarks_to_use[landmark]
+                                    confidence = landmark_data.get('confidence', 1.0) if isinstance(landmark_data, dict) else 1.0
+                                    print(f"[DEBUG] {landmark}: {landmark_data}, confidence: {confidence}")
+                                    if confidence < 0.7:
+                                        missing_landmarks.append(landmark)
                             
                             if missing_landmarks:
                                 print(f"[ERROR] Missing critical landmarks: {missing_landmarks}")
@@ -605,14 +620,29 @@ class EnhancedPipelineController:
                         import numpy as np
                         customer_image_array = np.array(customer_image)
                         
-                        # Validate required data
+                        # Validate required data with debug logging
                         required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
-                        pose_landmarks = customer_analysis_data.get('pose_landmarks', customer_analysis_data.get('pose_keypoints', {}))
+                        pose_landmarks = customer_analysis_data.get('pose_landmarks', {})
+                        pose_keypoints = customer_analysis_data.get('pose_keypoints', {})
+                        
+                        print(f"[DEBUG] pose_landmarks type: {type(pose_landmarks)}, keys: {list(pose_landmarks.keys()) if isinstance(pose_landmarks, dict) else 'not dict'}")
+                        print(f"[DEBUG] pose_keypoints type: {type(pose_keypoints)}, keys: {list(pose_keypoints.keys()) if isinstance(pose_keypoints, dict) else 'not dict'}")
+                        
+                        # Use pose_keypoints if pose_landmarks is empty
+                        landmarks_to_use = pose_landmarks if pose_landmarks else pose_keypoints
+                        print(f"[DEBUG] Using landmarks: {type(landmarks_to_use)}, sample: {dict(list(landmarks_to_use.items())[:2]) if isinstance(landmarks_to_use, dict) else landmarks_to_use}")
                         
                         missing_landmarks = []
                         for landmark in required_landmarks:
-                            if landmark not in pose_landmarks or pose_landmarks[landmark].get('confidence', 0) < 0.7:
+                            if landmark not in landmarks_to_use:
                                 missing_landmarks.append(landmark)
+                                print(f"[DEBUG] {landmark}: MISSING")
+                            else:
+                                landmark_data = landmarks_to_use[landmark]
+                                confidence = landmark_data.get('confidence', 1.0) if isinstance(landmark_data, dict) else 1.0
+                                print(f"[DEBUG] {landmark}: {landmark_data}, confidence: {confidence}")
+                                if confidence < 0.7:
+                                    missing_landmarks.append(landmark)
                         
                         if missing_landmarks:
                             print(f"[ERROR] Missing critical landmarks: {missing_landmarks}")
