@@ -983,10 +983,24 @@ async def virtual_tryon(
             from src.core.enhanced_pipeline_controller import EnhancedPipelineController
             controller = EnhancedPipelineController()
             
+            # CRITICAL FIX: Pass product information to pipeline
+            product_info = {}
+            if product_id:
+                product = await db.products.find_one({"id": product_id})
+                if product:
+                    product_info = {
+                        "name": product.get('name', ''),
+                        "description": product.get('description', ''),
+                        "category": product.get('category', ''),
+                        "product_id": product_id
+                    }
+                    print(f"[API] 🎯 PRODUCT INFO EXTRACTED: {product_info}")
+            
             result = await controller.process_virtual_tryon(
                 customer_image=user_image,
                 garment_image=garment_image,
-                garment_type=garment_type
+                garment_type=garment_type,
+                product_info=product_info  # Pass product info
             )
             
             if result["success"]:

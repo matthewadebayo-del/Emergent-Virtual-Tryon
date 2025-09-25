@@ -29,7 +29,8 @@ class EnhancedPipelineController:
         self, 
         customer_image: Image.Image, 
         garment_image: Image.Image,
-        garment_type: str = "t-shirt"
+        garment_type: str = "t-shirt",
+        product_info: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Optimized processing pipeline with GPU acceleration, preprocessing, and caching
@@ -61,9 +62,9 @@ class EnhancedPipelineController:
             if not validation_result["valid"]:
                 return {"success": False, "error": validation_result["error"]}
             
-            # Step 5: Run fitting algorithm
+            # Step 5: Run fitting algorithm with product info
             fitting_result = self._run_fitting_algorithm(
-                customer_analysis, garment_analysis, garment_type
+                customer_analysis, garment_analysis, garment_type, product_info
             )
             
             # Step 6: Generate final render with AI enhancement
@@ -223,7 +224,8 @@ class EnhancedPipelineController:
         self, 
         customer_analysis: Dict[str, Any], 
         garment_analysis: Dict[str, Any],
-        garment_type: str
+        garment_type: str,
+        product_info: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Combine both analyses for realistic fitting"""
         
@@ -257,7 +259,10 @@ class EnhancedPipelineController:
                 "colors": garment_colors,
                 "patterns": patterns,
                 "fabric_type": fabric_type
-            }
+            },
+            "product_info": product_info or {},  # CRITICAL FIX: Include product info
+            "customer_analysis": customer_analysis,  # Include for AI enhancement
+            "garment_analysis": garment_analysis     # Include for AI enhancement
         }
     
     def _calculate_garment_scaling(self, measurements: Dict[str, float], garment_type: str) -> Dict[str, float]:
@@ -458,15 +463,15 @@ class EnhancedPipelineController:
         try:
             print("[SAFE] ⚡ Starting SAFE clothing overlay (ZERO AI INPAINTING)")
             
-            # Get product name for color override
-            product_name = fitting_result.get("product_name", "")
-            print(f"[SAFE] Product: {product_name}")
+            # CRITICAL FIX: Extract product name from multiple possible sources
+            product_name = self._extract_product_name_from_sources(fitting_result, garment_analysis)
+            print(f"[SAFE] Product: '{product_name}'")
             
             # Extract color from product name - COMPLETELY IGNORE source image colors
             target_color = self._extract_color_from_name(product_name)
             
             if not target_color:
-                print("[SAFE] No color detected in product name, returning original")
+                print(f"[SAFE] No color detected in product name '{product_name}', returning original")
                 return customer_image
             
             print(f"[SAFE] 🎯 Target color: {target_color} → RGB{self._get_pure_rgb(target_color)} [OVERRIDE: ignoring source analysis]")
@@ -612,6 +617,54 @@ class EnhancedPipelineController:
             print(f"[AI] Fallback mask: ({x1},{y1}) to ({x2},{y2})")
         
         return mask
+    
+    def _extract_product_name_from_sources(self, fitting_result: Dict[str, Any], garment_analysis: Dict[str, Any]) -> str:
+        """CRITICAL FIX: Extract product name from all possible sources"""
+        product_name = ""
+        
+        # Debug what we have
+        print(f"[SAFE] 🔍 Fitting result keys: {list(fitting_result.keys()) if isinstance(fitting_result, dict) else 'Not a dict'}")
+        print(f"[SAFE] 🔍 Garment analysis keys: {list(garment_analysis.keys()) if isinstance(garment_analysis, dict) else 'Not a dict'}")
+        
+        # PRIORITY 1: Check product_info (this is where the API passes it)
+        product_info = fitting_result.get("product_info", {})
+        if isinstance(product_info, dict) and product_info:
+            print(f"[SAFE] 🎯 Found product_info: {product_info}")
+            
+            # Try name first, then description
+            for key in ['name', 'title', 'description']:
+                if key in product_info and product_info[key]:
+                    product_name = str(product_info[key]).strip()
+                    print(f"[SAFE] ✅ FOUND from product_info['{key}']: '{product_name}'")
+                    return product_name
+        
+        # PRIORITY 2: Try other sources
+        possible_sources = [
+            # From fitting_result direct
+            fitting_result.get("product_name", ""),
+            fitting_result.get("name", ""),
+            fitting_result.get("title", ""),
+            fitting_result.get("description", ""),
+            # From garment_analysis
+            garment_analysis.get("product_name", ""),
+            garment_analysis.get("name", ""),
+            garment_analysis.get("title", ""),
+            garment_analysis.get("description", ""),
+        ]
+        
+        # Find first non-empty name
+        for i, source in enumerate(possible_sources):
+            if source and isinstance(source, str) and source.strip():
+                product_name = source.strip()
+                print(f"[SAFE] ✅ Found from source {i}: '{product_name}'")
+                return product_name
+        
+        # If still empty, debug what we actually have
+        print("[SAFE] ❌ No product name found in any source")
+        print(f"[SAFE] 🔍 product_info content: {product_info}")
+        print(f"[SAFE] 🔍 fitting_result keys: {list(fitting_result.keys())}")
+        
+        return product_name
     
     def _extract_color_from_name(self, product_name: str) -> str:
         """Extract color from product name - CRITICAL OVERRIDE SYSTEM"""
