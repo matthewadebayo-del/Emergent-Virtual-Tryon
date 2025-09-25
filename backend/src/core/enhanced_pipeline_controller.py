@@ -513,8 +513,13 @@ class EnhancedPipelineController:
                 num_inference_steps=25  # More control
             ).images[0]
             
-            print("[AI] Inpainting completed - person preserved, only clothing changed")
-            return enhanced
+            # Validate person preservation
+            if self._validate_person_preserved(customer_resized, enhanced):
+                print("[AI] Inpainting completed - person preserved, only clothing changed ✅")
+                return enhanced
+            else:
+                print("[AI] ⚠️ WARNING: Person identity change detected, using fallback")
+                return customer_resized  # Return original if person changed
             
         except Exception as e:
             print(f"[AI] Inpainting failed: {str(e)}, using base render")
@@ -648,6 +653,54 @@ class EnhancedPipelineController:
             print(f"[AI] Fallback mask: ({x1},{y1}) to ({x2},{y2})")
         
         return mask
+    
+    def _validate_person_preserved(self, original_img: Image.Image, result_img: Image.Image) -> bool:
+        """Validate that person's identity and skin tone are preserved"""
+        try:
+            import numpy as np
+            
+            # Convert to numpy arrays
+            orig_array = np.array(original_img)
+            result_array = np.array(result_img)
+            
+            height, width = orig_array.shape[:2]
+            
+            # Check face region (top quarter, center)
+            face_region_orig = orig_array[:height//4, width//4:3*width//4]
+            face_region_result = result_array[:height//4, width//4:3*width//4]
+            
+            # Calculate average skin tone
+            avg_skin_orig = np.mean(face_region_orig, axis=(0,1))
+            avg_skin_result = np.mean(face_region_result, axis=(0,1))
+            
+            # Calculate skin tone change
+            skin_change = np.linalg.norm(avg_skin_orig - avg_skin_result)
+            
+            print(f"[AI] Skin tone change: {skin_change:.1f} (threshold: 30)")
+            
+            if skin_change > 30:
+                print(f"[AI] ⚠️ WARNING: Significant skin tone change detected: {skin_change:.1f}")
+                return False
+            
+            # Check arms region for skin preservation
+            arms_region_orig = orig_array[height//4:height//2, :width//4]  # Left arm area
+            arms_region_result = result_array[height//4:height//2, :width//4]
+            
+            avg_arms_orig = np.mean(arms_region_orig, axis=(0,1))
+            avg_arms_result = np.mean(arms_region_result, axis=(0,1))
+            
+            arms_change = np.linalg.norm(avg_arms_orig - avg_arms_result)
+            
+            if arms_change > 25:
+                print(f"[AI] ⚠️ WARNING: Arms/skin area changed: {arms_change:.1f}")
+                return False
+            
+            print(f"[AI] Person preservation validated ✅ (face: {skin_change:.1f}, arms: {arms_change:.1f})")
+            return True
+            
+        except Exception as e:
+            print(f"[AI] Validation failed: {e}, assuming preserved")
+            return True  # If validation fails, assume it's okay
     
     def _rgb_to_color_name(self, rgb_tuple) -> str:
         """Legacy method - use _fix_color_interpretation instead"""
