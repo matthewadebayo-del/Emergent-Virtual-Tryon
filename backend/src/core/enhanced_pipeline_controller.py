@@ -453,77 +453,36 @@ class EnhancedPipelineController:
         garment_analysis: Dict[str, Any],
         fitting_result: Dict[str, Any]
     ) -> Image.Image:
-        """Apply AI enhancement using inpainting to preserve original person"""
+        """SAFE clothing overlay - NO AI inpainting, pure computer vision"""
         
         try:
-            # Import AI enhancer from production server
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            from production_server import ai_pipeline
+            print("[SAFE] ⚡ Starting SAFE clothing overlay (ZERO AI INPAINTING)")
             
-            if not ai_pipeline:
-                print("[AI] Stable Diffusion not available, using base render")
-                return base_render
-            
-            # Extract actual garment properties
-            colors = garment_analysis.get("dominant_colors", [])
-            texture_features = garment_analysis.get("texture_features", {})
-            
-            # Use product name to override analyzed colors when there's a clear mismatch
-            # Get product name from fitting data if available
+            # Get product name for color override
             product_name = fitting_result.get("product_name", "")
+            print(f"[SAFE] Product: {product_name}")
             
-            if colors:
-                primary_color = colors[0]
-                # Use product name analysis to override incorrect color detection
-                color_name = self._analyze_product_for_color(product_name, colors)
-            else:
-                color_name = "white"  # Default for selected garments
+            # Extract color from product name - COMPLETELY IGNORE source image colors
+            target_color = self._extract_color_from_name(product_name)
             
-            # Fix fabric classification
-            fabric_type = self._fix_fabric_classification(texture_features)
+            if not target_color:
+                print("[SAFE] No color detected in product name, returning original")
+                return customer_image
             
-            # Create clothing mask for torso area only
-            clothing_mask = self._create_clothing_mask(customer_image, fitting_result)
+            print(f"[SAFE] 🎯 Target color: {target_color} → RGB{self._get_pure_rgb(target_color)} [OVERRIDE: ignoring source analysis]")
             
-            print(f"[AI] Creating clothing mask for torso area...")
-            print(f"[AI] Detected color: {color_name} (from RGB: {primary_color})")
-            print(f"[AI] Fabric classification: {fabric_type} (roughness: {texture_features.get('roughness', 0)})")
+            # Get pose keypoints from customer analysis
+            customer_analysis = fitting_result.get("customer_analysis", {})
+            pose_keypoints = customer_analysis.get("pose_keypoints", {})
             
-            # Use inpainting to preserve original person
-            prompt = f"wearing {color_name} {fabric_type} t-shirt"
-            negative_prompt = "naked, nude, different person, face change, body change"
+            # Apply safe clothing overlay
+            result = self._safe_clothing_overlay(customer_image, pose_keypoints, target_color)
             
-            print(f"[AI] Inpainting prompt: {prompt}")
-            print(f"[AI] Preserving original person and background ✅")
-            
-            # Resize for processing
-            customer_resized = customer_image.resize((512, 512))
-            mask_resized = clothing_mask.resize((512, 512))
-            
-            # Apply inpainting (only change clothing area)
-            enhanced = ai_pipeline(
-                prompt=prompt,
-                negative_prompt="different person, different face, different skin color, different race, different hair, face change, identity change, skin tone change, blurry face, distorted face, low quality, person replacement",
-                image=customer_resized,
-                mask_image=mask_resized,
-                strength=0.6,  # Conservative - preserve person
-                guidance_scale=6.0,  # Reduced - less aggressive
-                num_inference_steps=25  # More control
-            ).images[0]
-            
-            # Validate person preservation
-            if self._validate_person_preserved(customer_resized, enhanced):
-                print("[AI] Inpainting completed - person preserved, only clothing changed ✅")
-                return enhanced
-            else:
-                print("[AI] ⚠️ WARNING: Person identity change detected, using fallback")
-                return customer_resized  # Return original if person changed
+            return result
             
         except Exception as e:
-            print(f"[AI] Inpainting failed: {str(e)}, using base render")
-            return base_render
+            print(f"[SAFE] Safe overlay failed: {str(e)}, returning original")
+            return customer_image
     
     def _fix_color_interpretation(self, rgb_tuple) -> str:
         """Fixed color interpretation - handles white garments with shadows/lighting"""
@@ -653,6 +612,219 @@ class EnhancedPipelineController:
             print(f"[AI] Fallback mask: ({x1},{y1}) to ({x2},{y2})")
         
         return mask
+    
+    def _extract_color_from_name(self, product_name: str) -> str:
+        """Extract color from product name - CRITICAL OVERRIDE SYSTEM"""
+        if not product_name:
+            return None
+            
+        name_lower = product_name.lower()
+        
+        # Priority order color detection
+        color_keywords = ['white', 'black', 'red', 'blue', 'green', 'yellow', 'gray', 'grey', 'navy', 'pink']
+        
+        for color in color_keywords:
+            if color in name_lower:
+                # Handle variations
+                if color == 'grey':
+                    return 'gray'
+                return color
+        
+        return None
+    
+    def _get_pure_rgb(self, color_name: str) -> tuple:
+        """Get pure RGB values - IGNORE source image analysis completely"""
+        color_map = {
+            'white': (255, 255, 255),
+            'black': (25, 25, 25),
+            'red': (200, 50, 50),
+            'blue': (50, 100, 200),
+            'green': (50, 150, 50),
+            'yellow': (220, 220, 50),
+            'gray': (128, 128, 128),
+            'navy': (25, 25, 112),
+            'pink': (255, 150, 150)
+        }
+        return color_map.get(color_name, (255, 255, 255))
+    
+    def _safe_clothing_overlay(self, original_image: Image.Image, pose_keypoints: Dict[str, Any], target_color: str) -> Image.Image:
+        """Orchestrate safe overlay process with bulletproof validation"""
+        try:
+            # Create bulletproof mask
+            mask = self._create_bulletproof_mask(original_image, pose_keypoints)
+            
+            if mask is None:
+                print("[SAFE] Unsafe pose detection, returning original")
+                return original_image
+            
+            # Apply color with lighting preservation
+            result = self._apply_color_with_lighting_preservation(original_image, mask, target_color)
+            
+            # Bulletproof validation
+            if self._bulletproof_validation(original_image, result, mask):
+                print("[SAFE] ✅ VALIDATION PASSED - Safe overlay complete")
+                return result
+            else:
+                print("[SAFE] ⚠️ VALIDATION FAILED - Returning original")
+                return original_image
+                
+        except Exception as e:
+            print(f"[SAFE] Safe overlay failed: {e}, returning original")
+            return original_image
+    
+    def _create_bulletproof_mask(self, image: Image.Image, pose_keypoints: Dict[str, Any]) -> Image.Image:
+        """Create ultra-conservative mask for center torso only"""
+        try:
+            width, height = image.size
+            
+            # Validate required keypoints have high confidence
+            required_points = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
+            
+            for point in required_points:
+                if point not in pose_keypoints:
+                    print(f"[SAFE] Missing keypoint: {point}")
+                    return None
+                    
+                # Check if we have confidence data (some formats don't include it)
+                coords = pose_keypoints[point]
+                if isinstance(coords, list) and len(coords) > 2:
+                    confidence = coords[2] if len(coords) > 2 else 1.0
+                    if confidence < 0.8:
+                        print(f"[SAFE] Low confidence for {point}: {confidence}")
+                        return None
+                    print(f"[SAFE] ✅ {point}: confidence {confidence:.3f}")
+            
+            # Calculate torso center
+            left_shoulder = pose_keypoints['left_shoulder'][:2]
+            right_shoulder = pose_keypoints['right_shoulder'][:2]
+            left_hip = pose_keypoints['left_hip'][:2]
+            right_hip = pose_keypoints['right_hip'][:2]
+            
+            # Center points
+            shoulder_center_x = (left_shoulder[0] + right_shoulder[0]) / 2
+            shoulder_center_y = (left_shoulder[1] + right_shoulder[1]) / 2
+            hip_center_x = (left_hip[0] + right_hip[0]) / 2
+            hip_center_y = (left_hip[1] + right_hip[1]) / 2
+            
+            torso_center_x = (shoulder_center_x + hip_center_x) / 2
+            torso_center_y = (shoulder_center_y + hip_center_y) / 2
+            
+            # Ultra-conservative dimensions (25% of torso width, 40% of torso height)
+            torso_width = abs(right_shoulder[0] - left_shoulder[0]) * 0.25
+            torso_height = abs(hip_center_y - shoulder_center_y) * 0.4
+            
+            # Create small rectangle
+            x1 = max(0, int(torso_center_x - torso_width/2))
+            x2 = min(width, int(torso_center_x + torso_width/2))
+            y1 = max(0, int(torso_center_y - torso_height/2))
+            y2 = min(height, int(torso_center_y + torso_height/2))
+            
+            # Ensure minimum viable size
+            if (x2 - x1) < 30 or (y2 - y1) < 30:
+                print(f"[SAFE] Mask too small: {x2-x1}x{y2-y1}, using safe fallback")
+                x1, y1 = width//3, height//3
+                x2, y2 = 2*width//3, 2*height//3
+            
+            # Create mask with heavy feathering
+            mask = Image.new('L', (width, height), 0)
+            from PIL import ImageDraw, ImageFilter
+            draw = ImageDraw.Draw(mask)
+            draw.rectangle([x1, y1, x2, y2], fill=255)
+            
+            # Apply heavy Gaussian blur for smooth edges
+            mask = mask.filter(ImageFilter.GaussianBlur(radius=15))
+            
+            print(f"[SAFE] 🛡️ Bulletproof mask: {x2-x1}x{y2-y1} = {(x2-x1)*(y2-y1)} pixels")
+            
+            return mask
+            
+        except Exception as e:
+            print(f"[SAFE] Mask creation failed: {e}")
+            return None
+    
+    def _apply_color_with_lighting_preservation(self, original: Image.Image, mask: Image.Image, target_color: str) -> Image.Image:
+        """Apply pure RGB color while preserving original lighting patterns"""
+        try:
+            import numpy as np
+            
+            # Get pure RGB values - IGNORE source image analysis
+            base_rgb = self._get_pure_rgb(target_color)
+            print(f"[SAFE] 🎨 Applying PURE {target_color.upper()} {base_rgb} with preserved lighting")
+            
+            # Convert to numpy arrays
+            orig_array = np.array(original)
+            mask_array = np.array(mask) / 255.0  # Normalize mask
+            
+            # Extract lighting patterns from original (brightness only)
+            orig_gray = np.mean(orig_array, axis=2, keepdims=True)
+            lighting_factor = orig_gray / 128.0  # Normalize around middle gray
+            
+            # Apply target color modulated by original lighting
+            target_array = np.array(base_rgb).reshape(1, 1, 3)
+            colored_result = target_array * lighting_factor
+            
+            # Blend using mask
+            result_array = orig_array.copy().astype(np.float32)
+            for c in range(3):
+                result_array[:, :, c] = (orig_array[:, :, c] * (1 - mask_array) + 
+                                       colored_result[:, :, c] * mask_array)
+            
+            # Convert back to PIL Image
+            result_array = np.clip(result_array, 0, 255).astype(np.uint8)
+            result = Image.fromarray(result_array)
+            
+            return result
+            
+        except Exception as e:
+            print(f"[SAFE] Color application failed: {e}")
+            return original
+    
+    def _bulletproof_validation(self, original: Image.Image, result: Image.Image, mask: Image.Image) -> bool:
+        """Strict validation that person is unchanged outside clothing area"""
+        try:
+            import numpy as np
+            
+            orig_array = np.array(original)
+            result_array = np.array(result)
+            mask_array = np.array(mask) / 255.0
+            
+            # Create inverse mask (non-clothing areas)
+            inverse_mask = 1.0 - mask_array
+            
+            # Compare non-clothing pixels
+            diff = np.abs(orig_array.astype(np.float32) - result_array.astype(np.float32))
+            non_clothing_diff = diff * inverse_mask[:, :, np.newaxis]
+            
+            max_diff = np.max(non_clothing_diff)
+            avg_diff = np.mean(non_clothing_diff)
+            
+            # Special face region validation (top 33%)
+            height = orig_array.shape[0]
+            face_region_orig = orig_array[:height//3, :]
+            face_region_result = result_array[:height//3, :]
+            face_diff = np.mean(np.abs(face_region_orig.astype(np.float32) - face_region_result.astype(np.float32)))
+            
+            print(f"[SAFE] 🔍 Validation: max_diff={max_diff:.1f}, avg_diff={avg_diff:.3f}")
+            print(f"[SAFE] 🔍 Face region diff: {face_diff:.3f}")
+            
+            # Strict thresholds
+            if max_diff > 2.0:
+                print(f"[SAFE] ⚠️ Max diff too high: {max_diff:.1f} > 2.0")
+                return False
+            
+            if avg_diff > 0.5:
+                print(f"[SAFE] ⚠️ Average diff too high: {avg_diff:.3f} > 0.5")
+                return False
+            
+            if face_diff > 0.1:
+                print(f"[SAFE] ⚠️ Face changed: {face_diff:.3f} > 0.1")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            print(f"[SAFE] Validation failed: {e}, assuming unsafe")
+            return False
     
     def _validate_person_preserved(self, original_img: Image.Image, result_img: Image.Image) -> bool:
         """Validate that person's identity and skin tone are preserved"""
