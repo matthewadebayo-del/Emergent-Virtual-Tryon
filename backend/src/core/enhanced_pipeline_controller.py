@@ -66,9 +66,9 @@ class EnhancedPipelineController:
                 customer_analysis, garment_analysis, garment_type
             )
             
-            # Step 6: Generate final render
-            final_image = self._generate_final_render(
-                customer_analysis, garment_analysis, fitting_result
+            # Step 6: Generate final render with AI enhancement
+            final_image = await self._generate_final_render_with_ai(
+                customer_image, customer_analysis, garment_analysis, fitting_result
             )
             
             return {
@@ -407,13 +407,140 @@ class EnhancedPipelineController:
         
         return base_props
     
+    async def _generate_final_render_with_ai(
+        self, 
+        customer_image: Image.Image,
+        customer_analysis: Dict[str, Any], 
+        garment_analysis: Dict[str, Any], 
+        fitting_result: Dict[str, Any]
+    ) -> Image.Image:
+        """Generate final rendered image with AI enhancement"""
+        
+        try:
+            # Step 1: Generate 3D base render
+            print("[AI] Starting 3D base rendering...")
+            result = self.garment_processor.process_garment_with_analysis(
+                garment_analysis=garment_analysis,
+                customer_analysis=customer_analysis,
+                fitting_data=fitting_result
+            )
+            
+            if result.get("success") and result.get("rendered_image"):
+                base_render = result["rendered_image"]
+            else:
+                base_render = self._create_fallback_composite(
+                    customer_analysis, garment_analysis, fitting_result
+                )
+            
+            # Step 2: Apply AI enhancement using Stable Diffusion
+            print("[AI] Enhancing image realism with Stable Diffusion...")
+            enhanced_image = await self._apply_ai_enhancement(
+                customer_image, base_render, garment_analysis, fitting_result
+            )
+            
+            return enhanced_image
+                
+        except Exception as e:
+            logger.error(f"AI-enhanced rendering failed: {str(e)}")
+            return self._create_fallback_composite(
+                customer_analysis, garment_analysis, fitting_result
+            )
+    
+    async def _apply_ai_enhancement(
+        self,
+        customer_image: Image.Image,
+        base_render: Image.Image,
+        garment_analysis: Dict[str, Any],
+        fitting_result: Dict[str, Any]
+    ) -> Image.Image:
+        """Apply AI enhancement using Stable Diffusion with extracted garment data"""
+        
+        try:
+            # Import AI enhancer from production server
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            from production_server import ai_pipeline
+            
+            if not ai_pipeline:
+                print("[AI] Stable Diffusion not available, using base render")
+                return base_render
+            
+            # Extract garment properties for prompt
+            colors = garment_analysis.get("dominant_colors", [])
+            fabric_type = garment_analysis.get("fabric_type", "cotton")
+            garment_type = fitting_result.get("visual_properties", {}).get("garment_type", "t-shirt")
+            
+            # Create color description
+            if colors:
+                primary_color = colors[0]
+                color_name = self._rgb_to_color_name(primary_color)
+            else:
+                color_name = "neutral"
+            
+            # Create enhanced prompt using actual analysis
+            prompt = f"person wearing a {color_name} {fabric_type} {garment_type}, photorealistic, high quality, detailed clothing, natural lighting, well-fitted {garment_type}, visible {color_name} {garment_type} on torso"
+            negative_prompt = "naked, nude, shirtless, bare chest, no clothing, invisible clothing, blurry, low quality"
+            
+            print(f"[AI] Using extracted colors: {colors[:3]}")
+            print(f"[AI] Fabric type: {fabric_type}")
+            print(f"[AI] Enhanced prompt: {prompt}")
+            
+            # Resize customer image for Stable Diffusion
+            customer_resized = customer_image.resize((512, 512))
+            
+            # Apply Stable Diffusion enhancement
+            enhanced = ai_pipeline(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                image=customer_resized,
+                strength=0.7,  # Strong transformation to apply garment
+                guidance_scale=12.0,  # High guidance for prompt following
+                num_inference_steps=30
+            ).images[0]
+            
+            print("[AI] Stable Diffusion enhancement completed successfully")
+            return enhanced
+            
+        except Exception as e:
+            print(f"[AI] Enhancement failed: {str(e)}, using base render")
+            return base_render
+    
+    def _rgb_to_color_name(self, rgb_tuple) -> str:
+        """Convert RGB values to color names for prompts"""
+        if isinstance(rgb_tuple, (list, tuple)) and len(rgb_tuple) >= 3:
+            r, g, b = rgb_tuple[:3]
+        else:
+            return "neutral"
+            
+        if r > 200 and g > 200 and b > 200:
+            return "white"
+        elif r < 50 and g < 50 and b < 50:
+            return "black"
+        elif r > g and r > b and r > 100:
+            return "red"
+        elif g > r and g > b and g > 100:
+            return "green"
+        elif b > r and b > g and b > 100:
+            return "blue"
+        elif r > 100 and g > 100 and b < 100:
+            return "yellow"
+        elif r > 100 and r > b and g > 100 and g > b:
+            return "brown"
+        elif r > 150 and g > 150 and b > 150:
+            return "light gray"
+        elif r < 100 and g < 100 and b < 100:
+            return "dark gray"
+        else:
+            return "gray"
+    
     def _generate_final_render(
         self, 
         customer_analysis: Dict[str, Any], 
         garment_analysis: Dict[str, Any], 
         fitting_result: Dict[str, Any]
     ) -> Image.Image:
-        """Generate final rendered image using all analysis data"""
+        """Generate final rendered image using all analysis data (fallback method)"""
         
         try:
             # Use enhanced 3D processor with actual visual data
