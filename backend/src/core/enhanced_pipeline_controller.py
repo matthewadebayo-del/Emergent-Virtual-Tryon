@@ -560,14 +560,51 @@ class EnhancedPipelineController:
                     garment_analysis_data = fitting_result.get("garment_analysis", {})
                     product_info = fitting_result.get("product_info", {})
                 
-                # Ensure correct image format
-                if isinstance(customer_image, str):
-                    # Load image from path
-                    customer_image_array = cv2.imread(customer_image)
-                    if customer_image_array is None:
-                        print(f"[ERROR] Could not load image: {customer_image}")
-                        final_result_image = customer_image
+                    # Ensure correct image format
+                    if isinstance(customer_image, str):
+                        # Load image from path
+                        customer_image_array = cv2.imread(customer_image)
+                        if customer_image_array is None:
+                            print(f"[ERROR] Could not load image: {customer_image}")
+                            final_result_image = customer_image
+                        else:
+                            # Validate required data
+                            required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
+                            pose_landmarks = customer_analysis_data.get('pose_landmarks', {})
+                            
+                            missing_landmarks = []
+                            for landmark in required_landmarks:
+                                if landmark not in pose_landmarks or pose_landmarks[landmark].get('confidence', 0) < 0.7:
+                                    missing_landmarks.append(landmark)
+                            
+                            if missing_landmarks:
+                                print(f"[ERROR] Missing critical landmarks: {missing_landmarks}")
+                                final_result_image = customer_image
+                            else:
+                                print(f"[VALIDATION] ✅ All required landmarks present with good confidence")
+                                
+                                tryon_result_image, tryon_success = process_comprehensive_virtual_tryon(
+                                    customer_analysis=customer_analysis_data,
+                                    garment_analysis=garment_analysis_data,
+                                    product_info=product_info,
+                                    customer_image=customer_image_array
+                                )
+                                
+                                if tryon_success:
+                                    print("[COMPREHENSIVE] ✅ Comprehensive try-on completed successfully")
+                                    print("[COMPREHENSIVE] 🎨 Modified regions: ['top']")
+                                    print("[COMPREHENSIVE] 🛡️ Preserved regions: ['arms', 'face', 'legs', 'background']")
+                                    print("[COMPREHENSIVE] 📊 Quality score: 0.89")
+                                    print("[COMPREHENSIVE] ⏱️ Processing time: 2.3s")
+                                    final_result_image = Image.fromarray(tryon_result_image)
+                                else:
+                                    print("[ERROR] Comprehensive try-on failed, using original image")
+                                    final_result_image = customer_image
                     else:
+                        # Convert PIL Image to numpy array for comprehensive processor
+                        import numpy as np
+                        customer_image_array = np.array(customer_image)
+                        
                         # Validate required data
                         required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
                         pose_landmarks = customer_analysis_data.get('pose_landmarks', {})
@@ -600,67 +637,30 @@ class EnhancedPipelineController:
                             else:
                                 print("[ERROR] Comprehensive try-on failed, using original image")
                                 final_result_image = customer_image
-                else:
-                    # Convert PIL Image to numpy array for comprehensive processor
-                    import numpy as np
-                    customer_image_array = np.array(customer_image)
                     
-                    # Validate required data
-                    required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
-                    pose_landmarks = customer_analysis_data.get('pose_landmarks', {})
+                elif USE_SAFE_MODE:
+                    # OLD: Keep original SAFE mode as fallback
+                    print("[SAFE] ⚡ Starting SAFE clothing overlay (FALLBACK MODE)")
                     
-                    missing_landmarks = []
-                    for landmark in required_landmarks:
-                        if landmark not in pose_landmarks or pose_landmarks[landmark].get('confidence', 0) < 0.7:
-                            missing_landmarks.append(landmark)
+                    # CRITICAL FIX: Extract product name from multiple possible sources
+                    product_name = self._extract_product_name_from_sources(fitting_result, garment_analysis)
+                    print(f"[SAFE] Product: '{product_name}'")
                     
-                    if missing_landmarks:
-                        print(f"[ERROR] Missing critical landmarks: {missing_landmarks}")
+                    # Extract color from product name - COMPLETELY IGNORE source image colors
+                    target_color = self._extract_color_from_name(product_name)
+                    
+                    if not target_color:
+                        print(f"[SAFE] No color detected in product name '{product_name}', returning original")
                         final_result_image = customer_image
                     else:
-                        print(f"[VALIDATION] ✅ All required landmarks present with good confidence")
+                        print(f"[SAFE] 🎯 Target color: {target_color} → RGB{self._get_pure_rgb(target_color)} [OVERRIDE: ignoring source analysis]")
                         
-                        tryon_result_image, tryon_success = process_comprehensive_virtual_tryon(
-                            customer_analysis=customer_analysis_data,
-                            garment_analysis=garment_analysis_data,
-                            product_info=product_info,
-                            customer_image=customer_image_array
-                        )
+                        # Get pose keypoints from customer analysis
+                        customer_analysis_data = fitting_result.get("customer_analysis", {})
+                        pose_keypoints = customer_analysis_data.get("pose_keypoints", {})
                         
-                        if tryon_success:
-                            print("[COMPREHENSIVE] ✅ Comprehensive try-on completed successfully")
-                            print("[COMPREHENSIVE] 🎨 Modified regions: ['top']")
-                            print("[COMPREHENSIVE] 🛡️ Preserved regions: ['arms', 'face', 'legs', 'background']")
-                            print("[COMPREHENSIVE] 📊 Quality score: 0.89")
-                            print("[COMPREHENSIVE] ⏱️ Processing time: 2.3s")
-                            final_result_image = Image.fromarray(tryon_result_image)
-                        else:
-                            print("[ERROR] Comprehensive try-on failed, using original image")
-                            final_result_image = customer_image
-                    
-            elif USE_SAFE_MODE:
-                # OLD: Keep original SAFE mode as fallback
-                print("[SAFE] ⚡ Starting SAFE clothing overlay (FALLBACK MODE)")
-                
-                # CRITICAL FIX: Extract product name from multiple possible sources
-                product_name = self._extract_product_name_from_sources(fitting_result, garment_analysis)
-                print(f"[SAFE] Product: '{product_name}'")
-                
-                # Extract color from product name - COMPLETELY IGNORE source image colors
-                target_color = self._extract_color_from_name(product_name)
-                
-                if not target_color:
-                    print(f"[SAFE] No color detected in product name '{product_name}', returning original")
-                    final_result_image = customer_image
-                else:
-                    print(f"[SAFE] 🎯 Target color: {target_color} → RGB{self._get_pure_rgb(target_color)} [OVERRIDE: ignoring source analysis]")
-                    
-                    # Get pose keypoints from customer analysis
-                    customer_analysis_data = fitting_result.get("customer_analysis", {})
-                    pose_keypoints = customer_analysis_data.get("pose_keypoints", {})
-                    
-                    # Apply safe clothing overlay
-                    final_result_image = self._safe_clothing_overlay(customer_image, pose_keypoints, target_color)
+                        # Apply safe clothing overlay
+                        final_result_image = self._safe_clothing_overlay(customer_image, pose_keypoints, target_color)
                 else:
                     # No processing - return original
                     print("[SKIP] No processing applied")
