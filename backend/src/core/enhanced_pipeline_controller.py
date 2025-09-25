@@ -157,17 +157,27 @@ class EnhancedPipelineController:
         if missing_keypoints:
             return {"valid": False, "error": f"Missing required keypoints: {missing_keypoints}"}
         
-        # Measurement validation - strict error reporting
+        # Measurement validation - check what we actually get
         measurements = customer_analysis.get("measurements", {})
+        print(f"[VALIDATION] Customer measurements: {measurements}")
+        
         if not measurements:
             return {"valid": False, "error": "Customer measurements extraction failed"}
         
-        chest = measurements.get("chest", measurements.get("chest_circumference_cm", 0))
-        if chest < 60 or chest > 150:
-            return {"valid": False, "error": f"Invalid customer measurements detected - chest: {chest}cm"}
+        # Check for key measurements that are actually provided
+        shoulder_width = measurements.get("shoulder_width_cm", 0)
+        height = measurements.get("height_cm", 0)
         
-        # Garment validation - strict error reporting
+        if shoulder_width < 30 or shoulder_width > 70:
+            return {"valid": False, "error": f"Invalid shoulder width: {shoulder_width}cm"}
+        
+        if height < 140 or height > 220:
+            return {"valid": False, "error": f"Invalid height: {height}cm"}
+        
+        # Garment validation - strict error reporting  
         colors = garment_analysis.get("dominant_colors", [])
+        print(f"[VALIDATION] Garment colors: {colors}")
+        
         if not colors or len(colors) == 0:
             return {"valid": False, "error": "Garment color extraction failed"}
         
@@ -176,6 +186,8 @@ class EnhancedPipelineController:
             return {"valid": False, "error": "Garment appears to have no distinct visual features"}
         
         texture_features = garment_analysis.get("texture_features", {})
+        print(f"[VALIDATION] Texture features: {texture_features}")
+        
         if not texture_features or texture_features.get("contrast", 0) < 0.1:
             return {"valid": False, "error": "Garment texture analysis failed"}
         

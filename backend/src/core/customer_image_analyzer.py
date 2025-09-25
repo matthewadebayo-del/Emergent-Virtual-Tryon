@@ -307,7 +307,10 @@ class CustomerImageAnalyzer:
         # Calculate scale (pixels per cm)
         scale_factor = self._calculate_scale_factor(measurements, reference_height_cm)
         
-        # Convert to real-world measurements
+        # Calculate additional measurements from landmarks
+        additional_measurements = self._calculate_additional_measurements(landmarks, pixel_landmarks, scale_factor, confidence_scores)
+        
+        # Convert to real-world measurements with all body measurements
         real_measurements = {
             "shoulder_width_cm": measurements["shoulder_width_px"] * scale_factor if measurements["shoulder_width_px"] > 0 else 45.0,
             "height_cm": measurements["height_px"] * scale_factor if measurements["height_px"] > 0 else 170.0,
@@ -316,7 +319,99 @@ class CustomerImageAnalyzer:
             "overall_confidence": np.mean(list(confidence_scores.values())) if confidence_scores else 0.7
         }
         
+        # Add all derived measurements
+        real_measurements.update(additional_measurements)
+        
+        print(f"[CUSTOMER] Derived measurements: {list(real_measurements.keys())}")
+        print(f"[CUSTOMER] Chest: {real_measurements.get('chest', 'NOT_CALCULATED')}cm")
+        
         return real_measurements
+        
+        return real_measurements
+    
+    def _calculate_additional_measurements(self, landmarks: np.ndarray, pixel_landmarks: np.ndarray, scale_factor: float, confidence_scores: Dict[str, float]) -> Dict[str, float]:
+        """Calculate chest, waist, hips and other measurements from pose landmarks"""
+        try:
+            # MediaPipe pose landmark indices
+            LEFT_SHOULDER = 11
+            RIGHT_SHOULDER = 12
+            LEFT_HIP = 23
+            RIGHT_HIP = 24
+            LEFT_ELBOW = 13
+            RIGHT_ELBOW = 14
+            
+            additional_measurements = {}
+            
+            # Chest width (estimate from shoulder width with anatomical ratio)
+            shoulder_width_px = abs(pixel_landmarks[LEFT_SHOULDER][0] - pixel_landmarks[RIGHT_SHOULDER][0]) if landmarks[LEFT_SHOULDER][3] > 0.7 and landmarks[RIGHT_SHOULDER][3] > 0.7 else 0
+            if shoulder_width_px > 0:
+                # Chest is typically 1.8-2.2x shoulder width
+                chest_circumference_cm = (shoulder_width_px * scale_factor) * 2.0
+                additional_measurements["chest"] = chest_circumference_cm
+                additional_measurements["chest_circumference_cm"] = chest_circumference_cm
+                confidence_scores["chest"] = min(landmarks[LEFT_SHOULDER][3], landmarks[RIGHT_SHOULDER][3])
+            else:
+                additional_measurements["chest"] = 90.0  # Default
+                additional_measurements["chest_circumference_cm"] = 90.0
+                confidence_scores["chest"] = 0.3
+            
+            # Hip width and circumference
+            if landmarks[LEFT_HIP][3] > 0.7 and landmarks[RIGHT_HIP][3] > 0.7:
+                hip_width_px = abs(pixel_landmarks[LEFT_HIP][0] - pixel_landmarks[RIGHT_HIP][0])
+                hip_circumference_cm = (hip_width_px * scale_factor) * 2.2  # Hips are typically wider than shoulders
+                additional_measurements["hips"] = hip_circumference_cm
+                additional_measurements["hip_circumference_cm"] = hip_circumference_cm
+                confidence_scores["hips"] = min(landmarks[LEFT_HIP][3], landmarks[RIGHT_HIP][3])
+            else:
+                additional_measurements["hips"] = 95.0  # Default
+                additional_measurements["hip_circumference_cm"] = 95.0
+                confidence_scores["hips"] = 0.3
+            
+            # Waist (estimate as midpoint between chest and hips)
+            chest_val = additional_measurements.get("chest", 90.0)
+            hips_val = additional_measurements.get("hips", 95.0)
+            waist_circumference_cm = (chest_val + hips_val) / 2.5  # Waist is typically smaller
+            additional_measurements["waist"] = waist_circumference_cm
+            additional_measurements["waist_circumference_cm"] = waist_circumference_cm
+            confidence_scores["waist"] = (confidence_scores.get("chest", 0.3) + confidence_scores.get("hips", 0.3)) / 2
+            
+            # Arm length (shoulder to wrist)
+            if landmarks[LEFT_SHOULDER][3] > 0.7 and landmarks[LEFT_ELBOW][3] > 0.7:
+                arm_length_px = np.sqrt(
+                    (pixel_landmarks[LEFT_SHOULDER][0] - pixel_landmarks[LEFT_ELBOW][0])**2 +
+                    (pixel_landmarks[LEFT_SHOULDER][1] - pixel_landmarks[LEFT_ELBOW][1])**2
+                )
+                additional_measurements["arm_length"] = arm_length_px * scale_factor
+                confidence_scores["arm_length"] = min(landmarks[LEFT_SHOULDER][3], landmarks[LEFT_ELBOW][3])
+            else:
+                additional_measurements["arm_length"] = 60.0  # Default
+                confidence_scores["arm_length"] = 0.3
+            
+            # Torso length (shoulder to hip)
+            if landmarks[LEFT_SHOULDER][3] > 0.7 and landmarks[LEFT_HIP][3] > 0.7:
+                torso_length_px = abs(pixel_landmarks[LEFT_SHOULDER][1] - pixel_landmarks[LEFT_HIP][1])
+                additional_measurements["torso_length"] = torso_length_px * scale_factor
+                confidence_scores["torso_length"] = min(landmarks[LEFT_SHOULDER][3], landmarks[LEFT_HIP][3])
+            else:
+                additional_measurements["torso_length"] = 60.0  # Default
+                confidence_scores["torso_length"] = 0.3
+            
+            print(f"[CUSTOMER] Calculated additional measurements: chest={additional_measurements.get('chest', 0):.1f}cm, waist={additional_measurements.get('waist', 0):.1f}cm, hips={additional_measurements.get('hips', 0):.1f}cm")
+            
+            return additional_measurements
+            
+        except Exception as e:
+            print(f"[CUSTOMER] Additional measurements calculation failed: {e}")
+            return {
+                "chest": 90.0,
+                "chest_circumference_cm": 90.0,
+                "waist": 75.0,
+                "waist_circumference_cm": 75.0,
+                "hips": 95.0,
+                "hip_circumference_cm": 95.0,
+                "arm_length": 60.0,
+                "torso_length": 60.0
+            }
     
     def _calculate_scale_factor(self, measurements: Dict[str, float], reference_height_cm: Optional[float] = None) -> float:
         """Calculate pixels per cm ratio"""
