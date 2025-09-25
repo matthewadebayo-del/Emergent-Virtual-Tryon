@@ -146,43 +146,32 @@ class EnhancedPipelineController:
     ) -> Dict[str, Any]:
         """Validate both analyses completed successfully"""
         
-        # Customer validation - be more lenient
-        pose_keypoints = customer_analysis.get("pose_keypoints", {})
-        if not pose_keypoints:
-            # Create default pose keypoints if detection failed
-            customer_analysis["pose_keypoints"] = {
-                "nose": [256, 100], "left_shoulder": [200, 150], "right_shoulder": [312, 150],
-                "left_hip": [220, 300], "right_hip": [292, 300]
-            }
-        else:
-            # Check for essential keypoints, add defaults if missing
-            essential_keypoints = {
-                "left_shoulder": [200, 150], "right_shoulder": [312, 150],
-                "left_hip": [220, 300], "right_hip": [292, 300]
-            }
-            for kp, default_pos in essential_keypoints.items():
-                if kp not in pose_keypoints:
-                    pose_keypoints[kp] = default_pos
+        # Customer validation - strict error reporting
+        if not customer_analysis.get("pose_keypoints"):
+            return {"valid": False, "error": "Customer pose detection failed"}
         
-        # Measurement validation - be more lenient
+        keypoints = customer_analysis["pose_keypoints"]
+        required_keypoints = ["nose", "left_shoulder", "right_shoulder", "left_hip", "right_hip"]
+        missing_keypoints = [kp for kp in required_keypoints if kp not in keypoints]
+        
+        if missing_keypoints:
+            return {"valid": False, "error": f"Missing required keypoints: {missing_keypoints}"}
+        
+        # Measurement validation - strict error reporting
         measurements = customer_analysis.get("measurements", {})
         if not measurements:
-            # Use default measurements if none detected
-            customer_analysis["measurements"] = {
-                "height_cm": 170, "shoulder_width_cm": 45, "chest": 90, "waist": 75, "hips": 95
-            }
-        else:
-            # Validate key measurements exist and are reasonable
-            chest = measurements.get("chest", measurements.get("chest_circumference_cm", 90))
-            if chest < 50 or chest > 200:  # More lenient range
-                measurements["chest"] = 90  # Use default
+            return {"valid": False, "error": "Customer measurements extraction failed"}
         
-        # Garment validation
+        chest = measurements.get("chest", measurements.get("chest_circumference_cm", 0))
+        if chest < 60 or chest > 150:
+            return {"valid": False, "error": f"Invalid customer measurements detected - chest: {chest}cm"}
+        
+        # Garment validation - strict error reporting
         colors = garment_analysis.get("dominant_colors", [])
         if not colors or len(colors) == 0:
             return {"valid": False, "error": "Garment color extraction failed"}
         
-        # Check if garment has actual visual features (not all gray/white)
+        # Check if garment has actual visual features
         if self._is_garment_too_plain(colors):
             return {"valid": False, "error": "Garment appears to have no distinct visual features"}
         

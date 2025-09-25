@@ -33,24 +33,33 @@ class GarmentImageAnalyzer:
             silhouette = self._extract_silhouette(image_array)
             fabric_type = self._predict_fabric_type(texture)
             
-            return {
+            result = {
                 "colors": colors,
                 "texture": texture,
                 "patterns": patterns,
                 "silhouette": silhouette,
                 "fabric_type": fabric_type,
-                "analysis_success": True
+                "analysis_success": True,
+                "dominant_colors": colors.get("palette", [(128, 128, 128)]),
+                "texture_features": texture
             }
+            
+            print(f"[GARMENT] Analysis complete - dominant_colors: {result['dominant_colors']}")
+            return result
             
         except Exception as e:
             print(f"[GARMENT] Analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 "colors": {"primary": (128, 128, 128), "palette": [(128, 128, 128)]},
                 "texture": {"roughness": 0.5, "complexity": 0.5},
                 "patterns": {"type": "solid", "detected": False},
                 "silhouette": {"aspect_ratio": 1.0},
                 "fabric_type": "cotton",
-                "analysis_success": False
+                "analysis_success": False,
+                "dominant_colors": [(128, 128, 128)],
+                "texture_features": {"roughness": 0.5, "complexity": 0.5}
             }
     
     def _extract_dominant_colors(self, image_array: np.ndarray) -> Dict[str, Any]:
