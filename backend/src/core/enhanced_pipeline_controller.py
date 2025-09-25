@@ -470,18 +470,16 @@ class EnhancedPipelineController:
             colors = garment_analysis.get("dominant_colors", [])
             texture_features = garment_analysis.get("texture_features", {})
             
-            # Use actual selected garment color, not analyzed RGB from photo
-            # TODO: Get actual selected garment color from product data
-            # For now, if RGB values suggest white garment with shadows, use "white"
+            # Use product name to override analyzed colors when there's a clear mismatch
+            # Get product name from fitting data if available
+            product_name = fitting_result.get("product_name", "")
+            
             if colors:
                 primary_color = colors[0]
-                # If selected garment is white but appears gray due to lighting, use "white"
-                if self._is_white_garment_with_shadows(primary_color):
-                    color_name = "white"  # Override with actual garment color
-                else:
-                    color_name = self._fix_color_interpretation(primary_color)
+                # Use product name analysis to override incorrect color detection
+                color_name = self._analyze_product_for_color(product_name, colors)
             else:
-                color_name = "white"  # Default to white for selected garments
+                color_name = "white"  # Default for selected garments
             
             # Fix fabric classification
             fabric_type = self._fix_fabric_classification(texture_features)
@@ -507,12 +505,12 @@ class EnhancedPipelineController:
             # Apply inpainting (only change clothing area)
             enhanced = ai_pipeline(
                 prompt=prompt,
-                negative_prompt=negative_prompt,
+                negative_prompt="different person, different face, different skin color, different race, different hair, face change, identity change, skin tone change, blurry face, distorted face, low quality, person replacement",
                 image=customer_resized,
                 mask_image=mask_resized,
-                strength=0.6,  # Gentle modification
-                guidance_scale=7.5,
-                num_inference_steps=20
+                strength=0.6,  # Conservative - preserve person
+                guidance_scale=6.0,  # Reduced - less aggressive
+                num_inference_steps=25  # More control
             ).images[0]
             
             print("[AI] Inpainting completed - person preserved, only clothing changed")
@@ -576,15 +574,34 @@ class EnhancedPipelineController:
         """Detect if this is a white garment that appears gray due to lighting/shadows"""
         if isinstance(rgb_tuple, (list, tuple)) and len(rgb_tuple) >= 3:
             r, g, b = rgb_tuple[:3]
-            # White garments with shadows: similar RGB values in 130-180 range
-            if abs(r-g) < 25 and abs(g-b) < 25 and 130 <= r <= 180:
+            # White garments with shadows: similar RGB values in 120-200 range
+            if abs(r-g) < 30 and abs(g-b) < 30 and 120 <= r <= 200:
                 return True
         return False
     
-    def _create_clothing_mask(self, customer_image: Image.Image, fitting_result: Dict[str, Any]) -> Image.Image:
-        """Create mask for torso/clothing area only to preserve person"""
-        import cv2
+    def _analyze_product_for_color(self, product_name: str, analyzed_colors: list) -> str:
+        """Override analyzed colors with product name if there's a clear mismatch"""
+        if not product_name:
+            return self._fix_color_interpretation(analyzed_colors[0] if analyzed_colors else [128, 128, 128])
         
+        name_lower = product_name.lower()
+        
+        # If product name clearly indicates white, override analysis
+        if "white" in name_lower and "classic white" in name_lower:
+            print(f"[AI] Product name indicates WHITE garment, overriding analyzed colors {analyzed_colors[0] if analyzed_colors else 'none'}")
+            return "white"
+        elif "black" in name_lower:
+            return "black"
+        elif "navy" in name_lower:
+            return "navy"
+        elif "blue" in name_lower:
+            return "blue"
+        else:
+            # Use analyzed colors
+            return self._fix_color_interpretation(analyzed_colors[0] if analyzed_colors else [128, 128, 128])
+    
+    def _create_clothing_mask(self, customer_image: Image.Image, fitting_result: Dict[str, Any]) -> Image.Image:
+        """Create precise mask for torso/clothing area only - preserves face, arms, skin"""
         width, height = customer_image.size
         mask = Image.new('L', (width, height), 0)  # Black mask
         
@@ -595,28 +612,40 @@ class EnhancedPipelineController:
             shoulder_width = positioning.get("shoulder_width", 120)
             torso_length = positioning.get("torso_length", 200)
             
-            # Create torso rectangle
+            # Create precise torso rectangle - ONLY clothing area
             x_center, y_center = anchor_point
-            margin = 20
             
-            x1 = max(0, int(x_center - shoulder_width//2 - margin))
-            x2 = min(width, int(x_center + shoulder_width//2 + margin))
-            y1 = max(0, int(y_center - 50))  # Above shoulders
-            y2 = min(height, int(y_center + torso_length//2 + 50))  # Below torso
+            # More conservative mask - only center torso
+            torso_width = min(shoulder_width * 0.8, width * 0.3)  # Narrower
+            torso_height = min(torso_length * 0.6, height * 0.4)  # Shorter
+            
+            x1 = max(0, int(x_center - torso_width//2))
+            x2 = min(width, int(x_center + torso_width//2))
+            y1 = max(0, int(y_center - torso_height//4))  # Start below neck
+            y2 = min(height, int(y_center + torso_height//2))  # End at waist
+            
+            # Ensure minimum viable mask size
+            if (x2 - x1) < 50 or (y2 - y1) < 50:
+                # Fallback to safe center area
+                x1, y1 = width//3, height//3
+                x2, y2 = 2*width//3, 2*height//3
             
             # Draw white rectangle on mask (area to change)
             from PIL import ImageDraw
             draw = ImageDraw.Draw(mask)
             draw.rectangle([x1, y1, x2, y2], fill=255)
             
-            print(f"[AI] Created clothing mask: torso area ({x1},{y1}) to ({x2},{y2})")
+            print(f"[AI] Created precise clothing mask: torso area ({x1},{y1}) to ({x2},{y2}) - size: {x2-x1}x{y2-y1}")
             
         except Exception as e:
-            print(f"[AI] Mask creation failed, using center torso: {e}")
-            # Fallback: center torso area
+            print(f"[AI] Mask creation failed, using safe center torso: {e}")
+            # Safe fallback: center torso area only
             from PIL import ImageDraw
             draw = ImageDraw.Draw(mask)
-            draw.rectangle([width//4, height//4, 3*width//4, 3*height//4], fill=255)
+            x1, y1 = width//3, height//3
+            x2, y2 = 2*width//3, 2*height//3
+            draw.rectangle([x1, y1, x2, y2], fill=255)
+            print(f"[AI] Fallback mask: ({x1},{y1}) to ({x2},{y2})")
         
         return mask
     
