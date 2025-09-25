@@ -576,8 +576,8 @@ class EnhancedPipelineController:
                             print(f"[DEBUG] pose_landmarks type: {type(pose_landmarks)}, keys: {list(pose_landmarks.keys()) if isinstance(pose_landmarks, dict) else 'not dict'}")
                             print(f"[DEBUG] pose_keypoints type: {type(pose_keypoints)}, keys: {list(pose_keypoints.keys()) if isinstance(pose_keypoints, dict) else 'not dict'}")
                             
-                            # Use pose_keypoints if pose_landmarks is empty
-                            landmarks_to_use = pose_landmarks if pose_landmarks else pose_keypoints
+                            # Use pose_keypoints if pose_landmarks is not a dict
+                            landmarks_to_use = pose_keypoints if isinstance(pose_landmarks, dict) and pose_landmarks else pose_keypoints
                             print(f"[DEBUG] Using landmarks: {type(landmarks_to_use)}, sample: {dict(list(landmarks_to_use.items())[:2]) if isinstance(landmarks_to_use, dict) else landmarks_to_use}")
                             
                             missing_landmarks = []
@@ -628,8 +628,8 @@ class EnhancedPipelineController:
                         print(f"[DEBUG] pose_landmarks type: {type(pose_landmarks)}, keys: {list(pose_landmarks.keys()) if isinstance(pose_landmarks, dict) else 'not dict'}")
                         print(f"[DEBUG] pose_keypoints type: {type(pose_keypoints)}, keys: {list(pose_keypoints.keys()) if isinstance(pose_keypoints, dict) else 'not dict'}")
                         
-                        # Use pose_keypoints if pose_landmarks is empty
-                        landmarks_to_use = pose_landmarks if pose_landmarks else pose_keypoints
+                        # Use pose_keypoints if pose_landmarks is not a dict
+                        landmarks_to_use = pose_keypoints if isinstance(pose_landmarks, dict) and pose_landmarks else pose_keypoints
                         print(f"[DEBUG] Using landmarks: {type(landmarks_to_use)}, sample: {dict(list(landmarks_to_use.items())[:2]) if isinstance(landmarks_to_use, dict) else landmarks_to_use}")
                         
                         missing_landmarks = []
