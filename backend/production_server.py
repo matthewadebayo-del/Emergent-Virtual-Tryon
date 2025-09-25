@@ -127,13 +127,17 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware
+# CORS middleware - ensure proper configuration
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,*")
+print(f"[CORS] Configured origins: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_origins=cors_origins.split(","),
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # API Router
@@ -207,6 +211,24 @@ class ProductionVirtualTryOn:
         self.physics_engine = PhysicsEngine() if PHYSICS_AVAILABLE else None
         self.ai_enhancer = AIEnhancer() if AI_AVAILABLE else None
         
+    def _detect_garment_type(self, description: str) -> str:
+        """Detect garment type from description"""
+        desc_lower = description.lower()
+        if "polo" in desc_lower:
+            return "polo_shirt"
+        elif "t-shirt" in desc_lower or "tshirt" in desc_lower:
+            return "t-shirt"
+        elif "jean" in desc_lower:
+            return "jeans"
+        elif "chino" in desc_lower:
+            return "chinos"
+        elif "blazer" in desc_lower:
+            return "blazer"
+        elif "dress" in desc_lower:
+            return "dress"
+        else:
+            return "t-shirt"
+    
     def _rgb_to_color_name(self, rgb_tuple):
         """Convert RGB values to color names"""
         r, g, b = rgb_tuple

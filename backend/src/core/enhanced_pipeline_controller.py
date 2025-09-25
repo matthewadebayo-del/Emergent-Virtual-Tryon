@@ -151,6 +151,9 @@ class EnhancedPipelineController:
             return {"valid": False, "error": "Customer pose detection failed"}
         
         keypoints = customer_analysis["pose_keypoints"]
+        if not isinstance(keypoints, dict):
+            return {"valid": False, "error": "Invalid pose keypoints format"}
+            
         required_keypoints = ["nose", "left_shoulder", "right_shoulder", "left_hip", "right_hip"]
         missing_keypoints = [kp for kp in required_keypoints if kp not in keypoints]
         
