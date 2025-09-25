@@ -40,10 +40,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 from src.core.model_manager import model_manager
 from src.utils.heic_processor import HEICProcessor
 from server_hybrid_functions import process_hybrid_3d_tryon
+from src.core.garment_analyzer import GarmentImageAnalyzer
 
 heic_processor = HEICProcessor()
+garment_analyzer = GarmentImageAnalyzer()
 
 print("[OK] 3D virtual try-on modules configured for lazy loading")
+print("[OK] Garment image analyzer initialized")
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -891,9 +894,10 @@ async def virtual_tryon(
             "Photorealistic Rendering → AI Enhancement"
         )
 
-        # Stage 2: Get Clothing Item Information
-        print("👔 Stage 2: Clothing Item Analysis...")
+        # Stage 2: Get Clothing Item Information with Visual Analysis
+        print("👔 Stage 2: Clothing Item Analysis with Computer Vision...")
         clothing_item_url = None
+        garment_analysis = None
         if product_id:
             print(f"🔍 Looking up product: {product_id}")
             product = await db.products.find_one({"id": product_id})

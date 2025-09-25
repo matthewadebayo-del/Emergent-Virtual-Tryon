@@ -21,149 +21,61 @@ import axios from 'axios';
 import PhotoGuideModal from './PhotoGuideModal';
 import '../emergency-fix.css';
 
-// 🔧 Frontend Fix for Virtual Try-On Display
 const VirtualTryOnResult = ({ apiResponse }) => {
-  const [debugMode, setDebugMode] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // Debug the API response - check the correct property name
-  console.log('🔍 API Response Debug:', {
-    hasResultImageBase64: !!apiResponse?.result_image_base64,
-    hasResult: !!apiResponse?.result,
-    resultImageLength: apiResponse?.result_image_base64?.length,
-    resultLength: apiResponse?.result?.length,
-    apiKeys: Object.keys(apiResponse || {}),
-    firstChars: (apiResponse?.result_image_base64 || apiResponse?.result)?.substring(0, 50)
-  });
-
-  // Add debug function to window
-  useEffect(() => {
-    window.debugVirtualTryOn = () => {
-      console.log('🔍 DEBUGGING VIRTUAL TRY-ON DISPLAY');
-      const images = document.querySelectorAll('img');
-      console.log(`Found ${images.length} images on page:`, images);
-    };
-  }, []);
-
-  // Handle image loading errors
   const handleImageError = (e) => {
-    console.error('❌ Image failed to load:', e);
+    console.error('Image failed to load:', e);
     setImageError(true);
   };
 
   const handleImageLoad = (e) => {
-    console.log('✅ Image loaded successfully:', {
-      width: e.target.naturalWidth,
-      height: e.target.naturalHeight,
-      src: e.target.src.substring(0, 100) + '...'
-    });
     setImageError(false);
   };
 
-  // Get the correct image data - check both possible property names
   const imageBase64 = apiResponse?.result_image_base64 || apiResponse?.result;
-  
-  // Check if we have valid base64 data
-  const hasValidResult = imageBase64 && 
-                        typeof imageBase64 === 'string' &&
-                        imageBase64.length > 1000; // Should be substantial
+  const hasValidResult = imageBase64 && typeof imageBase64 === 'string' && imageBase64.length > 1000;
 
   if (!hasValidResult) {
     return (
       <div className="bg-red-500/20 p-4 rounded-lg border border-red-500/50">
         <h3 className="text-red-200 font-semibold mb-2">❌ No valid result data</h3>
-        <p className="text-red-200/80 text-sm mb-2">Expected property: result_image_base64</p>
-        <pre className="text-red-200/80 text-xs overflow-auto max-h-32">{JSON.stringify(apiResponse, null, 2)}</pre>
+        <p className="text-red-200/80 text-sm">Please try again or contact support.</p>
       </div>
     );
   }
 
-  // Ensure proper base64 format
-  const imageData = imageBase64.startsWith('data:') 
-    ? imageBase64 
-    : `data:image/jpeg;base64,${imageBase64}`;
+  const imageData = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-center">
-        <button 
-          onClick={() => setDebugMode(!debugMode)}
-          className="btn-secondary text-sm"
-        >
-          🔍 Toggle Debug Mode
-        </button>
-      </div>
-
-      {debugMode && (
-        <div className="bg-blue-500/20 p-4 rounded-lg border border-blue-500/50">
-          <h4 className="text-blue-200 font-semibold mb-2">🔍 Debug Information</h4>
-          <ul className="text-blue-200/80 text-sm space-y-1">
-            <li>Result length: {imageBase64.length} characters</li>
-            <li>Estimated size: {Math.round(imageBase64.length * 0.75 / 1024)}KB</li>
-            <li>Starts with data URL: {imageBase64.startsWith('data:') ? '✅' : '❌'}</li>
-            <li>Base64 format check: {/^[A-Za-z0-9+/]*={0,2}$/.test(imageBase64.replace('data:image/jpeg;base64,', '')) ? '✅' : '❌'}</li>
-          </ul>
-          
-          <details className="mt-2">
-            <summary className="text-blue-200 cursor-pointer">Raw Response (first 200 chars)</summary>
-            <pre className="text-blue-200/70 text-xs mt-2 overflow-auto max-h-32">{JSON.stringify(apiResponse, null, 2).substring(0, 500)}...</pre>
-          </details>
+    <div className="flex justify-center">
+      {imageError ? (
+        <div className="bg-red-500/20 p-6 rounded-lg border border-red-500/50 text-center">
+          <h3 className="text-red-200 font-semibold mb-2">❌ Image Display Error</h3>
+          <p className="text-red-200/80 text-sm mb-4">The image couldn't be displayed.</p>
+          <button 
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = imageData;
+              link.download = 'tryon-result.jpg';
+              link.click();
+            }}
+            className="btn-primary text-sm"
+          >
+            💾 Download Image
+          </button>
         </div>
+      ) : (
+        <img
+          src={imageData}
+          alt="Virtual Try-On Result"
+          className="max-w-full max-h-96 object-contain rounded-lg shadow-lg border-2 border-white/20"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
       )}
-
-      <div className="flex justify-center">
-        {imageError ? (
-          <div className="bg-red-500/20 p-6 rounded-lg border border-red-500/50 text-center">
-            <h3 className="text-red-200 font-semibold mb-2">❌ Image Display Error</h3>
-            <p className="text-red-200/80 text-sm mb-4">The API returned data but the image couldn't be displayed.</p>
-            <button 
-              onClick={() => {
-                // Try to download the raw data
-                const link = document.createElement('a');
-                link.href = imageData;
-                link.download = 'tryon-result.jpg';
-                link.click();
-              }}
-              className="btn-primary text-sm"
-            >
-              💾 Download Raw Image
-            </button>
-          </div>
-        ) : (
-          <img
-            src={imageData}
-            alt="Virtual Try-On Result"
-            className="max-w-full max-h-96 object-contain rounded-lg shadow-lg border-2 border-white/20"
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-          />
-        )}
-      </div>
-
-      {/* Test direct base64 display */}
-      {debugMode && (
-        <div className="bg-purple-500/20 p-4 rounded-lg border border-purple-500/50">
-          <h4 className="text-purple-200 font-semibold mb-2">🧪 Direct Base64 Test</h4>
-          <img 
-            src={`data:image/jpeg;base64,${imageBase64.replace(/^data:image\/[^;]+;base64,/, '')}`}
-            alt="Direct Base64 Test"
-            className="max-w-48 border border-red-500 rounded"
-            onLoad={() => console.log('✅ Direct base64 test passed')}
-            onError={() => console.log('❌ Direct base64 test failed')}
-          />
-        </div>
-      )}
-
-
     </div>
   );
-};
-
-// Debug function
-window.debugVirtualTryOn = () => {
-  console.log('🔍 DEBUGGING VIRTUAL TRY-ON DISPLAY');
-  const images = document.querySelectorAll('img');
-  console.log(`Found ${images.length} images on page:`, images);
 };
 
 const VirtualTryOn = ({ user, onLogout }) => {
@@ -1985,17 +1897,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                 )}
               </div>
 
-              {/* Debug: Show selected product */}
-              {selectedProduct && (
-                <div className="mb-6 p-4 bg-green-500/20 rounded-lg border border-green-500/50">
-                  <h4 className="text-green-200 font-medium mb-2">✅ Selected Product</h4>
-                  <div className="text-green-200/80 text-sm">
-                    <p><strong>Name:</strong> {selectedProduct.name}</p>
-                    <p><strong>ID:</strong> {selectedProduct.id}</p>
-                    <p><strong>Price:</strong> ${selectedProduct.price}</p>
-                  </div>
-                </div>
-              )}
+
 
               <div className="text-center">
                 <button
