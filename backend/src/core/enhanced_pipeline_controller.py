@@ -598,8 +598,11 @@ class EnhancedPipelineController:
                             else:
                                 print(f"[VALIDATION] ✅ All required landmarks present with good confidence")
                                 
+                                # Convert landmark format for comprehensive system
+                                converted_analysis = self._convert_landmark_format(customer_analysis_data)
+                                
                                 tryon_result_image, tryon_success = process_comprehensive_virtual_tryon(
-                                    customer_analysis=customer_analysis_data,
+                                    customer_analysis=converted_analysis,
                                     garment_analysis=garment_analysis_data,
                                     product_info=product_info,
                                     customer_image=customer_image_array
@@ -650,8 +653,11 @@ class EnhancedPipelineController:
                         else:
                             print(f"[VALIDATION] ✅ All required landmarks present with good confidence")
                             
+                            # Convert landmark format for comprehensive system
+                            converted_analysis = self._convert_landmark_format(customer_analysis_data)
+                            
                             tryon_result_image, tryon_success = process_comprehensive_virtual_tryon(
-                                customer_analysis=customer_analysis_data,
+                                customer_analysis=converted_analysis,
                                 garment_analysis=garment_analysis_data,
                                 product_info=product_info,
                                 customer_image=customer_image_array
@@ -1247,6 +1253,29 @@ class EnhancedPipelineController:
             return self._create_fallback_composite(
                 customer_analysis, garment_analysis, fitting_result
             )
+    
+    def _convert_landmark_format(self, customer_analysis_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert landmark format from [x, y] arrays to {x, y, confidence} dicts"""
+        converted = customer_analysis_data.copy()
+        
+        # Get pose_keypoints (which has the correct landmarks)
+        pose_keypoints = customer_analysis_data.get('pose_keypoints', {})
+        
+        # Convert format for comprehensive system
+        pose_landmarks = {}
+        for landmark_name, coords in pose_keypoints.items():
+            if isinstance(coords, (list, tuple)) and len(coords) >= 2:
+                pose_landmarks[landmark_name] = {
+                    'x': float(coords[0]),
+                    'y': float(coords[1]),
+                    'confidence': 1.0  # Default high confidence since validation passed
+                }
+        
+        # Update the converted analysis
+        converted['pose_landmarks'] = pose_landmarks
+        print(f"[CONVERT] Converted {len(pose_landmarks)} landmarks to dict format")
+        
+        return converted
     
     def _create_fallback_composite(
         self, 
