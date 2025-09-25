@@ -652,8 +652,11 @@ class PhysicsEngine:
         }
     
     def __del__(self):
-        if hasattr(self, 'physics_client'):
-            p.disconnect(physicsClientId=self.physics_client)
+        if hasattr(self, 'physics_client') and self.physics_client is not None:
+            try:
+                p.disconnect(physicsClientId=self.physics_client)
+            except:
+                pass  # Ignore errors during cleanup
 
 class AIEnhancer:
     """AI-based enhancement and generation"""
@@ -912,6 +915,11 @@ async def login(login_data: UserLogin):
     
     access_token = create_access_token(data={"sub": user["email"]})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@api_router.options("/virtual-tryon")
+@api_router.options("/tryon")
+async def virtual_tryon_options():
+    return {"message": "OK"}
 
 @api_router.post("/virtual-tryon")
 @api_router.post("/tryon")

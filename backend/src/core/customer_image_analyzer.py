@@ -547,8 +547,8 @@ class CustomerImageAnalyzer:
             
             keypoints = {}
             for name, idx in keypoint_mapping.items():
-                if idx < len(landmarks) and landmarks[idx][3] > 0.5:  # visibility threshold
-                    keypoints[name] = [landmarks[idx][0], landmarks[idx][1]]
+                if idx < len(landmarks) and len(landmarks[idx]) >= 4 and landmarks[idx][3] > 0.5:  # visibility threshold
+                    keypoints[name] = [float(landmarks[idx][0]), float(landmarks[idx][1])]
             
             return keypoints if keypoints else None
             
