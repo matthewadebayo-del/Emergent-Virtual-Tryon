@@ -128,7 +128,7 @@ app = FastAPI(
 )
 
 # CORS middleware - ensure proper configuration
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,*")
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://34.41.28.147:8000,*")
 print(f"[CORS] Configured origins: {cors_origins}")
 
 app.add_middleware(
@@ -987,15 +987,28 @@ async def virtual_tryon(
                     result["result_image"].save(output, format='JPEG', quality=90)
                     result_base64 = base64.b64encode(output.getvalue()).decode("utf-8")
                 
+                # Clean data for JSON serialization
+                def clean_for_json(obj):
+                    if isinstance(obj, dict):
+                        return {k: clean_for_json(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [clean_for_json(item) for item in obj]
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    elif hasattr(obj, '__dict__'):
+                        return str(obj)
+                    else:
+                        return obj
+                
                 return {
                     "result_image_base64": result_base64,
                     "processing_method": "Enhanced Pipeline with Dual Analysis",
                     "confidence": 0.95,
                     "features_used": ["customer_analysis", "garment_analysis", "fitting_algorithm", "3d_rendering"],
                     "processing_mode": processing_mode,
-                    "customer_analysis": result["customer_analysis"],
-                    "garment_analysis": result["garment_analysis"],
-                    "fitting_data": result["fitting_data"],
+                    "customer_analysis": clean_for_json(result["customer_analysis"]),
+                    "garment_analysis": clean_for_json(result["garment_analysis"]),
+                    "fitting_data": clean_for_json(result["fitting_data"]),
                     "timestamp": datetime.utcnow().isoformat()
                 }
             else:
