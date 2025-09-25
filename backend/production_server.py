@@ -991,10 +991,14 @@ async def virtual_tryon(
                 def clean_for_json(obj):
                     if isinstance(obj, dict):
                         return {k: clean_for_json(v) for k, v in obj.items()}
-                    elif isinstance(obj, list):
+                    elif isinstance(obj, (list, tuple)):
                         return [clean_for_json(item) for item in obj]
                     elif isinstance(obj, np.ndarray):
                         return obj.tolist()
+                    elif isinstance(obj, (np.integer, np.int64, np.int32)):
+                        return int(obj)
+                    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                        return float(obj)
                     elif hasattr(obj, '__dict__'):
                         return str(obj)
                     else:
