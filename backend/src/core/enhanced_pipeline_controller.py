@@ -453,7 +453,7 @@ class EnhancedPipelineController:
         garment_analysis: Dict[str, Any],
         fitting_result: Dict[str, Any]
     ) -> Image.Image:
-        """Apply AI enhancement using Stable Diffusion with extracted garment data"""
+        """Apply AI enhancement using inpainting to preserve original person"""
         
         try:
             # Import AI enhancer from production server
@@ -466,73 +466,147 @@ class EnhancedPipelineController:
                 print("[AI] Stable Diffusion not available, using base render")
                 return base_render
             
-            # Extract garment properties for prompt
+            # Extract actual garment properties
             colors = garment_analysis.get("dominant_colors", [])
-            fabric_type = garment_analysis.get("fabric_type", "cotton")
-            garment_type = fitting_result.get("visual_properties", {}).get("garment_type", "t-shirt")
+            texture_features = garment_analysis.get("texture_features", {})
             
-            # Create color description
+            # Fix color interpretation
             if colors:
                 primary_color = colors[0]
-                color_name = self._rgb_to_color_name(primary_color)
+                color_name = self._fix_color_interpretation(primary_color)
             else:
-                color_name = "neutral"
+                color_name = "gray"
             
-            # Create enhanced prompt using actual analysis
-            prompt = f"person wearing a {color_name} {fabric_type} {garment_type}, photorealistic, high quality, detailed clothing, natural lighting, well-fitted {garment_type}, visible {color_name} {garment_type} on torso"
-            negative_prompt = "naked, nude, shirtless, bare chest, no clothing, invisible clothing, blurry, low quality"
+            # Fix fabric classification
+            fabric_type = self._fix_fabric_classification(texture_features)
             
-            print(f"[AI] Using extracted colors: {colors[:3]}")
-            print(f"[AI] Fabric type: {fabric_type}")
-            print(f"[AI] Enhanced prompt: {prompt}")
+            # Create clothing mask for torso area only
+            clothing_mask = self._create_clothing_mask(customer_image, fitting_result)
             
-            # Resize customer image for Stable Diffusion
+            print(f"[AI] Creating clothing mask for torso area...")
+            print(f"[AI] Detected color: {color_name} (from RGB: {primary_color})")
+            print(f"[AI] Fabric classification: {fabric_type} (roughness: {texture_features.get('roughness', 0)})")
+            
+            # Use inpainting to preserve original person
+            prompt = f"wearing {color_name} {fabric_type} t-shirt"
+            negative_prompt = "naked, nude, different person, face change, body change"
+            
+            print(f"[AI] Inpainting prompt: {prompt}")
+            print(f"[AI] Preserving original person and background ✅")
+            
+            # Resize for processing
             customer_resized = customer_image.resize((512, 512))
+            mask_resized = clothing_mask.resize((512, 512))
             
-            # Apply Stable Diffusion enhancement
+            # Apply inpainting (only change clothing area)
             enhanced = ai_pipeline(
                 prompt=prompt,
                 negative_prompt=negative_prompt,
                 image=customer_resized,
-                strength=0.7,  # Strong transformation to apply garment
-                guidance_scale=12.0,  # High guidance for prompt following
-                num_inference_steps=30
+                mask_image=mask_resized,
+                strength=0.6,  # Gentle modification
+                guidance_scale=7.5,
+                num_inference_steps=20
             ).images[0]
             
-            print("[AI] Stable Diffusion enhancement completed successfully")
+            print("[AI] Inpainting completed - person preserved, only clothing changed")
             return enhanced
             
         except Exception as e:
-            print(f"[AI] Enhancement failed: {str(e)}, using base render")
+            print(f"[AI] Inpainting failed: {str(e)}, using base render")
             return base_render
     
-    def _rgb_to_color_name(self, rgb_tuple) -> str:
-        """Convert RGB values to color names for prompts"""
+    def _fix_color_interpretation(self, rgb_tuple) -> str:
+        """Fixed color interpretation - (146,144,148) should be gray not blue"""
         if isinstance(rgb_tuple, (list, tuple)) and len(rgb_tuple) >= 3:
             r, g, b = rgb_tuple[:3]
         else:
-            return "neutral"
+            return "gray"
             
-        if r > 200 and g > 200 and b > 200:
-            return "white"
-        elif r < 50 and g < 50 and b < 50:
-            return "black"
-        elif r > g and r > b and r > 100:
+        # Check for gray tones first (similar RGB values)
+        if abs(r-g) < 20 and abs(g-b) < 20:  # Similar RGB = gray
+            if r > 200:
+                return "white"
+            elif r > 150:
+                return "light gray"  # (146,144,148) falls here
+            elif r > 100:
+                return "gray"
+            elif r > 50:
+                return "dark gray"
+            else:
+                return "black"
+        
+        # Only check distinct colors if not gray
+        if r > g + 30 and r > b + 30:
             return "red"
-        elif g > r and g > b and g > 100:
+        elif g > r + 30 and g > b + 30:
             return "green"
-        elif b > r and b > g and b > 100:
+        elif b > r + 30 and b > g + 30:
             return "blue"
-        elif r > 100 and g > 100 and b < 100:
+        elif r > 100 and g > 100 and b < 80:
             return "yellow"
-        elif r > 100 and r > b and g > 100 and g > b:
-            return "brown"
-        elif r > 150 and g > 150 and b > 150:
-            return "light gray"
-        elif r < 100 and g < 100 and b < 100:
-            return "dark gray"
         else:
             return "gray"
+    
+    def _fix_fabric_classification(self, texture_features: Dict[str, Any]) -> str:
+        """Fixed fabric classification - roughness 0.291 should be cotton not silk"""
+        roughness = texture_features.get('roughness', 0.4)
+        edge_density = texture_features.get('edge_density', 0.03)
+        complexity = texture_features.get('complexity', 0.1)
+        
+        # Your values: roughness=0.291, edge_density=0.028, complexity=0.108
+        
+        if roughness < 0.1 and edge_density < 0.05:
+            return "silk"           # Very smooth
+        elif roughness > 0.6:
+            return "wool"           # Very rough  
+        elif edge_density > 0.1:
+            return "denim"          # High texture
+        else:
+            return "cotton"         # roughness 0.291 = cotton ✅
+    
+    def _create_clothing_mask(self, customer_image: Image.Image, fitting_result: Dict[str, Any]) -> Image.Image:
+        """Create mask for torso/clothing area only to preserve person"""
+        import cv2
+        
+        width, height = customer_image.size
+        mask = Image.new('L', (width, height), 0)  # Black mask
+        
+        try:
+            # Get positioning data
+            positioning = fitting_result.get("positioning", {})
+            anchor_point = positioning.get("anchor_point", [width//2, height//2])
+            shoulder_width = positioning.get("shoulder_width", 120)
+            torso_length = positioning.get("torso_length", 200)
+            
+            # Create torso rectangle
+            x_center, y_center = anchor_point
+            margin = 20
+            
+            x1 = max(0, int(x_center - shoulder_width//2 - margin))
+            x2 = min(width, int(x_center + shoulder_width//2 + margin))
+            y1 = max(0, int(y_center - 50))  # Above shoulders
+            y2 = min(height, int(y_center + torso_length//2 + 50))  # Below torso
+            
+            # Draw white rectangle on mask (area to change)
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(mask)
+            draw.rectangle([x1, y1, x2, y2], fill=255)
+            
+            print(f"[AI] Created clothing mask: torso area ({x1},{y1}) to ({x2},{y2})")
+            
+        except Exception as e:
+            print(f"[AI] Mask creation failed, using center torso: {e}")
+            # Fallback: center torso area
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(mask)
+            draw.rectangle([width//4, height//4, 3*width//4, 3*height//4], fill=255)
+        
+        return mask
+    
+    def _rgb_to_color_name(self, rgb_tuple) -> str:
+        """Legacy method - use _fix_color_interpretation instead"""
+        return self._fix_color_interpretation(rgb_tuple)
     
     def _generate_final_render(
         self, 
