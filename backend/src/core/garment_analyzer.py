@@ -65,15 +65,30 @@ class GarmentImageAnalyzer:
     def _extract_dominant_colors(self, image_array: np.ndarray) -> Dict[str, Any]:
         """Extract dominant colors using K-means clustering"""
         try:
+            print(f"[GARMENT] Image shape: {image_array.shape}")
+            print(f"[GARMENT] Image min/max values: {image_array.min()}/{image_array.max()}")
+            
             # Reshape image to list of pixels
             pixels = image_array.reshape(-1, 3)
+            print(f"[GARMENT] Total pixels: {len(pixels)}")
+            
+            # Check average color of entire image first
+            avg_color = np.mean(pixels, axis=0)
+            print(f"[GARMENT] Average color of entire image: {avg_color}")
             
             # Filter out very light/dark pixels (likely background)
             mask = np.all((pixels > 30) & (pixels < 225), axis=1)
             filtered_pixels = pixels[mask]
+            print(f"[GARMENT] Filtered pixels (30-225 range): {len(filtered_pixels)}")
             
             if len(filtered_pixels) < 100:  # Fallback if too few pixels
+                print(f"[GARMENT] Too few filtered pixels, using all pixels")
                 filtered_pixels = pixels
+            
+            # Check if most pixels are white/light
+            white_pixels = np.all(pixels > 200, axis=1)
+            white_count = np.sum(white_pixels)
+            print(f"[GARMENT] White pixels (>200): {white_count}/{len(pixels)} ({white_count/len(pixels)*100:.1f}%)")
             
             # Use K-means to find dominant colors
             n_colors = min(5, len(filtered_pixels) // 100)  # Adaptive number of colors
@@ -87,14 +102,21 @@ class GarmentImageAnalyzer:
             colors = kmeans.cluster_centers_.astype(int)
             labels = kmeans.labels_
             
+            print(f"[GARMENT] K-means cluster centers: {colors}")
+            
             # Calculate color frequencies
             unique_labels, counts = np.unique(labels, return_counts=True)
             color_freq = list(zip(colors, counts))
             color_freq.sort(key=lambda x: x[1], reverse=True)  # Sort by frequency
             
+            print(f"[GARMENT] Color frequencies: {[(color, count) for color, count in color_freq]}")
+            
             # Extract primary color and full palette
             primary_color = tuple(color_freq[0][0])
             palette = [tuple(color) for color, _ in color_freq]
+            
+            print(f"[GARMENT] Final primary color: {primary_color}")
+            print(f"[GARMENT] Full palette: {palette}")
             
             return {
                 "primary": primary_color,
