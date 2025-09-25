@@ -108,8 +108,9 @@ class CustomerImageAnalyzer:
             skin_tone = self._detect_skin_tone(image, pose_data.get("landmarks"))
             scale_info = self._calculate_scale(pose_data, measurements, image.shape[:2])
             
-            return {
+            result = {
                 "pose_landmarks": pose_data.get("landmarks"),
+                "pose_keypoints": self._convert_landmarks_to_keypoints_dict(pose_data.get("landmarks")),
                 "measurements": measurements,
                 "body_segmentation": body_mask,
                 "skin_tone": skin_tone,
@@ -119,8 +120,16 @@ class CustomerImageAnalyzer:
                 "confidence_score": measurements.get("overall_confidence", 0.8)
             }
             
+            print(f"[CUSTOMER] Analysis result keys: {list(result.keys())}")
+            print(f"[CUSTOMER] Pose keypoints: {result['pose_keypoints'] is not None}")
+            print(f"[CUSTOMER] Measurements: {result['measurements']}")
+            
+            return result
+            
         except Exception as e:
             print(f"[CUSTOMER] Analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
             return self._create_fallback_analysis(image_bytes)
     
     def _fallback_analysis(self, image: Image.Image, reference_height_cm: Optional[float] = None) -> Dict[str, Any]:
@@ -398,8 +407,9 @@ class CustomerImageAnalyzer:
     
     def _create_fallback_analysis(self, image_bytes: bytes) -> Dict[str, Any]:
         """Create fallback analysis when pose detection fails"""
-        return {
+        result = {
             "pose_landmarks": None,
+            "pose_keypoints": None,
             "measurements": self._create_fallback_measurements(),
             "body_segmentation": {"mask": None, "method": "none", "success": False},
             "skin_tone": self._fallback_skin_tone(),
@@ -408,6 +418,9 @@ class CustomerImageAnalyzer:
             "analysis_success": False,
             "confidence_score": 0.3
         }
+        
+        print(f"[CUSTOMER] Using fallback analysis - pose_keypoints: {result['pose_keypoints']}")
+        return result
     
     def _create_fallback_measurements(self) -> Dict[str, Any]:
         """Create fallback measurements when pose detection fails"""
@@ -417,6 +430,36 @@ class CustomerImageAnalyzer:
             "confidence_scores": {},
             "overall_confidence": 0.3
         }
+    
+    def _convert_landmarks_to_keypoints_dict(self, landmarks: Optional[np.ndarray]) -> Optional[Dict[str, Any]]:
+        """Convert MediaPipe landmarks array to keypoints dictionary"""
+        if landmarks is None:
+            return None
+        
+        try:
+            # MediaPipe pose landmark indices
+            keypoint_mapping = {
+                "nose": 0,
+                "left_shoulder": 11,
+                "right_shoulder": 12,
+                "left_hip": 23,
+                "right_hip": 24,
+                "left_wrist": 15,
+                "right_wrist": 16,
+                "left_ankle": 27,
+                "right_ankle": 28
+            }
+            
+            keypoints = {}
+            for name, idx in keypoint_mapping.items():
+                if idx < len(landmarks) and landmarks[idx][3] > 0.5:  # visibility threshold
+                    keypoints[name] = [landmarks[idx][0], landmarks[idx][1]]
+            
+            return keypoints if keypoints else None
+            
+        except Exception as e:
+            print(f"[CUSTOMER] Keypoint conversion failed: {e}")
+            return None
     
     def _fallback_skin_tone(self) -> Dict[str, Any]:
         """Fallback skin tone when detection fails"""
