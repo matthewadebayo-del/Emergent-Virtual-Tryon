@@ -20,72 +20,72 @@ class PracticalGarmentReplacer:
         """
         
         try:
-            print("🔥 DEBUG: replace_garment_completely METHOD CALLED")
+            print("DEBUG: replace_garment_completely METHOD CALLED")
             self.logger.info("🔥 DEBUG: PracticalGarmentReplacer.replace_garment_completely started")
             self.logger.info("[REPLACE] Starting COMPLETE garment replacement...")
             
             # STEP 1: Force correct color detection
             try:
-                print("🔥 DEBUG: Starting color detection...")
+                print("DEBUG: Starting color detection...")
                 correct_color = self._force_correct_color(product_info, garment_analysis)
                 self.logger.info(f"[REPLACE] Using color: {correct_color}")
-                print(f"🔥 DEBUG: Color detection successful: {correct_color}")
+                print(f"DEBUG: Color detection successful: {correct_color}")
             except Exception as e:
-                print(f"🔥 DEBUG: Color detection failed: {e}")
+                print(f"DEBUG: Color detection failed: {e}")
                 self.logger.error(f"[REPLACE] Color detection failed: {e}")
                 return original_image
             
             # STEP 2: Create aggressive removal mask
             try:
-                print("🔥 DEBUG: Starting mask creation...")
-                print(f"🔥 DEBUG: Customer analysis keys: {list(customer_analysis.keys())}")
+                print("DEBUG: Starting mask creation...")
+                print(f"DEBUG: Customer analysis keys: {list(customer_analysis.keys())}")
                 pose_landmarks = customer_analysis.get('pose_landmarks', {})
-                print(f"🔥 DEBUG: Pose landmarks type: {type(pose_landmarks)}")
-                print(f"🔥 DEBUG: Pose landmarks sample: {dict(list(pose_landmarks.items())[:2]) if isinstance(pose_landmarks, dict) else 'Not a dict'}")
+                print(f"DEBUG: Pose landmarks type: {type(pose_landmarks)}")
+                print(f"DEBUG: Pose landmarks sample: {dict(list(pose_landmarks.items())[:2]) if isinstance(pose_landmarks, dict) else 'Not a dict'}")
                 
                 removal_mask = self._create_complete_removal_mask(customer_analysis, original_image.shape)
                 mask_area = np.sum(removal_mask > 128) if removal_mask is not None else 0
-                print(f"🔥 DEBUG: Mask created - area: {mask_area} pixels")
+                print(f"DEBUG: Mask created - area: {mask_area} pixels")
                 if mask_area == 0:
-                    print("🔥 DEBUG: MASK IS EMPTY - returning original")
+                    print("DEBUG: MASK IS EMPTY - returning original")
                     return original_image
             except Exception as e:
-                print(f"🔥 DEBUG: Mask creation failed: {e}")
+                print(f"DEBUG: Mask creation failed: {e}")
                 self.logger.error(f"[REPLACE] Mask creation failed: {e}")
                 return original_image
             
             # STEP 3: Remove original garment completely
             try:
-                print("🔥 DEBUG: Starting garment removal...")
+                print("DEBUG: Starting garment removal...")
                 body_without_garment = self._remove_original_garment_completely(original_image, removal_mask)
                 removal_diff = np.sum(cv2.absdiff(body_without_garment, original_image))
-                print(f"🔥 DEBUG: Garment removal diff: {removal_diff}")
+                print(f"DEBUG: Garment removal diff: {removal_diff}")
             except Exception as e:
-                print(f"🔥 DEBUG: Garment removal failed: {e}")
+                print(f"DEBUG: Garment removal failed: {e}")
                 self.logger.error(f"[REPLACE] Garment removal failed: {e}")
                 return original_image
             
             # STEP 4: Create new garment with correct color
             try:
-                print("🔥 DEBUG: Starting new garment creation...")
+                print("DEBUG: Starting new garment creation...")
                 new_garment = self._create_new_garment(correct_color, removal_mask, original_image.shape)
                 garment_pixels = np.sum(new_garment > 0)
-                print(f"🔥 DEBUG: New garment created - non-zero pixels: {garment_pixels}")
+                print(f"DEBUG: New garment created - non-zero pixels: {garment_pixels}")
             except Exception as e:
-                print(f"🔥 DEBUG: New garment creation failed: {e}")
+                print(f"DEBUG: New garment creation failed: {e}")
                 self.logger.error(f"[REPLACE] New garment creation failed: {e}")
                 return original_image
             
             # STEP 5: Apply new garment with strong replacement
             try:
-                print("🔥 DEBUG: Starting garment application...")
+                print("DEBUG: Starting garment application...")
                 result = self._apply_new_garment_strongly(
                     body_without_garment, new_garment, removal_mask
                 )
                 application_diff = np.sum(cv2.absdiff(result, body_without_garment))
-                print(f"🔥 DEBUG: Garment application diff: {application_diff}")
+                print(f"DEBUG: Garment application diff: {application_diff}")
             except Exception as e:
-                print(f"🔥 DEBUG: Garment application failed: {e}")
+                print(f"DEBUG: Garment application failed: {e}")
                 self.logger.error(f"[REPLACE] Garment application failed: {e}")
                 return original_image
             
@@ -191,10 +191,10 @@ class PracticalGarmentReplacer:
                     x = int(lm[0] * width)
                     y = int(lm[1] * height)
                 landmarks[lm_name] = (x, y)
-                print(f"🔥 LANDMARK {lm_name}: ({x}, {y})")
+                print(f"LANDMARK {lm_name}: ({x}, {y})")
         
         if len(landmarks) < 4:
-            print(f"🔥 ERROR: Insufficient landmarks: {list(landmarks.keys())} out of 4 required")
+            print(f"ERROR: Insufficient landmarks: {list(landmarks.keys())} out of 4 required")
             self.logger.error("[MASK] Insufficient landmarks for removal mask")
             return np.zeros((height, width), dtype=np.uint8)
         
@@ -202,13 +202,13 @@ class PracticalGarmentReplacer:
         shoulder_width = abs(landmarks['left_shoulder'][0] - landmarks['right_shoulder'][0])
         torso_height = abs(landmarks['left_hip'][1] - landmarks['left_shoulder'][1])
         
-        print(f"🔥 DIMENSIONS: Shoulder width={shoulder_width}, Torso height={torso_height}")
+        print(f"DIMENSIONS: Shoulder width={shoulder_width}, Torso height={torso_height}")
         
         # BALANCED expansion - target 10-20% coverage
         horizontal_expansion = max(35, int(shoulder_width * 0.25))  # 25% wider than shoulders
         vertical_expansion = max(25, int(torso_height * 0.15))      # 15% beyond torso height
         
-        print(f"🔥 EXPANSION: Horizontal={horizontal_expansion}, Vertical={vertical_expansion}")
+        print(f"EXPANSION: Horizontal={horizontal_expansion}, Vertical={vertical_expansion}")
         
         # Create shirt-covering polygon
         ls = landmarks['left_shoulder']
@@ -216,58 +216,85 @@ class PracticalGarmentReplacer:
         lh = landmarks['left_hip']
         rh = landmarks['right_hip']
         
-        # Expanded polygon covering full shirt area
+        print(f"POLYGON: ls={ls}, rs={rs}, lh={lh}, rh={rh}")
+        
+        # Find actual left and right based on x coordinates
+        if ls[0] > rs[0]:  # left_shoulder is actually on the right side
+            actual_left = rs  # right_shoulder is actually on left
+            actual_right = ls  # left_shoulder is actually on right
+            actual_left_hip = rh
+            actual_right_hip = lh
+        else:
+            actual_left = ls
+            actual_right = rs
+            actual_left_hip = lh
+            actual_right_hip = rh
+        
+        print(f"CORRECTED: left={actual_left}, right={actual_right}")
+        
+        # Create proper shirt-covering polygon
         polygon_points = np.array([
-            # Top edge (expanded upward and outward)
-            (ls[0] - horizontal_expansion, ls[1] - vertical_expansion),
-            (rs[0] + horizontal_expansion, rs[1] - vertical_expansion),
-            
-            # Right side (slight outward curve)
-            (rs[0] + horizontal_expansion, (rs[1] + rh[1]) // 2),
-            
-            # Bottom edge (expanded downward and slightly inward)
-            (rh[0] + horizontal_expansion//2, rh[1] + vertical_expansion),
-            (lh[0] - horizontal_expansion//2, lh[1] + vertical_expansion),
-            
-            # Left side (slight outward curve)
-            (ls[0] - horizontal_expansion, (ls[1] + lh[1]) // 2),
+            # Top-left (expanded outward and upward)
+            (actual_left[0] - horizontal_expansion, actual_left[1] - vertical_expansion),
+            # Top-right (expanded outward and upward)
+            (actual_right[0] + horizontal_expansion, actual_right[1] - vertical_expansion),
+            # Mid-right (slight outward curve)
+            (actual_right[0] + horizontal_expansion, (actual_right[1] + actual_right_hip[1]) // 2),
+            # Bottom-right (expanded downward)
+            (actual_right_hip[0] + horizontal_expansion//2, actual_right_hip[1] + vertical_expansion),
+            # Bottom-left (expanded downward)
+            (actual_left_hip[0] - horizontal_expansion//2, actual_left_hip[1] + vertical_expansion),
+            # Mid-left (slight outward curve)
+            (actual_left[0] - horizontal_expansion, (actual_left[1] + actual_left_hip[1]) // 2),
         ], dtype=np.int32)
+        
+        print(f"POLYGON BEFORE CLIP: {polygon_points}")
         
         # Ensure within bounds
         polygon_points[:, 0] = np.clip(polygon_points[:, 0], 0, width - 1)
         polygon_points[:, 1] = np.clip(polygon_points[:, 1], 0, height - 1)
         
+        print(f"POLYGON AFTER CLIP: {polygon_points}")
+        print(f"IMAGE BOUNDS: width={width}, height={height}")
+        
         # Create mask
         mask = np.zeros((height, width), dtype=np.uint8)
-        cv2.fillPoly(mask, [polygon_points], 255)
+        print(f"MASK SHAPE: {mask.shape}")
         
-        # Moderate smoothing for natural edges
-        mask = cv2.GaussianBlur(mask, (31, 31), 12)
+        try:
+            cv2.fillPoly(mask, [polygon_points], 255)
+            print(f"FILLPOLY SUCCESS")
+        except Exception as e:
+            print(f"FILLPOLY ERROR: {e}")
+            return np.zeros((height, width), dtype=np.uint8)
+        
+        # Light smoothing to preserve mask area
+        mask = cv2.GaussianBlur(mask, (15, 15), 5)
         
         # Log mask statistics
         mask_area = np.sum(mask > 128)
         coverage = (mask_area / (width * height)) * 100
-        print(f"🔥 FINAL MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
+        print(f"FINAL MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
         
         # Validate coverage is in target range
         if coverage < 8:
-            print(f"🔥 WARNING: Mask still too small ({coverage:.1f}%)")
+            print(f"WARNING: Mask still too small ({coverage:.1f}%)")
             # Apply dilation to increase size
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
             mask = cv2.dilate(mask, kernel, iterations=2)
             mask_area = np.sum(mask > 128)
             coverage = (mask_area / (width * height)) * 100
-            print(f"🔥 EXPANDED MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
+            print(f"EXPANDED MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
         elif coverage > 30:
-            print(f"🔥 WARNING: Mask too large ({coverage:.1f}%)")
+            print(f"WARNING: Mask too large ({coverage:.1f}%)")
             # Apply erosion to decrease size
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
             mask = cv2.erode(mask, kernel, iterations=1)
             mask_area = np.sum(mask > 128)
             coverage = (mask_area / (width * height)) * 100
-            print(f"🔥 REDUCED MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
+            print(f"REDUCED MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
         else:
-            print(f"🔥 SUCCESS: Good mask size ({coverage:.1f}%)")
+            print(f"SUCCESS: Good mask size ({coverage:.1f}%)")
         
         return mask
     
@@ -295,11 +322,11 @@ class PracticalGarmentReplacer:
         Remove original garment with VISIBLE removal - creates obvious "shirt removed" effect
         """
         
-        print("🔥 REMOVAL: Starting visible garment removal...")
+        print("REMOVAL: Starting visible garment removal...")
         
         # Step 1: Estimate skin tone from non-garment areas
         skin_tone = self._estimate_skin_tone_better(original_image, removal_mask)
-        print(f"🔥 REMOVAL: Estimated skin tone: {skin_tone}")
+        print(f"REMOVAL: Estimated skin tone: {skin_tone}")
         
         # Step 2: Create "body without shirt" by replacing garment area with skin
         body_without_shirt = original_image.copy()
@@ -327,13 +354,13 @@ class PracticalGarmentReplacer:
         removal_area = np.sum(removal_mask > 100)
         avg_change_per_pixel = removal_diff / (removal_area * 3) if removal_area > 0 else 0
         
-        print(f"🔥 REMOVAL: Total difference: {removal_diff}")
-        print(f"🔥 REMOVAL: Avg change per pixel: {avg_change_per_pixel:.1f}")
+        print(f"REMOVAL: Total difference: {removal_diff}")
+        print(f"REMOVAL: Avg change per pixel: {avg_change_per_pixel:.1f}")
         
         if avg_change_per_pixel < 20:
-            print("🔥 WARNING: Garment removal barely visible!")
+            print("WARNING: Garment removal barely visible!")
         else:
-            print("🔥 SUCCESS: Visible garment removal achieved")
+            print("SUCCESS: Visible garment removal achieved")
         
         return body_without_shirt
     
@@ -436,7 +463,7 @@ class PracticalGarmentReplacer:
             else:
                 skin_tone = (180, 150, 120)
         
-        print(f"🔥 SKIN: Analyzed {len(skin_samples)} skin pixels")
+        print(f"SKIN: Analyzed {len(skin_samples)} skin pixels")
         return skin_tone
     
     def _add_body_contours(self, body_image: np.ndarray, mask: np.ndarray, 
@@ -492,7 +519,7 @@ class PracticalGarmentReplacer:
             for i, (y, x) in enumerate(zip(garment_area_coords[0], garment_area_coords[1])):
                 result[y, x] = np.clip(result[y, x] + noise[i], 0, 255)
         
-        print("🔥 CONTOURS: Added body contours and skin texture")
+        print("CONTOURS: Added body contours and skin texture")
         return result
     
     def _apply_new_garment_strongly(self, body_image: np.ndarray, new_garment: np.ndarray, 
@@ -520,7 +547,7 @@ class PracticalGarmentReplacer:
         
         # Verify strong application
         application_diff = np.sum(cv2.absdiff(result.astype(np.uint8), body_image))
-        print(f"🔥 APPLICATION: Strong application difference: {application_diff}")
+        print(f"APPLICATION: Strong application difference: {application_diff}")
         
         return np.clip(result, 0, 255).astype(np.uint8)
     
@@ -536,7 +563,7 @@ class PracticalGarmentReplacer:
         except:
             pass  # Skip if can't write to /tmp
         removal_diff = np.sum(cv2.absdiff(body_without_shirt, original_image))
-        print(f"🔥 STAGE 1: Removal created {removal_diff} pixel difference")
+        print(f"STAGE 1: Removal created {removal_diff} pixel difference")
         
         # Stage 2: Create new garment
         new_garment = self._create_new_garment(
@@ -560,7 +587,7 @@ class PracticalGarmentReplacer:
         except:
             pass
         final_diff = np.sum(cv2.absdiff(final_result, original_image))
-        print(f"🔥 STAGE 3: Final transformation: {final_diff} pixel difference")
+        print(f"STAGE 3: Final transformation: {final_diff} pixel difference")
         
         return final_result
     
@@ -740,13 +767,13 @@ def replace_with_new_garment(customer_analysis: Dict, garment_analysis: Dict,
     Use this to replace your existing process_virtual_tryon call
     """
     
-    print("🔥 DEBUG: replace_with_new_garment CALLED")
-    print(f"🔥 DEBUG: Product name: {product_info.get('name')}")
-    print(f"🔥 DEBUG: Image shape: {original_image.shape}")
+    print("DEBUG: replace_with_new_garment CALLED")
+    print(f"DEBUG: Product name: {product_info.get('name')}")
+    print(f"DEBUG: Image shape: {original_image.shape}")
     
     try:
         replacer = PracticalGarmentReplacer()
-        print("🔥 DEBUG: PracticalGarmentReplacer instance created")
+        print("DEBUG: PracticalGarmentReplacer instance created")
         
         result = replacer.replace_garment_completely(
             customer_analysis=customer_analysis,
@@ -756,17 +783,17 @@ def replace_with_new_garment(customer_analysis: Dict, garment_analysis: Dict,
             garment_types=garment_types
         )
         
-        print("🔥 DEBUG: replace_garment_completely returned")
-        print(f"🔥 DEBUG: Result shape: {result.shape}")
+        print("DEBUG: replace_garment_completely returned")
+        print(f"DEBUG: Result shape: {result.shape}")
         
         # Check if result is different from input
         diff = np.sum(cv2.absdiff(result, original_image))
-        print(f"🔥 DEBUG: Total visual difference: {diff}")
+        print(f"DEBUG: Total visual difference: {diff}")
         
         return result
         
     except Exception as e:
-        print(f"🔥 DEBUG: ERROR in complete replacement: {str(e)}")
+        print(f"DEBUG: ERROR in complete replacement: {str(e)}")
         import traceback
         traceback.print_exc()
         return original_image
@@ -778,7 +805,7 @@ def process_complete_garment_replacement(customer_analysis: Dict, garment_analys
     """
     Legacy compatibility wrapper
     """
-    print("🔥 DEBUG: process_complete_garment_replacement CALLED")
+    print("DEBUG: process_complete_garment_replacement CALLED")
     return replace_with_new_garment(
         customer_analysis=customer_analysis,
         garment_analysis=garment_analysis,
