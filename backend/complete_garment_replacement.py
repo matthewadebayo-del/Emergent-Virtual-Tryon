@@ -82,8 +82,8 @@ class CompleteGarmentReplacement:
         torso_height = abs(landmarks['left_hip'][1] - landmarks['left_shoulder'][1])
         
         # MUCH more aggressive expansion for complete coverage
-        horizontal_expansion = max(50, int(shoulder_width * 0.4))  # 40% wider than shoulders
-        vertical_expansion = max(30, int(torso_height * 0.2))      # 20% taller
+        horizontal_expansion = max(80, int(shoulder_width * 0.6))  # 60% wider than shoulders
+        vertical_expansion = max(50, int(torso_height * 0.3))      # 30% taller
         
         # Create polygon that completely covers the garment area
         left_x = landmarks['left_shoulder'][0] - horizontal_expansion
