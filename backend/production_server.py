@@ -1309,8 +1309,16 @@ async def debug():
         }
     }
 
-# Include API router
+# Include API routers
 app.include_router(api_router)
+
+# Add integration API for e-commerce sites
+try:
+    from src.api.integration_api import router as integration_router
+    app.include_router(integration_router)
+    print("[OK] Integration API loaded successfully")
+except ImportError as e:
+    print(f"[WARN] Integration API not available: {e}")
 
 @app.get("/test-complete-pipeline")
 async def test_complete_pipeline():
