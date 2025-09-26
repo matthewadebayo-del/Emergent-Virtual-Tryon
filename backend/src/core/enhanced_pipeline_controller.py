@@ -20,7 +20,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from comprehensive_tryon import ComprehensiveRegionTryOn, ProcessingResult, GarmentType
-from complete_garment_replacement import process_complete_garment_replacement
+from complete_garment_replacement import process_complete_garment_replacement, replace_with_new_garment
 
 logger = logging.getLogger(__name__)
 
@@ -476,9 +476,14 @@ class EnhancedPipelineController:
         """SAFE clothing overlay - NO AI inpainting, pure computer vision"""
         
         try:
-            # Configuration variables
+            # Configuration variables - FORCE COMPLETE REPLACEMENT
             USE_COMPREHENSIVE_TRYON = True  # Set to True to enable new system
             USE_SAFE_MODE = False           # Set to False to disable old SAFE mode
+            USE_COMPLETE_REPLACEMENT = True # NEW: Force complete garment replacement
+            
+            print(f"[CONFIG] USE_COMPREHENSIVE_TRYON: {USE_COMPREHENSIVE_TRYON}")
+            print(f"[CONFIG] USE_COMPLETE_REPLACEMENT: {USE_COMPLETE_REPLACEMENT}")
+            print(f"[CONFIG] USE_SAFE_MODE: {USE_SAFE_MODE}")
             
             # Garment type mapping
             GARMENT_TYPE_MAPPING = {
@@ -658,7 +663,12 @@ class EnhancedPipelineController:
                             converted_analysis = self._convert_landmark_format(customer_analysis_data)
                             
                             # Use COMPLETE GARMENT REPLACEMENT instead of blending
-                            tryon_result_image = process_complete_garment_replacement(
+                            print("[PIPELINE] 🚀 Calling COMPLETE GARMENT REPLACEMENT system...")
+                            print(f"[PIPELINE] Product info: {product_info}")
+                            print(f"[PIPELINE] Garment analysis colors: {garment_analysis_data.get('dominant_colors', [])}")
+                            
+                            # Call the new PracticalGarmentReplacer directly
+                            tryon_result_image = replace_with_new_garment(
                                 customer_analysis=converted_analysis,
                                 garment_analysis=garment_analysis_data,
                                 product_info=product_info,
@@ -666,6 +676,7 @@ class EnhancedPipelineController:
                                 garment_types=['top']  # Default to top garment
                             )
                             tryon_success = tryon_result_image is not None
+                            print(f"[PIPELINE] Complete replacement result: {'SUCCESS' if tryon_success else 'FAILED'}")
                             
                             if tryon_success:
                                 print("[COMPREHENSIVE] ✅ Comprehensive try-on completed successfully")

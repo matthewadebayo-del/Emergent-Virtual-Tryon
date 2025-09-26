@@ -1,12 +1,12 @@
 import cv2
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple
 import logging
 
-class CompleteGarmentReplacement:
+class PracticalGarmentReplacer:
     """
-    Complete garment replacement system that removes original clothing
-    and replaces it with new garments for realistic virtual try-on
+    Practical solution for complete garment replacement
+    This replaces your current garment replacement with Mask Expansion of 60% and more Debug Logging that is Easier for troubleshooting
     """
     
     def __init__(self):
@@ -16,303 +16,331 @@ class CompleteGarmentReplacement:
                                  product_info: Dict, original_image: np.ndarray,
                                  garment_types: List[str]) -> np.ndarray:
         """
-        Complete garment replacement pipeline
+        COMPLETE garment replacement - removes original and adds new garment
         """
-        self.logger.info("[REPLACEMENT] Starting complete garment replacement...")
         
-        # Step 1: Extract original garment and create removal mask
-        removal_mask = self._create_complete_removal_mask(
-            customer_analysis, original_image.shape, garment_types
+        self.logger.info("[REPLACE] Starting COMPLETE garment replacement...")
+        
+        # STEP 1: Force correct color detection
+        correct_color = self._force_correct_color(product_info, garment_analysis)
+        self.logger.info(f"[REPLACE] Using color: {correct_color}")
+        
+        # STEP 2: Create aggressive removal mask
+        removal_mask = self._create_complete_removal_mask(customer_analysis, original_image.shape)
+        
+        # STEP 3: Remove original garment completely
+        body_without_garment = self._remove_original_garment_completely(original_image, removal_mask)
+        
+        # STEP 4: Create new garment with correct color
+        new_garment = self._create_new_garment(correct_color, removal_mask, original_image.shape)
+        
+        # STEP 5: Apply new garment with strong replacement
+        result = self._apply_garment_with_strong_replacement(
+            body_without_garment, new_garment, removal_mask, original_image
         )
         
-        # Step 2: Remove original garment (inpaint the region)
-        garment_removed_image = self._remove_original_garment(
-            original_image, removal_mask
-        )
+        # STEP 6: Final realism adjustments
+        result = self._apply_final_realism_adjustments(result, original_image, removal_mask)
         
-        # Step 3: Generate new garment with correct properties
-        new_garment = self._generate_realistic_garment(
-            garment_analysis, product_info, original_image.shape, removal_mask
-        )
+        # Calculate and log the transformation
+        total_change = np.sum(cv2.absdiff(result, original_image))
+        self.logger.info(f"[REPLACE] Total visual change: {total_change}")
+        self.logger.info(f"[REPLACE] Complete replacement finished!")
         
-        # Step 4: Apply lighting and body curvature to new garment
-        fitted_garment = self._apply_body_fitting(
-            new_garment, removal_mask, customer_analysis, original_image
-        )
-        
-        # Step 5: Composite the new garment onto the body
-        final_result = self._composite_new_garment(
-            garment_removed_image, fitted_garment, removal_mask
-        )
-        
-        # Step 6: Final touch-ups and realism
-        final_result = self._apply_final_realism(
-            final_result, original_image, removal_mask
-        )
-        
-        self.logger.info("[REPLACEMENT] Complete garment replacement finished")
-        return final_result
+        return result
     
-    def _create_complete_removal_mask(self, customer_analysis: Dict, 
-                                    image_shape: Tuple, garment_types: List[str]) -> np.ndarray:
-        """Create mask that covers the ENTIRE garment area for complete removal"""
+    def _force_correct_color(self, product_info: Dict, garment_analysis: Dict) -> Tuple[int, int, int]:
+        """
+        FORCE correct color based on product name - no more gray for white shirts!
+        """
+        
+        product_name = product_info.get('name', '').lower()
+        self.logger.info(f"[COLOR] Product name: '{product_name}'")
+        
+        # ABSOLUTE priority to product name
+        if any(word in product_name for word in ['white', 'blanc', 'blanco', 'wit']):
+            color = (255, 255, 255)  # PURE WHITE
+            self.logger.info(f"[COLOR] ✅ FORCING WHITE: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['black', 'noir', 'negro']):
+            color = (10, 10, 10)     # PURE BLACK
+            self.logger.info(f"[COLOR] ✅ FORCING BLACK: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['red', 'rouge', 'rojo']):
+            color = (220, 20, 20)    # BRIGHT RED
+            self.logger.info(f"[COLOR] ✅ FORCING RED: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['blue', 'bleu', 'azul']):
+            color = (20, 20, 220)    # BRIGHT BLUE
+            self.logger.info(f"[COLOR] ✅ FORCING BLUE: {color}")
+            return color
+            
+        else:
+            # Check if analyzed color is actually white-ish
+            dominant_colors = garment_analysis.get('dominant_colors', [])
+            if dominant_colors:
+                r, g, b = dominant_colors[0]
+                # If any component > 180, force pure white
+                if r > 180 and g > 180 and b > 180:
+                    color = (255, 255, 255)
+                    self.logger.info(f"[COLOR] ✅ Light color {dominant_colors[0]} -> FORCING WHITE")
+                    return color
+                else:
+                    self.logger.info(f"[COLOR] Using analyzed color: {dominant_colors[0]}")
+                    return dominant_colors[0]
+            else:
+                color = (128, 128, 128)
+                self.logger.warning(f"[COLOR] Fallback to gray: {color}")
+                return color
+    
+    def _create_complete_removal_mask(self, customer_analysis: Dict, image_shape: Tuple) -> np.ndarray:
+        """
+        Create AGGRESSIVE mask that covers the ENTIRE garment area for complete removal
+        """
         
         height, width, _ = image_shape
         pose_landmarks = customer_analysis.get('pose_landmarks', {})
         
-        # Get landmark positions
+        # Extract landmark coordinates
         landmarks = {}
-        for lm_name in ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip', 
-                       'left_elbow', 'right_elbow']:
+        for lm_name in ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']:
             if lm_name in pose_landmarks:
                 lm = pose_landmarks[lm_name]
                 x = int(lm[0] * width) if isinstance(lm, (list, tuple)) else int(lm.get('x', 0) * width)
                 y = int(lm[1] * height) if isinstance(lm, (list, tuple)) else int(lm.get('y', 0) * height)
                 landmarks[lm_name] = (x, y)
+                self.logger.info(f"[MASK] {lm_name}: ({x}, {y})")
         
         if len(landmarks) < 4:
-            self.logger.error("[MASK] Insufficient landmarks for removal mask")
-            return np.zeros((height, width), dtype=np.uint8)
-        
-        # Create AGGRESSIVE removal mask that covers entire torso
-        mask = np.zeros((height, width), dtype=np.uint8)
+            self.logger.error(f"[MASK] Insufficient landmarks: {list(landmarks.keys())}")
+            # Create fallback mask covering center area
+            return self._create_fallback_mask(height, width)
         
         # Calculate dimensions
         shoulder_width = abs(landmarks['left_shoulder'][0] - landmarks['right_shoulder'][0])
         torso_height = abs(landmarks['left_hip'][1] - landmarks['left_shoulder'][1])
         
-        # MUCH more aggressive expansion for complete coverage
+        # VERY AGGRESSIVE expansion for complete coverage
         horizontal_expansion = max(80, int(shoulder_width * 0.6))  # 60% wider than shoulders
         vertical_expansion = max(50, int(torso_height * 0.3))      # 30% taller
         
-        # Create polygon that completely covers the garment area
-        left_x = landmarks['left_shoulder'][0] - horizontal_expansion
-        right_x = landmarks['right_shoulder'][0] + horizontal_expansion
-        top_y = landmarks['left_shoulder'][1] - vertical_expansion
-        bottom_y = max(landmarks['left_hip'][1], landmarks['right_hip'][1]) + vertical_expansion
+        self.logger.info(f"[MASK] Shoulder width: {shoulder_width}px, expansion: {horizontal_expansion}px")
         
-        # Extend to sides based on elbow positions if available
-        if 'left_elbow' in landmarks and 'right_elbow' in landmarks:
-            left_x = min(left_x, landmarks['left_elbow'][0] - 20)
-            right_x = max(right_x, landmarks['right_elbow'][0] + 20)
+        # Create comprehensive polygon
+        ls = landmarks['left_shoulder']
+        rs = landmarks['right_shoulder']
+        lh = landmarks['left_hip']
+        rh = landmarks['right_hip']
         
-        # Create comprehensive coverage polygon
+        # Expanded polygon points
         polygon_points = np.array([
-            (left_x, top_y),                    # Top-left
-            (right_x, top_y),                   # Top-right
-            (right_x + 20, (top_y + bottom_y) // 2),  # Right side expansion
-            (right_x, bottom_y),                # Bottom-right
-            (left_x, bottom_y),                 # Bottom-left
-            (left_x - 20, (top_y + bottom_y) // 2),   # Left side expansion
+            # Top edge (expanded up and out)
+            (ls[0] - horizontal_expansion, ls[1] - vertical_expansion),
+            (rs[0] + horizontal_expansion, rs[1] - vertical_expansion),
+            
+            # Right side (expanded out)
+            (rs[0] + horizontal_expansion + 30, (rs[1] + rh[1]) // 2),
+            
+            # Bottom edge (expanded down and out)
+            (rh[0] + horizontal_expansion//2, rh[1] + vertical_expansion),
+            (lh[0] - horizontal_expansion//2, lh[1] + vertical_expansion),
+            
+            # Left side (expanded out)
+            (ls[0] - horizontal_expansion - 30, (ls[1] + lh[1]) // 2),
         ], dtype=np.int32)
         
         # Ensure within image bounds
         polygon_points[:, 0] = np.clip(polygon_points[:, 0], 0, width - 1)
         polygon_points[:, 1] = np.clip(polygon_points[:, 1], 0, height - 1)
         
-        # Fill the polygon
+        # Create and fill mask
+        mask = np.zeros((height, width), dtype=np.uint8)
         cv2.fillPoly(mask, [polygon_points], 255)
         
-        # Apply heavy smoothing for natural edges
-        mask = cv2.GaussianBlur(mask, (41, 41), 20)
+        # Heavy smoothing for natural edges
+        mask = cv2.GaussianBlur(mask, (51, 51), 25)
         
         # Log mask statistics
         mask_area = np.sum(mask > 128)
         coverage = (mask_area / (width * height)) * 100
         self.logger.info(f"[MASK] Removal mask: {mask_area} pixels ({coverage:.1f}% coverage)")
         
+        # Ensure mask is large enough
+        if coverage < 15:  # Less than 15% is too small
+            self.logger.warning(f"[MASK] Mask too small, expanding further...")
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (61, 61))
+            mask = cv2.dilate(mask, kernel, iterations=3)
+            final_coverage = (np.sum(mask > 128) / (width * height)) * 100
+            self.logger.info(f"[MASK] Expanded to {final_coverage:.1f}% coverage")
+        
         return mask
     
-    def _remove_original_garment(self, original_image: np.ndarray, 
-                               removal_mask: np.ndarray) -> np.ndarray:
-        """Remove the original garment using inpainting and skin tone estimation"""
+    def _create_fallback_mask(self, height: int, width: int) -> np.ndarray:
+        """Create fallback mask if landmarks are insufficient"""
+        mask = np.zeros((height, width), dtype=np.uint8)
         
-        # Create inpainting mask (areas to fill)
+        # Cover central torso area
+        center_x, center_y = width // 2, height // 2
+        torso_width = width // 3
+        torso_height = height // 2
+        
+        cv2.rectangle(mask, 
+                     (center_x - torso_width//2, center_y - torso_height//3),
+                     (center_x + torso_width//2, center_y + torso_height//2),
+                     255, -1)
+        
+        mask = cv2.GaussianBlur(mask, (41, 41), 20)
+        self.logger.warning(f"[MASK] Using fallback central mask")
+        return mask
+    
+    def _remove_original_garment_completely(self, original_image: np.ndarray, 
+                                          removal_mask: np.ndarray) -> np.ndarray:
+        """
+        Completely remove the original garment using inpainting and skin tone estimation
+        """
+        
+        # Create inpainting mask (binary mask for cv2.inpaint)
         inpaint_mask = (removal_mask > 200).astype(np.uint8) * 255
         
-        # Estimate skin tone from visible areas (face, arms if visible)
+        # Estimate skin tone from visible areas
         skin_tone = self._estimate_skin_tone(original_image, removal_mask)
         
-        # Use OpenCV inpainting to fill the garment area
-        inpainted = cv2.inpaint(original_image, inpaint_mask, 3, cv2.INPAINT_TELEA)
+        # Method 1: Use OpenCV inpainting
+        inpainted = cv2.inpaint(original_image, inpaint_mask, 5, cv2.INPAINT_TELEA)
         
-        # Enhance with skin tone in the torso area
-        torso_area = removal_mask > 150
-        inpainted[torso_area] = (
-            inpainted[torso_area].astype(np.float32) * 0.7 + 
-            np.array(skin_tone, dtype=np.float32) * 0.3
-        ).astype(np.uint8)
+        # Method 2: Fill with estimated skin tone
+        skin_filled = original_image.copy()
+        garment_area = removal_mask > 150
+        skin_filled[garment_area] = skin_tone
         
-        self.logger.info(f"[REMOVAL] Original garment removed, skin tone: {skin_tone}")
-        return inpainted
+        # Blend inpainted and skin-filled results
+        blend_ratio = 0.3  # 30% inpainted, 70% skin tone
+        result = cv2.addWeighted(inpainted, blend_ratio, skin_filled, 1 - blend_ratio, 0)
+        
+        self.logger.info(f"[REMOVAL] Original garment removed, using skin tone: {skin_tone}")
+        return result
     
     def _estimate_skin_tone(self, image: np.ndarray, garment_mask: np.ndarray) -> Tuple[int, int, int]:
-        """Estimate skin tone from non-garment areas"""
+        """
+        Estimate skin tone from non-garment areas (face, arms, etc.)
+        """
         
-        # Create mask for potential skin areas (exclude garment region)
         height, width = image.shape[:2]
+        
+        # Create skin sampling mask (exclude garment area)
         skin_mask = np.ones((height, width), dtype=np.uint8) * 255
-        skin_mask[garment_mask > 100] = 0  # Exclude garment area
+        skin_mask[garment_mask > 100] = 0  # Exclude garment
         
-        # Focus on upper portion (likely face/neck area)
+        # Focus on upper areas (likely face/neck)
         skin_mask[height//2:] = 0  # Only upper half
+        skin_mask[:height//4] = 0  # Exclude very top (might be hair)
         
-        # Get skin pixels
+        # Sample skin pixels
         skin_pixels = image[skin_mask > 0]
         
-        if len(skin_pixels) > 0:
-            # Calculate median skin tone (more robust than mean)
-            skin_tone = tuple(int(x) for x in np.median(skin_pixels, axis=0))
+        if len(skin_pixels) > 100:  # Need sufficient samples
+            # Use median for robustness against outliers
+            skin_tone = tuple(int(np.median(skin_pixels, axis=0)))
         else:
-            # Fallback to generic skin tone
-            skin_tone = (210, 180, 160)  # Light skin tone fallback
+            # Fallback to a neutral skin tone
+            skin_tone = (200, 170, 150)
         
-        self.logger.info(f"[SKIN] Estimated skin tone: {skin_tone}")
+        self.logger.info(f"[SKIN] Estimated skin tone: {skin_tone} from {len(skin_pixels)} pixels")
         return skin_tone
     
-    def _generate_realistic_garment(self, garment_analysis: Dict, product_info: Dict,
-                                  image_shape: Tuple, mask: np.ndarray) -> np.ndarray:
-        """Generate realistic garment with CORRECT colors"""
+    def _create_new_garment(self, color: Tuple[int, int, int], mask: np.ndarray, 
+                          image_shape: Tuple) -> np.ndarray:
+        """
+        Create new garment with the correct color and realistic details
+        """
         
         height, width, _ = image_shape
         garment = np.zeros((height, width, 3), dtype=np.uint8)
         
-        # FIXED COLOR LOGIC - Product name takes absolute priority
-        product_name = product_info.get('name', '').lower()
-        self.logger.info(f"[GARMENT] Processing product: '{product_name}'")
-        
-        # 1. STRICT product name matching (highest priority)
-        if any(color_word in product_name for color_word in ['white', 'blanc', 'blanco']):
-            base_color = (255, 255, 255)  # Pure white
-            self.logger.info("[GARMENT] ✅ FORCING WHITE from product name")
-        elif any(color_word in product_name for color_word in ['black', 'noir', 'negro']):
-            base_color = (20, 20, 20)     # Near black
-            self.logger.info("[GARMENT] ✅ FORCING BLACK from product name")
-        elif any(color_word in product_name for color_word in ['red', 'rouge', 'rojo']):
-            base_color = (200, 40, 40)    # Red
-            self.logger.info("[GARMENT] ✅ FORCING RED from product name")
-        elif any(color_word in product_name for color_word in ['blue', 'bleu', 'azul']):
-            base_color = (40, 40, 200)    # Blue
-            self.logger.info("[GARMENT] ✅ FORCING BLUE from product name")
-        else:
-            # 2. Fallback to analysis only if no color in name
-            dominant_colors = garment_analysis.get('dominant_colors', [])
-            if dominant_colors:
-                base_color = dominant_colors[0]
-                self.logger.info(f"[GARMENT] Using analyzed color: {base_color}")
-            else:
-                base_color = (128, 128, 128)  # Gray fallback
-                self.logger.warning("[GARMENT] Using gray fallback color")
-        
-        # Fill the garment area with base color
+        # Fill garment area with the correct color
         garment_area = mask > 100
-        garment[garment_area] = base_color
+        garment[garment_area] = color
         
-        # Add fabric texture (minimal for white to maintain clarity)
-        texture_strength = 0.02 if base_color[0] > 200 and base_color[1] > 200 and base_color[2] > 200 else 0.05
+        # Add minimal texture for light colors, more for dark colors
+        if color[0] > 200 and color[1] > 200 and color[2] > 200:  # Light/white
+            texture_strength = 3  # Very minimal for white
+        else:
+            texture_strength = 8  # More texture for other colors
+        
+        # Add subtle fabric texture
         if texture_strength > 0:
-            noise = np.random.normal(0, texture_strength * 255, garment.shape)
+            noise = np.random.normal(0, texture_strength, garment.shape)
             garment = np.clip(garment.astype(np.float32) + noise, 0, 255).astype(np.uint8)
         
-        # Add basic garment details (seams, etc.)
-        garment = self._add_garment_details(garment, mask, base_color)
+        # Add basic garment features (seams, etc.)
+        garment = self._add_realistic_garment_features(garment, mask, color)
         
-        self.logger.info(f"[GARMENT] Generated garment with color: {base_color}")
+        self.logger.info(f"[GARMENT] Created new garment with color {color}")
         return garment
     
-    def _add_garment_details(self, garment: np.ndarray, mask: np.ndarray, 
-                           base_color: Tuple[int, int, int]) -> np.ndarray:
-        """Add realistic garment details like seams, hems, etc."""
+    def _add_realistic_garment_features(self, garment: np.ndarray, mask: np.ndarray,
+                                      base_color: Tuple[int, int, int]) -> np.ndarray:
+        """
+        Add realistic garment features like seams, collar, etc.
+        """
         
-        # Create slightly darker color for seams
-        seam_color = tuple(max(0, int(c * 0.92)) for c in base_color)
+        # Create slightly darker color for seams/details
+        seam_color = tuple(max(0, int(c * 0.9)) for c in base_color)
         
         # Find garment contours
-        mask_binary = (mask > 150).astype(np.uint8)
+        mask_binary = (mask > 200).astype(np.uint8)
         contours, _ = cv2.findContours(mask_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         for contour in contours:
-            if cv2.contourArea(contour) > 5000:  # Significant garment area
+            area = cv2.contourArea(contour)
+            if area > 10000:  # Significant garment area
+                
                 # Get bounding rectangle
                 x, y, w, h = cv2.boundingRect(contour)
                 
-                # Add shoulder seams (horizontal lines at top)
-                shoulder_y = y + h // 8
-                cv2.line(garment, (x + w//4, shoulder_y), (x + 3*w//4, shoulder_y), seam_color, 2)
+                # Add shoulder seams (horizontal line across shoulders)
+                shoulder_y = y + h // 6
+                cv2.line(garment, (x + w//5, shoulder_y), (x + 4*w//5, shoulder_y), seam_color, 2)
                 
                 # Add side seams (vertical lines)
-                left_seam_x = x + w // 6
-                right_seam_x = x + 5*w // 6
-                cv2.line(garment, (left_seam_x, y + h//4), (left_seam_x, y + 3*h//4), seam_color, 1)
-                cv2.line(garment, (right_seam_x, y + h//4), (right_seam_x, y + 3*h//4), seam_color, 1)
+                left_seam_x = x + w // 5
+                right_seam_x = x + 4*w // 5
+                seam_start_y = y + h // 4
+                seam_end_y = y + 3*h // 4
+                
+                cv2.line(garment, (left_seam_x, seam_start_y), (left_seam_x, seam_end_y), seam_color, 1)
+                cv2.line(garment, (right_seam_x, seam_start_y), (right_seam_x, seam_end_y), seam_color, 1)
                 
                 # Add bottom hem
-                hem_y = y + 7*h // 8
-                cv2.line(garment, (x + w//6, hem_y), (x + 5*w//6, hem_y), seam_color, 2)
+                hem_y = y + 4*h // 5
+                cv2.line(garment, (x + w//5, hem_y), (x + 4*w//5, hem_y), seam_color, 2)
         
         return garment
     
-    def _apply_body_fitting(self, garment: np.ndarray, mask: np.ndarray,
-                          customer_analysis: Dict, original_image: np.ndarray) -> np.ndarray:
-        """Apply body curvature and lighting to make garment look fitted"""
+    def _apply_garment_with_strong_replacement(self, body_image: np.ndarray, 
+                                             new_garment: np.ndarray, mask: np.ndarray,
+                                             original_image: np.ndarray) -> np.ndarray:
+        """
+        Apply new garment with STRONG replacement (not subtle blending)
+        """
         
-        # Extract lighting from original image
-        original_gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
-        lighting_map = cv2.GaussianBlur(original_gray, (51, 51), 25).astype(np.float32) / 255.0
+        # Create strong replacement mask
+        # Core area gets 95% replacement, edges blend smoothly
+        core_mask = (mask > 220).astype(np.float32) * 0.95
+        edge_mask = cv2.GaussianBlur(mask, (31, 31), 15).astype(np.float32) / 255.0
         
-        # Apply lighting to garment
-        fitted_garment = garment.copy().astype(np.float32)
-        for c in range(3):
-            fitted_garment[:, :, c] = fitted_garment[:, :, c] * lighting_map
+        # Combine masks for strong core replacement with smooth edges
+        final_mask = np.maximum(core_mask, edge_mask * 0.7)
         
-        # Add body curvature shadows
-        fitted_garment = self._add_body_shadows(fitted_garment, mask, customer_analysis)
+        # Apply lighting from original image to new garment
+        lighting_adjusted_garment = self._apply_scene_lighting(new_garment, original_image, mask)
         
-        return np.clip(fitted_garment, 0, 255).astype(np.uint8)
-    
-    def _add_body_shadows(self, garment: np.ndarray, mask: np.ndarray,
-                        customer_analysis: Dict) -> np.ndarray:
-        """Add realistic body shadows and curvature"""
-        
-        pose_landmarks = customer_analysis.get('pose_landmarks', {})
-        
-        if 'left_shoulder' in pose_landmarks and 'right_shoulder' in pose_landmarks:
-            height, width = garment.shape[:2]
-            
-            # Create shadow gradients from center outward
-            center_x = width // 2
-            center_y = height // 2
-            
-            # Create radial shadow
-            y, x = np.ogrid[:height, :width]
-            distances = np.sqrt((x - center_x)**2 + (y - center_y)**2)
-            max_distance = np.sqrt(center_x**2 + center_y**2)
-            
-            # Normalize distances and create shadow effect
-            shadow_strength = 1.0 - (distances / max_distance) * 0.3  # Max 30% darkening
-            shadow_strength = np.clip(shadow_strength, 0.7, 1.0)
-            
-            # Apply shadow only to garment area
-            garment_area = mask > 100
-            for c in range(3):
-                garment[:, :, c][garment_area] = (garment[:, :, c][garment_area] * shadow_strength[garment_area]).astype(np.float32)
-        
-        return garment
-    
-    def _composite_new_garment(self, body_image: np.ndarray, fitted_garment: np.ndarray,
-                             mask: np.ndarray) -> np.ndarray:
-        """Composite the new garment onto the body"""
-        
-        # Create smooth blending mask
-        blend_mask = cv2.GaussianBlur(mask, (31, 31), 15).astype(np.float32) / 255.0
-        
-        # Strong compositing in the core area
-        core_mask = (mask > 200).astype(np.float32)
-        final_mask = np.maximum(blend_mask, core_mask * 0.95)  # At least 95% in core
-        
-        # Composite
+        # Strong compositing
         result = body_image.copy().astype(np.float32)
-        garment_float = fitted_garment.astype(np.float32)
+        garment_float = lighting_adjusted_garment.astype(np.float32)
         
         for c in range(3):
             result[:, :, c] = (
@@ -320,79 +348,102 @@ class CompleteGarmentReplacement:
                 garment_float[:, :, c] * final_mask
             )
         
-        return np.clip(result, 0, 255).astype(np.uint8)
+        result = np.clip(result, 0, 255).astype(np.uint8)
+        
+        # Log replacement statistics
+        replacement_area = np.sum(final_mask > 0.5)
+        self.logger.info(f"[REPLACE] Strong replacement applied to {replacement_area} pixels")
+        
+        return result
     
-    def _apply_final_realism(self, result: np.ndarray, original_image: np.ndarray,
-                           mask: np.ndarray) -> np.ndarray:
-        """Apply final touches for maximum realism"""
+    def _apply_scene_lighting(self, garment: np.ndarray, original_image: np.ndarray,
+                            mask: np.ndarray) -> np.ndarray:
+        """
+        Apply lighting from the original scene to the new garment
+        """
+        
+        # Extract lighting information from original image
+        original_gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
+        lighting_map = cv2.GaussianBlur(original_gray, (71, 71), 35).astype(np.float32) / 255.0
+        
+        # Apply lighting to garment
+        lit_garment = garment.copy().astype(np.float32)
+        
+        # Only apply lighting in garment area
+        garment_area = mask > 100
+        for c in range(3):
+            lit_garment[:, :, c][garment_area] *= lighting_map[garment_area]
+        
+        return np.clip(lit_garment, 0, 255).astype(np.uint8)
+    
+    def _apply_final_realism_adjustments(self, result: np.ndarray, original_image: np.ndarray,
+                                       mask: np.ndarray) -> np.ndarray:
+        """
+        Apply final adjustments for maximum realism
+        """
         
         # Color temperature matching
         result = self._match_color_temperature(result, original_image, mask)
         
-        # Edge enhancement
-        result = self._enhance_edges(result, mask)
-        
-        # Final sharpening
-        result = self._apply_subtle_sharpening(result)
+        # Subtle sharpening
+        kernel = np.array([[-0.1, -0.1, -0.1],
+                          [-0.1,  1.8, -0.1],
+                          [-0.1, -0.1, -0.1]])
+        sharpened = cv2.filter2D(result, -1, kernel)
+        result = cv2.addWeighted(result, 0.8, sharpened, 0.2, 0)
         
         return result
     
     def _match_color_temperature(self, result: np.ndarray, original: np.ndarray,
                                mask: np.ndarray) -> np.ndarray:
-        """Match color temperature of the scene"""
+        """
+        Match color temperature of the scene
+        """
         
-        # Get average color temperature from non-garment areas
-        non_garment_area = mask < 50
-        if np.sum(non_garment_area) > 0:
-            original_avg = np.mean(original[non_garment_area], axis=0)
-            result_avg = np.mean(result[non_garment_area], axis=0)
+        # Sample non-garment areas for color temperature
+        non_garment = mask < 50
+        if np.sum(non_garment) > 1000:
+            original_temp = np.mean(original[non_garment], axis=0)
+            result_temp = np.mean(result[non_garment], axis=0)
             
-            # Calculate color shift
-            color_shift = original_avg / (result_avg + 1e-6)
+            # Calculate subtle color correction
+            temp_ratio = original_temp / (result_temp + 1e-6)
             
-            # Apply subtle color temperature correction
+            # Apply gentle correction only to garment area
             garment_area = mask > 100
             for c in range(3):
-                result[:, :, c][garment_area] = (result[:, :, c][garment_area] * (color_shift[c] * 0.1 + 0.9)).astype(np.uint8)
+                result[:, :, c][garment_area] = np.clip(
+                    result[:, :, c][garment_area] * (temp_ratio[c] * 0.1 + 0.9), 0, 255
+                )
         
-        return np.clip(result, 0, 255).astype(np.uint8)
-    
-    def _enhance_edges(self, image: np.ndarray, mask: np.ndarray) -> np.ndarray:
-        """Enhance garment edges for realism"""
-        
-        # Find mask edges
-        edges = cv2.Canny((mask > 150).astype(np.uint8), 50, 150)
-        edge_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        edges = cv2.dilate(edges, edge_kernel, iterations=1)
-        
-        # Apply subtle edge enhancement
-        enhanced = image.copy()
-        edge_pixels = edges > 0
-        enhanced[edge_pixels] = np.clip(enhanced[edge_pixels] * 1.05, 0, 255)  # 5% brighter
-        
-        return enhanced
-    
-    def _apply_subtle_sharpening(self, image: np.ndarray) -> np.ndarray:
-        """Apply subtle sharpening for final result"""
-        
-        blurred = cv2.GaussianBlur(image, (0, 0), 1.0)
-        sharpened = cv2.addWeighted(image, 1.3, blurred, -0.3, 0)
-        
-        # Blend original and sharpened (subtle effect)
-        return cv2.addWeighted(image, 0.8, sharpened, 0.2, 0)
+        return result
 
+# Direct replacement function for your existing code
+def replace_with_new_garment(customer_analysis: Dict, garment_analysis: Dict,
+                           product_info: Dict, original_image: np.ndarray,
+                           garment_types: List[str]) -> np.ndarray:
+    """
+    DIRECT REPLACEMENT for your current virtual try-on function
+    Use this to replace your existing process_virtual_tryon call
+    """
+    
+    replacer = PracticalGarmentReplacer()
+    return replacer.replace_garment_completely(
+        customer_analysis=customer_analysis,
+        garment_analysis=garment_analysis,
+        product_info=product_info,
+        original_image=original_image,
+        garment_types=garment_types
+    )
 
-# Integration function for your existing system
+# Legacy compatibility function
 def process_complete_garment_replacement(customer_analysis: Dict, garment_analysis: Dict,
                                        product_info: Dict, original_image: np.ndarray,
                                        garment_types: List[str]) -> np.ndarray:
     """
-    Complete garment replacement function to replace your current system
-    This removes the original garment completely and replaces it with the new one
+    Legacy compatibility wrapper
     """
-    
-    processor = CompleteGarmentReplacement()
-    return processor.replace_garment_completely(
+    return replace_with_new_garment(
         customer_analysis=customer_analysis,
         garment_analysis=garment_analysis,
         product_info=product_info,
