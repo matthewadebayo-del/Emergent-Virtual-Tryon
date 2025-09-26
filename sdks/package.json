@@ -1,0 +1,28 @@
+{
+  "name": "@virtualfit/sdk",
+  "version": "1.0.0",
+  "description": "VirtualFit SDK for e-commerce integration",
+  "main": "javascript/virtualfit-sdk.js",
+  "types": "javascript/virtualfit-sdk.d.ts",
+  "scripts": {
+    "build": "npm run build:js && npm run build:types",
+    "build:js": "terser javascript/virtualfit-sdk.js -o javascript/virtualfit-sdk.min.js",
+    "build:types": "tsc --declaration --emitDeclarationOnly",
+    "test": "jest",
+    "publish:npm": "npm publish --access public"
+  },
+  "keywords": ["virtual-tryon", "ecommerce", "ai", "fashion"],
+  "author": "VirtualFit",
+  "license": "MIT",
+  "devDependencies": {
+    "terser": "^5.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0"
+  },
+  "files": [
+    "javascript/",
+    "python/",
+    "php/",
+    "README.md"
+  ]
+}
