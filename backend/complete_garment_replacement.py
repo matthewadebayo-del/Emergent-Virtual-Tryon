@@ -164,83 +164,75 @@ class PracticalGarmentReplacer:
     
     def _create_complete_removal_mask(self, customer_analysis: Dict, image_shape: Tuple) -> np.ndarray:
         """
-        Create AGGRESSIVE mask that covers the ENTIRE garment area for complete removal
+        Create CONSERVATIVE mask that covers ONLY the shirt area for targeted replacement
         """
         
         height, width, _ = image_shape
         pose_landmarks = customer_analysis.get('pose_landmarks', {})
         
-        # Extract landmark coordinates
+        # Get landmark positions
         landmarks = {}
         for lm_name in ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']:
             if lm_name in pose_landmarks:
                 lm = pose_landmarks[lm_name]
-                x = int(lm[0] * width) if isinstance(lm, (list, tuple)) else int(lm.get('x', 0) * width)
-                y = int(lm[1] * height) if isinstance(lm, (list, tuple)) else int(lm.get('y', 0) * height)
+                x = int(lm[0] * width)
+                y = int(lm[1] * height)
                 landmarks[lm_name] = (x, y)
-                self.logger.info(f"[MASK] {lm_name}: ({x}, {y})")
+                print(f"🔥 LANDMARK {lm_name}: ({x}, {y})")
         
         if len(landmarks) < 4:
-            self.logger.error(f"[MASK] Insufficient landmarks: {list(landmarks.keys())}")
-            # Create fallback mask covering center area
-            return self._create_fallback_mask(height, width)
+            self.logger.error("[MASK] Insufficient landmarks for removal mask")
+            return np.zeros((height, width), dtype=np.uint8)
         
         # Calculate dimensions
         shoulder_width = abs(landmarks['left_shoulder'][0] - landmarks['right_shoulder'][0])
         torso_height = abs(landmarks['left_hip'][1] - landmarks['left_shoulder'][1])
         
-        # VERY AGGRESSIVE expansion for complete coverage
-        horizontal_expansion = max(80, int(shoulder_width * 0.6))  # 60% wider than shoulders
-        vertical_expansion = max(50, int(torso_height * 0.3))      # 30% taller
+        print(f"🔥 DIMENSIONS: Shoulder width={shoulder_width}, Torso height={torso_height}")
         
-        self.logger.info(f"[MASK] Shoulder width: {shoulder_width}px, expansion: {horizontal_expansion}px")
+        # MUCH MORE CONSERVATIVE expansion - just for shirt coverage
+        horizontal_expansion = max(20, int(shoulder_width * 0.15))  # Only 15% wider
+        vertical_expansion = max(15, int(torso_height * 0.1))       # Only 10% taller
         
-        # Create comprehensive polygon
+        print(f"🔥 EXPANSION: Horizontal={horizontal_expansion}, Vertical={vertical_expansion}")
+        
+        # Create conservative polygon for just the shirt area
         ls = landmarks['left_shoulder']
         rs = landmarks['right_shoulder']
         lh = landmarks['left_hip']
         rh = landmarks['right_hip']
         
-        # Expanded polygon points
+        # Simple rectangle covering just the torso
         polygon_points = np.array([
-            # Top edge (expanded up and out)
-            (ls[0] - horizontal_expansion, ls[1] - vertical_expansion),
-            (rs[0] + horizontal_expansion, rs[1] - vertical_expansion),
-            
-            # Right side (expanded out)
-            (rs[0] + horizontal_expansion + 30, (rs[1] + rh[1]) // 2),
-            
-            # Bottom edge (expanded down and out)
-            (rh[0] + horizontal_expansion//2, rh[1] + vertical_expansion),
-            (lh[0] - horizontal_expansion//2, lh[1] + vertical_expansion),
-            
-            # Left side (expanded out)
-            (ls[0] - horizontal_expansion - 30, (ls[1] + lh[1]) // 2),
+            (ls[0] - horizontal_expansion, ls[1] - vertical_expansion//2),  # Top-left
+            (rs[0] + horizontal_expansion, rs[1] - vertical_expansion//2),  # Top-right
+            (rh[0] + horizontal_expansion//2, rh[1] + vertical_expansion//2),  # Bottom-right
+            (lh[0] - horizontal_expansion//2, lh[1] + vertical_expansion//2),  # Bottom-left
         ], dtype=np.int32)
         
         # Ensure within image bounds
         polygon_points[:, 0] = np.clip(polygon_points[:, 0], 0, width - 1)
         polygon_points[:, 1] = np.clip(polygon_points[:, 1], 0, height - 1)
         
-        # Create and fill mask
+        # Create mask
         mask = np.zeros((height, width), dtype=np.uint8)
         cv2.fillPoly(mask, [polygon_points], 255)
         
-        # Heavy smoothing for natural edges
-        mask = cv2.GaussianBlur(mask, (51, 51), 25)
+        # Gentle smoothing (not heavy blur)
+        mask = cv2.GaussianBlur(mask, (21, 21), 8)
         
         # Log mask statistics
         mask_area = np.sum(mask > 128)
         coverage = (mask_area / (width * height)) * 100
-        self.logger.info(f"[MASK] Removal mask: {mask_area} pixels ({coverage:.1f}% coverage)")
+        print(f"🔥 FINAL MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
         
-        # Ensure mask is large enough
-        if coverage < 15:  # Less than 15% is too small
-            self.logger.warning(f"[MASK] Mask too small, expanding further...")
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (61, 61))
-            mask = cv2.dilate(mask, kernel, iterations=3)
-            final_coverage = (np.sum(mask > 128) / (width * height)) * 100
-            self.logger.info(f"[MASK] Expanded to {final_coverage:.1f}% coverage")
+        # Target: 15-25% coverage for shirt area only
+        if coverage > 30:
+            print(f"🔥 WARNING: Mask too large ({coverage:.1f}% > 30%)")
+        elif coverage < 10:
+            print(f"🔥 WARNING: Mask too small ({coverage:.1f}% < 10%)")
+        else:
+            print(f"🔥 SUCCESS: Good mask size ({coverage:.1f}%)")
         
         return mask
     
