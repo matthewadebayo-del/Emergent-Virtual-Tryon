@@ -180,12 +180,18 @@ class PracticalGarmentReplacer:
         for lm_name in ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']:
             if lm_name in pose_landmarks:
                 lm = pose_landmarks[lm_name]
-                x = int(lm[0] * width)
-                y = int(lm[1] * height)
+                # Handle both dict format {'x': 0.5, 'y': 0.3} and list format [0.5, 0.3]
+                if isinstance(lm, dict):
+                    x = int(lm.get('x', 0) * width)
+                    y = int(lm.get('y', 0) * height)
+                else:
+                    x = int(lm[0] * width)
+                    y = int(lm[1] * height)
                 landmarks[lm_name] = (x, y)
                 print(f"🔥 LANDMARK {lm_name}: ({x}, {y})")
         
         if len(landmarks) < 4:
+            print(f"🔥 ERROR: Insufficient landmarks: {list(landmarks.keys())} out of 4 required")
             self.logger.error("[MASK] Insufficient landmarks for removal mask")
             return np.zeros((height, width), dtype=np.uint8)
         
