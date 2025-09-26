@@ -38,6 +38,11 @@ class PracticalGarmentReplacer:
             # STEP 2: Create aggressive removal mask
             try:
                 print("🔥 DEBUG: Starting mask creation...")
+                print(f"🔥 DEBUG: Customer analysis keys: {list(customer_analysis.keys())}")
+                pose_landmarks = customer_analysis.get('pose_landmarks', {})
+                print(f"🔥 DEBUG: Pose landmarks type: {type(pose_landmarks)}")
+                print(f"🔥 DEBUG: Pose landmarks sample: {dict(list(pose_landmarks.items())[:2]) if isinstance(pose_landmarks, dict) else 'Not a dict'}")
+                
                 removal_mask = self._create_complete_removal_mask(customer_analysis, original_image.shape)
                 mask_area = np.sum(removal_mask > 128) if removal_mask is not None else 0
                 print(f"🔥 DEBUG: Mask created - area: {mask_area} pixels")
