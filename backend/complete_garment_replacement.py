@@ -282,9 +282,13 @@ class PracticalGarmentReplacer:
         garment_area = removal_mask > 150
         skin_filled[garment_area] = skin_tone
         
-        # Blend inpainted and skin-filled results
+        # Blend inpainted and skin-filled results - fix numpy scalar issue
         blend_ratio = 0.3  # 30% inpainted, 70% skin tone
-        result = cv2.addWeighted(inpainted, blend_ratio, skin_filled, 1 - blend_ratio, 0)
+        try:
+            result = cv2.addWeighted(inpainted, blend_ratio, skin_filled, 1 - blend_ratio, 0)
+        except Exception as e:
+            self.logger.error(f"[REMOVAL] Blending failed: {e}, using inpainted only")
+            result = inpainted
         
         self.logger.info(f"[REMOVAL] Original garment removed, using skin tone: {skin_tone}")
         return result
@@ -294,28 +298,37 @@ class PracticalGarmentReplacer:
         Estimate skin tone from non-garment areas (face, arms, etc.)
         """
         
-        height, width = image.shape[:2]
-        
-        # Create skin sampling mask (exclude garment area)
-        skin_mask = np.ones((height, width), dtype=np.uint8) * 255
-        skin_mask[garment_mask > 100] = 0  # Exclude garment
-        
-        # Focus on upper areas (likely face/neck)
-        skin_mask[height//2:] = 0  # Only upper half
-        skin_mask[:height//4] = 0  # Exclude very top (might be hair)
-        
-        # Sample skin pixels
-        skin_pixels = image[skin_mask > 0]
-        
-        if len(skin_pixels) > 100:  # Need sufficient samples
-            # Use median for robustness against outliers
-            skin_tone = tuple(int(np.median(skin_pixels, axis=0)))
-        else:
-            # Fallback to a neutral skin tone
-            skin_tone = (200, 170, 150)
-        
-        self.logger.info(f"[SKIN] Estimated skin tone: {skin_tone} from {len(skin_pixels)} pixels")
-        return skin_tone
+        try:
+            height, width = image.shape[:2]
+            
+            # Create skin sampling mask (exclude garment area)
+            skin_mask = np.ones((height, width), dtype=np.uint8) * 255
+            skin_mask[garment_mask > 100] = 0  # Exclude garment
+            
+            # Focus on upper areas (likely face/neck)
+            skin_mask[height//2:] = 0  # Only upper half
+            skin_mask[:height//4] = 0  # Exclude very top (might be hair)
+            
+            # Sample skin pixels
+            skin_pixels = image[skin_mask > 0]
+            
+            if len(skin_pixels) > 100:  # Need sufficient samples
+                # Use median for robustness against outliers - fix numpy scalar issue
+                median_values = np.median(skin_pixels, axis=0)
+                if hasattr(median_values, 'tolist'):
+                    skin_tone = tuple(int(x) for x in median_values.tolist())
+                else:
+                    skin_tone = tuple(int(x) for x in median_values)
+            else:
+                # Fallback to a neutral skin tone
+                skin_tone = (200, 170, 150)
+            
+            self.logger.info(f"[SKIN] Estimated skin tone: {skin_tone} from {len(skin_pixels)} pixels")
+            return skin_tone
+            
+        except Exception as e:
+            self.logger.error(f"[SKIN] Skin tone estimation failed: {e}")
+            return (200, 170, 150)  # Safe fallback
     
     def _create_new_garment(self, color: Tuple[int, int, int], mask: np.ndarray, 
                           image_shape: Tuple) -> np.ndarray:
