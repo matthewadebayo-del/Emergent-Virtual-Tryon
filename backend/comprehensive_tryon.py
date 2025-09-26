@@ -571,6 +571,83 @@ class ComprehensiveRegionTryOn:
             
         return None
     
+    def _fix_color_detection_immediately(self, product_info: Dict, garment_analysis: Dict) -> Tuple[int, int, int]:
+        """Emergency fix for color detection - use this to override current color logic"""
+        
+        product_name = product_info.get('name', '').lower()
+        self.logger.info(f"[COLOR_FIX] Product name: '{product_name}'")
+        
+        # FORCE CORRECT COLORS based on product name
+        if any(word in product_name for word in ['white', 'blanc', 'blanco', 'wit']):
+            color = (255, 255, 255)  # PURE WHITE
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING WHITE: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['black', 'noir', 'negro', 'schwarz']):
+            color = (15, 15, 15)     # PURE BLACK
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING BLACK: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['red', 'rouge', 'rojo', 'rot']):
+            color = (220, 20, 20)    # BRIGHT RED
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING RED: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['blue', 'bleu', 'azul', 'blau']):
+            color = (20, 20, 220)    # BRIGHT BLUE
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING BLUE: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['green', 'vert', 'verde', 'grün']):
+            color = (20, 180, 20)    # GREEN
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING GREEN: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['yellow', 'jaune', 'amarillo', 'gelb']):
+            color = (255, 255, 20)   # YELLOW
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING YELLOW: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['gray', 'grey', 'gris', 'grau']):
+            color = (128, 128, 128)  # GRAY
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING GRAY: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['pink', 'rose', 'rosa']):
+            color = (255, 150, 200)  # PINK
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING PINK: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['purple', 'violet', 'morado']):
+            color = (150, 20, 200)   # PURPLE
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING PURPLE: {color}")
+            return color
+            
+        elif any(word in product_name for word in ['orange', 'naranja']):
+            color = (255, 140, 20)   # ORANGE
+            self.logger.info(f"[COLOR_FIX] ✅ FORCING ORANGE: {color}")
+            return color
+            
+        else:
+            # Fallback to analysis, but check if it detected white incorrectly
+            dominant_colors = garment_analysis.get('dominant_colors', [])
+            if dominant_colors:
+                detected_color = dominant_colors[0]
+                r, g, b = detected_color
+                
+                # If detected color is light (could be white), force pure white
+                if r > 180 and g > 180 and b > 180:
+                    color = (255, 255, 255)
+                    self.logger.info(f"[COLOR_FIX] ✅ Detected light color {detected_color}, FORCING WHITE: {color}")
+                    return color
+                else:
+                    self.logger.info(f"[COLOR_FIX] Using analyzed color: {detected_color}")
+                    return detected_color
+            else:
+                color = (128, 128, 128)  # Gray fallback
+                self.logger.info(f"[COLOR_FIX] ⚠️ Using fallback gray: {color}")
+                return color
+    
     def _generate_garment_appearance(self, garment_type: GarmentType, garment_analysis: Dict,
                                    product_info: Dict, image_shape: Tuple[int, int, int],
                                    mask: np.ndarray) -> np.ndarray:
@@ -580,46 +657,10 @@ class ComprehensiveRegionTryOn:
         garment_region = np.zeros((height, width, channels), dtype=np.uint8)
         
         # Get garment properties
-        dominant_colors = garment_analysis.get('dominant_colors', [(128, 128, 128)])
         texture_features = garment_analysis.get('texture_features', {})
         
-        # Extract data
-        dominant_colors = garment_analysis.get('dominant_colors', [])
-        texture_features = garment_analysis.get('texture_features', {})
-        product_name = product_info.get('name', '').lower()
-        
-        # FIXED: Priority order - product name first, then analysis
-        base_color = None
-        
-        # 1. First check product name (highest priority)
-        if 'white' in product_name or 'blanc' in product_name:
-            base_color = (255, 255, 255)
-            self.logger.info(f"[GARMENT] Using WHITE from product name: {product_name}")
-        elif 'black' in product_name or 'noir' in product_name:
-            base_color = (0, 0, 0)
-            self.logger.info(f"[GARMENT] Using BLACK from product name: {product_name}")
-        elif 'blue' in product_name or 'bleu' in product_name:
-            base_color = (100, 50, 200)
-            self.logger.info(f"[GARMENT] Using BLUE from product name: {product_name}")
-        elif 'red' in product_name or 'rouge' in product_name:
-            base_color = (200, 50, 50)
-            self.logger.info(f"[GARMENT] Using RED from product name: {product_name}")
-        
-        # 2. If no color in name, check for actual white pixels in analysis
-        if base_color is None and dominant_colors:
-            # Check if any dominant color is actually white-ish
-            for color in dominant_colors:
-                r, g, b = color
-                # Check if color is close to white (all values > 200)
-                if r > 200 and g > 200 and b > 200:
-                    base_color = (255, 255, 255)  # Force pure white
-                    self.logger.info(f"[GARMENT] Detected white-ish color {color}, using pure WHITE")
-                    break
-        
-        # 3. Fallback to dominant color analysis
-        if base_color is None:
-            base_color = dominant_colors[0] if dominant_colors else (128, 128, 128)
-            self.logger.info(f"[GARMENT] Using analyzed dominant color: {base_color}")
+        # IMMEDIATE INTEGRATION: Use emergency color fix
+        base_color = self._fix_color_detection_immediately(product_info, garment_analysis)
         
         # Fill base color
         garment_region[:] = base_color

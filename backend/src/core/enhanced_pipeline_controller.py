@@ -20,6 +20,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from comprehensive_tryon import ComprehensiveRegionTryOn, ProcessingResult, GarmentType
+from complete_garment_replacement import process_complete_garment_replacement
 
 logger = logging.getLogger(__name__)
 
@@ -656,12 +657,15 @@ class EnhancedPipelineController:
                             # Convert landmark format for comprehensive system
                             converted_analysis = self._convert_landmark_format(customer_analysis_data)
                             
-                            tryon_result_image, tryon_success = process_comprehensive_virtual_tryon(
+                            # Use COMPLETE GARMENT REPLACEMENT instead of blending
+                            tryon_result_image = process_complete_garment_replacement(
                                 customer_analysis=converted_analysis,
                                 garment_analysis=garment_analysis_data,
                                 product_info=product_info,
-                                customer_image=customer_image_array
+                                original_image=customer_image_array,
+                                garment_types=['top']  # Default to top garment
                             )
+                            tryon_success = tryon_result_image is not None
                             
                             if tryon_success:
                                 print("[COMPREHENSIVE] ✅ Comprehensive try-on completed successfully")
