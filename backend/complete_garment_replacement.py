@@ -79,8 +79,8 @@ class PracticalGarmentReplacer:
             # STEP 5: Apply new garment with strong replacement
             try:
                 print("🔥 DEBUG: Starting garment application...")
-                result = self._apply_garment_with_strong_replacement(
-                    body_without_garment, new_garment, removal_mask, original_image
+                result = self._apply_new_garment_strongly(
+                    body_without_garment, new_garment, removal_mask
                 )
                 application_diff = np.sum(cv2.absdiff(result, body_without_garment))
                 print(f"🔥 DEBUG: Garment application diff: {application_diff}")
@@ -102,6 +102,9 @@ class PracticalGarmentReplacer:
                 self.logger.info(f"[REPLACE] Total visual change: {total_change}")
             except Exception as e:
                 self.logger.error(f"[REPLACE] Change calculation failed: {e}")
+            
+            # Optional: Debug visual stages
+            # result = self.debug_visual_stages(original_image, removal_mask, customer_analysis, garment_analysis, product_info)
             
             self.logger.info(f"[REPLACE] Complete replacement finished!")
             return result
@@ -169,7 +172,7 @@ class PracticalGarmentReplacer:
     
     def _create_complete_removal_mask(self, customer_analysis: Dict, image_shape: Tuple) -> np.ndarray:
         """
-        Create CONSERVATIVE mask that covers ONLY the shirt area for targeted replacement
+        Create BALANCED mask that covers the shirt area with 10-20% coverage for realistic replacement
         """
         
         height, width, _ = image_shape
@@ -201,27 +204,36 @@ class PracticalGarmentReplacer:
         
         print(f"🔥 DIMENSIONS: Shoulder width={shoulder_width}, Torso height={torso_height}")
         
-        # MUCH MORE CONSERVATIVE expansion - just for shirt coverage
-        horizontal_expansion = max(20, int(shoulder_width * 0.15))  # Only 15% wider
-        vertical_expansion = max(15, int(torso_height * 0.1))       # Only 10% taller
+        # BALANCED expansion - target 10-20% coverage
+        horizontal_expansion = max(35, int(shoulder_width * 0.25))  # 25% wider than shoulders
+        vertical_expansion = max(25, int(torso_height * 0.15))      # 15% beyond torso height
         
         print(f"🔥 EXPANSION: Horizontal={horizontal_expansion}, Vertical={vertical_expansion}")
         
-        # Create conservative polygon for just the shirt area
+        # Create shirt-covering polygon
         ls = landmarks['left_shoulder']
         rs = landmarks['right_shoulder']
         lh = landmarks['left_hip']
         rh = landmarks['right_hip']
         
-        # Simple rectangle covering just the torso
+        # Expanded polygon covering full shirt area
         polygon_points = np.array([
-            (ls[0] - horizontal_expansion, ls[1] - vertical_expansion//2),  # Top-left
-            (rs[0] + horizontal_expansion, rs[1] - vertical_expansion//2),  # Top-right
-            (rh[0] + horizontal_expansion//2, rh[1] + vertical_expansion//2),  # Bottom-right
-            (lh[0] - horizontal_expansion//2, lh[1] + vertical_expansion//2),  # Bottom-left
+            # Top edge (expanded upward and outward)
+            (ls[0] - horizontal_expansion, ls[1] - vertical_expansion),
+            (rs[0] + horizontal_expansion, rs[1] - vertical_expansion),
+            
+            # Right side (slight outward curve)
+            (rs[0] + horizontal_expansion, (rs[1] + rh[1]) // 2),
+            
+            # Bottom edge (expanded downward and slightly inward)
+            (rh[0] + horizontal_expansion//2, rh[1] + vertical_expansion),
+            (lh[0] - horizontal_expansion//2, lh[1] + vertical_expansion),
+            
+            # Left side (slight outward curve)
+            (ls[0] - horizontal_expansion, (ls[1] + lh[1]) // 2),
         ], dtype=np.int32)
         
-        # Ensure within image bounds
+        # Ensure within bounds
         polygon_points[:, 0] = np.clip(polygon_points[:, 0], 0, width - 1)
         polygon_points[:, 1] = np.clip(polygon_points[:, 1], 0, height - 1)
         
@@ -229,19 +241,31 @@ class PracticalGarmentReplacer:
         mask = np.zeros((height, width), dtype=np.uint8)
         cv2.fillPoly(mask, [polygon_points], 255)
         
-        # Gentle smoothing (not heavy blur)
-        mask = cv2.GaussianBlur(mask, (21, 21), 8)
+        # Moderate smoothing for natural edges
+        mask = cv2.GaussianBlur(mask, (31, 31), 12)
         
         # Log mask statistics
         mask_area = np.sum(mask > 128)
         coverage = (mask_area / (width * height)) * 100
         print(f"🔥 FINAL MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
         
-        # Target: 15-25% coverage for shirt area only
-        if coverage > 30:
-            print(f"🔥 WARNING: Mask too large ({coverage:.1f}% > 30%)")
-        elif coverage < 10:
-            print(f"🔥 WARNING: Mask too small ({coverage:.1f}% < 10%)")
+        # Validate coverage is in target range
+        if coverage < 8:
+            print(f"🔥 WARNING: Mask still too small ({coverage:.1f}%)")
+            # Apply dilation to increase size
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
+            mask = cv2.dilate(mask, kernel, iterations=2)
+            mask_area = np.sum(mask > 128)
+            coverage = (mask_area / (width * height)) * 100
+            print(f"🔥 EXPANDED MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
+        elif coverage > 30:
+            print(f"🔥 WARNING: Mask too large ({coverage:.1f}%)")
+            # Apply erosion to decrease size
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
+            mask = cv2.erode(mask, kernel, iterations=1)
+            mask_area = np.sum(mask > 128)
+            coverage = (mask_area / (width * height)) * 100
+            print(f"🔥 REDUCED MASK: {mask_area} pixels ({coverage:.1f}% coverage)")
         else:
             print(f"🔥 SUCCESS: Good mask size ({coverage:.1f}%)")
         
@@ -268,33 +292,50 @@ class PracticalGarmentReplacer:
     def _remove_original_garment_completely(self, original_image: np.ndarray, 
                                           removal_mask: np.ndarray) -> np.ndarray:
         """
-        Completely remove the original garment using inpainting and skin tone estimation
+        Remove original garment with VISIBLE removal - creates obvious "shirt removed" effect
         """
         
-        # Create inpainting mask (binary mask for cv2.inpaint)
-        inpaint_mask = (removal_mask > 200).astype(np.uint8) * 255
+        print("🔥 REMOVAL: Starting visible garment removal...")
         
-        # Estimate skin tone from visible areas
-        skin_tone = self._estimate_skin_tone(original_image, removal_mask)
+        # Step 1: Estimate skin tone from non-garment areas
+        skin_tone = self._estimate_skin_tone_better(original_image, removal_mask)
+        print(f"🔥 REMOVAL: Estimated skin tone: {skin_tone}")
         
-        # Method 1: Use OpenCV inpainting
-        inpainted = cv2.inpaint(original_image, inpaint_mask, 5, cv2.INPAINT_TELEA)
+        # Step 2: Create "body without shirt" by replacing garment area with skin
+        body_without_shirt = original_image.copy()
         
-        # Method 2: Fill with estimated skin tone
-        skin_filled = original_image.copy()
-        garment_area = removal_mask > 150
-        skin_filled[garment_area] = skin_tone
+        # Create strong removal mask (core area gets complete replacement)
+        core_removal_mask = (removal_mask > 200).astype(np.float32)
+        edge_removal_mask = cv2.GaussianBlur(removal_mask, (21, 21), 10).astype(np.float32) / 255.0
         
-        # Blend inpainted and skin-filled results - fix numpy scalar issue
-        blend_ratio = 0.3  # 30% inpainted, 70% skin tone
-        try:
-            result = cv2.addWeighted(inpainted, blend_ratio, skin_filled, 1 - blend_ratio, 0)
-        except Exception as e:
-            self.logger.error(f"[REMOVAL] Blending failed: {e}, using inpainted only")
-            result = inpainted
+        # Combine for strong core removal with smooth edges
+        final_removal_mask = np.maximum(core_removal_mask * 0.95, edge_removal_mask * 0.7)
         
-        self.logger.info(f"[REMOVAL] Original garment removed, using skin tone: {skin_tone}")
-        return result
+        # Step 3: Apply skin tone replacement
+        garment_area = removal_mask > 100
+        for c in range(3):
+            body_without_shirt[:, :, c][garment_area] = (
+                original_image[:, :, c][garment_area] * (1 - final_removal_mask[garment_area]) +
+                skin_tone[c] * final_removal_mask[garment_area]
+            )
+        
+        # Step 4: Add subtle body contours/shadows to make it look like bare skin
+        body_without_shirt = self._add_body_contours(body_without_shirt, removal_mask, skin_tone)
+        
+        # Step 5: Verify removal was visible
+        removal_diff = np.sum(cv2.absdiff(body_without_shirt, original_image))
+        removal_area = np.sum(removal_mask > 100)
+        avg_change_per_pixel = removal_diff / (removal_area * 3) if removal_area > 0 else 0
+        
+        print(f"🔥 REMOVAL: Total difference: {removal_diff}")
+        print(f"🔥 REMOVAL: Avg change per pixel: {avg_change_per_pixel:.1f}")
+        
+        if avg_change_per_pixel < 20:
+            print("🔥 WARNING: Garment removal barely visible!")
+        else:
+            print("🔥 SUCCESS: Visible garment removal achieved")
+        
+        return body_without_shirt
     
     def _estimate_skin_tone(self, image: np.ndarray, garment_mask: np.ndarray) -> Tuple[int, int, int]:
         """
@@ -332,6 +373,196 @@ class PracticalGarmentReplacer:
         except Exception as e:
             self.logger.error(f"[SKIN] Skin tone estimation failed: {e}")
             return (200, 170, 150)  # Safe fallback
+    
+    def _estimate_skin_tone_better(self, image: np.ndarray, garment_mask: np.ndarray) -> Tuple[int, int, int]:
+        """
+        Better skin tone estimation from multiple areas
+        """
+        
+        height, width = image.shape[:2]
+        
+        # Sample from multiple non-garment areas
+        skin_samples = []
+        
+        # Area 1: Upper face/neck (exclude very top which might be hair)
+        face_mask = np.zeros((height, width), dtype=np.uint8)
+        face_mask[height//8:height//3, width//4:3*width//4] = 255
+        face_mask[garment_mask > 50] = 0  # Exclude garment area
+        
+        face_pixels = image[face_mask > 0]
+        if len(face_pixels) > 100:
+            skin_samples.extend(face_pixels)
+        
+        # Area 2: Arms (if visible)
+        arms_mask = np.zeros((height, width), dtype=np.uint8)
+        arms_mask[height//3:2*height//3, :width//5] = 255  # Left side
+        arms_mask[height//3:2*height//3, 4*width//5:] = 255  # Right side
+        arms_mask[garment_mask > 50] = 0
+        
+        arm_pixels = image[arms_mask > 0]
+        if len(arm_pixels) > 50:
+            skin_samples.extend(arm_pixels)
+        
+        # Calculate robust skin tone
+        if len(skin_samples) > 200:
+            skin_samples = np.array(skin_samples)
+            # Use median of middle 50% to avoid outliers
+            skin_tone = []
+            for c in range(3):
+                channel_values = skin_samples[:, c]
+                p25, p75 = np.percentile(channel_values, [25, 75])
+                middle_values = channel_values[(channel_values >= p25) & (channel_values <= p75)]
+                skin_tone.append(int(np.median(middle_values)))
+            skin_tone = tuple(skin_tone)
+        else:
+            # Fallback: analyze the image border (often contains skin)
+            border_pixels = np.concatenate([
+                image[0, :].reshape(-1, 3),        # Top border
+                image[-1, :].reshape(-1, 3),       # Bottom border  
+                image[:, 0].reshape(-1, 3),        # Left border
+                image[:, -1].reshape(-1, 3)        # Right border
+            ])
+            
+            if len(border_pixels) > 0:
+                # Filter out very dark or very light pixels (likely clothing/background)
+                valid_pixels = border_pixels[
+                    (np.mean(border_pixels, axis=1) > 50) & 
+                    (np.mean(border_pixels, axis=1) < 200)
+                ]
+                if len(valid_pixels) > 0:
+                    skin_tone = tuple(int(x) for x in np.median(valid_pixels, axis=0))
+                else:
+                    skin_tone = (180, 150, 120)  # Generic skin tone
+            else:
+                skin_tone = (180, 150, 120)
+        
+        print(f"🔥 SKIN: Analyzed {len(skin_samples)} skin pixels")
+        return skin_tone
+    
+    def _add_body_contours(self, body_image: np.ndarray, mask: np.ndarray, 
+                          skin_tone: Tuple[int, int, int]) -> np.ndarray:
+        """
+        Add subtle body contours to make removed area look like real skin/body
+        """
+        
+        result = body_image.copy()
+        garment_area = mask > 100
+        
+        if not np.any(garment_area):
+            return result
+        
+        # Create subtle shadow gradients to simulate body curvature
+        height, width = body_image.shape[:2]
+        
+        # Find the center of the garment area
+        y_coords, x_coords = np.where(garment_area)
+        if len(y_coords) == 0:
+            return result
+            
+        center_y = int(np.mean(y_coords))
+        center_x = int(np.mean(x_coords))
+        
+        # Create radial gradient from center (lighter) to edges (darker)
+        y, x = np.ogrid[:height, :width]
+        distances = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+        
+        # Normalize distances within garment area
+        garment_distances = distances[garment_area]
+        if len(garment_distances) > 0:
+            max_dist = np.max(garment_distances)
+            min_dist = np.min(garment_distances)
+            
+            if max_dist > min_dist:
+                # Create subtle shading (5-15% variation)
+                normalized_dist = (distances - min_dist) / (max_dist - min_dist)
+                shading_factor = 0.95 + normalized_dist * 0.1  # 0.95 to 1.05 range
+                shading_factor = np.clip(shading_factor, 0.85, 1.15)
+                
+                # Apply shading only to garment area
+                for c in range(3):
+                    result[:, :, c][garment_area] = np.clip(
+                        result[:, :, c][garment_area] * shading_factor[garment_area], 0, 255
+                    )
+        
+        # Add very subtle texture to make it look like skin rather than flat color
+        garment_area_coords = np.where(garment_area)
+        if len(garment_area_coords[0]) > 0:
+            # Add minimal noise for skin texture
+            noise = np.random.normal(0, 2, (len(garment_area_coords[0]), 3))
+            for i, (y, x) in enumerate(zip(garment_area_coords[0], garment_area_coords[1])):
+                result[y, x] = np.clip(result[y, x] + noise[i], 0, 255)
+        
+        print("🔥 CONTOURS: Added body contours and skin texture")
+        return result
+    
+    def _apply_new_garment_strongly(self, body_image: np.ndarray, new_garment: np.ndarray, 
+                                   mask: np.ndarray) -> np.ndarray:
+        """
+        Apply new garment with STRONG visual impact
+        """
+        
+        # Create very strong application mask
+        core_mask = (mask > 200).astype(np.float32)
+        edge_mask = cv2.GaussianBlur(mask, (21, 21), 10).astype(np.float32) / 255.0
+        
+        # Strong application: 98% in core, 80% at edges
+        final_mask = np.maximum(core_mask * 0.98, edge_mask * 0.8)
+        
+        # Apply new garment
+        result = body_image.copy().astype(np.float32)
+        garment_float = new_garment.astype(np.float32)
+        
+        for c in range(3):
+            result[:, :, c] = (
+                body_image[:, :, c] * (1 - final_mask) +
+                garment_float[:, :, c] * final_mask
+            )
+        
+        # Verify strong application
+        application_diff = np.sum(cv2.absdiff(result.astype(np.uint8), body_image))
+        print(f"🔥 APPLICATION: Strong application difference: {application_diff}")
+        
+        return np.clip(result, 0, 255).astype(np.uint8)
+    
+    def debug_visual_stages(self, original_image, removal_mask, customer_analysis, garment_analysis, product_info):
+        """Debug function to visualize each transformation stage"""
+        
+        # Stage 1: Remove original garment
+        body_without_shirt = self._remove_original_garment_completely(original_image, removal_mask)
+        
+        # Save for inspection
+        try:
+            cv2.imwrite('/tmp/stage1_removal.jpg', body_without_shirt)
+        except:
+            pass  # Skip if can't write to /tmp
+        removal_diff = np.sum(cv2.absdiff(body_without_shirt, original_image))
+        print(f"🔥 STAGE 1: Removal created {removal_diff} pixel difference")
+        
+        # Stage 2: Create new garment
+        new_garment = self._create_new_garment(
+            self._force_correct_color(product_info, garment_analysis), 
+            removal_mask, 
+            original_image.shape
+        )
+        
+        # Save garment for inspection
+        try:
+            cv2.imwrite('/tmp/stage2_new_garment.jpg', new_garment)
+        except:
+            pass
+        
+        # Stage 3: Apply new garment
+        final_result = self._apply_new_garment_strongly(body_without_shirt, new_garment, removal_mask)
+        
+        # Save final result
+        try:
+            cv2.imwrite('/tmp/stage3_final.jpg', final_result)
+        except:
+            pass
+        final_diff = np.sum(cv2.absdiff(final_result, original_image))
+        print(f"🔥 STAGE 3: Final transformation: {final_diff} pixel difference")
+        
+        return final_result
     
     def _create_new_garment(self, color: Tuple[int, int, int], mask: np.ndarray, 
                           image_shape: Tuple) -> np.ndarray:
