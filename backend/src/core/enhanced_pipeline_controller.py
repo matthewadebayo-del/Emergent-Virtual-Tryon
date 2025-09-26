@@ -667,8 +667,9 @@ class EnhancedPipelineController:
                             print(f"[PIPELINE] Product info: {product_info}")
                             print(f"[PIPELINE] Garment analysis colors: {garment_analysis_data.get('dominant_colors', [])}")
                             
-                            # Call the new PracticalGarmentReplacer directly
-                            tryon_result_image = replace_with_new_garment(
+                            # Call the realistic garment replacement system
+                            from complete_garment_replacement import replace_garment_with_realism
+                            tryon_result_image = replace_garment_with_realism(
                                 customer_analysis=converted_analysis,
                                 garment_analysis=garment_analysis_data,
                                 product_info=product_info,
