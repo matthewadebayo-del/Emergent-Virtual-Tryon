@@ -20,13 +20,18 @@ class PracticalGarmentReplacer:
         """
         
         try:
+            print("🔥 DEBUG: replace_garment_completely METHOD CALLED")
+            self.logger.info("🔥 DEBUG: PracticalGarmentReplacer.replace_garment_completely started")
             self.logger.info("[REPLACE] Starting COMPLETE garment replacement...")
             
             # STEP 1: Force correct color detection
             try:
+                print("🔥 DEBUG: Starting color detection...")
                 correct_color = self._force_correct_color(product_info, garment_analysis)
                 self.logger.info(f"[REPLACE] Using color: {correct_color}")
+                print(f"🔥 DEBUG: Color detection successful: {correct_color}")
             except Exception as e:
+                print(f"🔥 DEBUG: Color detection failed: {e}")
                 self.logger.error(f"[REPLACE] Color detection failed: {e}")
                 return original_image
             
@@ -469,14 +474,36 @@ def replace_with_new_garment(customer_analysis: Dict, garment_analysis: Dict,
     Use this to replace your existing process_virtual_tryon call
     """
     
-    replacer = PracticalGarmentReplacer()
-    return replacer.replace_garment_completely(
-        customer_analysis=customer_analysis,
-        garment_analysis=garment_analysis,
-        product_info=product_info,
-        original_image=original_image,
-        garment_types=garment_types
-    )
+    print("🔥 DEBUG: replace_with_new_garment CALLED")
+    print(f"🔥 DEBUG: Product name: {product_info.get('name')}")
+    print(f"🔥 DEBUG: Image shape: {original_image.shape}")
+    
+    try:
+        replacer = PracticalGarmentReplacer()
+        print("🔥 DEBUG: PracticalGarmentReplacer instance created")
+        
+        result = replacer.replace_garment_completely(
+            customer_analysis=customer_analysis,
+            garment_analysis=garment_analysis,
+            product_info=product_info,
+            original_image=original_image,
+            garment_types=garment_types
+        )
+        
+        print("🔥 DEBUG: replace_garment_completely returned")
+        print(f"🔥 DEBUG: Result shape: {result.shape}")
+        
+        # Check if result is different from input
+        diff = np.sum(cv2.absdiff(result, original_image))
+        print(f"🔥 DEBUG: Total visual difference: {diff}")
+        
+        return result
+        
+    except Exception as e:
+        print(f"🔥 DEBUG: ERROR in complete replacement: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return original_image
 
 # Legacy compatibility function
 def process_complete_garment_replacement(customer_analysis: Dict, garment_analysis: Dict,
@@ -485,6 +512,7 @@ def process_complete_garment_replacement(customer_analysis: Dict, garment_analys
     """
     Legacy compatibility wrapper
     """
+    print("🔥 DEBUG: process_complete_garment_replacement CALLED")
     return replace_with_new_garment(
         customer_analysis=customer_analysis,
         garment_analysis=garment_analysis,
