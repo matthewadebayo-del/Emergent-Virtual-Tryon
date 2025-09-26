@@ -13,18 +13,25 @@ from ..models.api_models import TryOnRequest, TryOnResponse, TryOnStatus
 from ..integrations.tryon_orchestrator import VirtualTryOnOrchestrator
 from ..core.customer_image_analyzer import CustomerImageAnalyzer
 from ..core.garment_analyzer import GarmentImageAnalyzer
+from ..workers.tryon_tasks import process_tryon_async
+from ..utils.redis_client import redis_client
+from ..api.webhook_handler import send_webhook_notification, WebhookPayload
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["Virtual Try-On API"])
 security = HTTPBearer()
+
+# Include webhook routes
+from ..api.webhook_handler import router as webhook_router
+router.include_router(webhook_router, prefix="/webhook", tags=["webhooks"])
 
 # Initialize services
 orchestrator = VirtualTryOnOrchestrator()
 customer_analyzer = CustomerImageAnalyzer()
 garment_analyzer = GarmentImageAnalyzer()
 
-# In-memory job storage (use Redis in production)
-job_storage: Dict[str, Dict] = {}
+# Redis-based job storage
+# job_storage replaced with Redis client
 
 @router.post("/tryon/process", response_model=TryOnResponse)
 async def process_tryon_api(request: TryOnRequest, background_tasks: BackgroundTasks):
@@ -39,23 +46,19 @@ async def process_tryon_api(request: TryOnRequest, background_tasks: BackgroundT
         if not await validate_api_key(request.api_key):
             raise HTTPException(status_code=401, detail="Invalid API key")
         
-        # Initialize job status
-        job_storage[job_id] = {
-            "status": "processing",
-            "progress": 0,
-            "created_at": asyncio.get_event_loop().time()
-        }
-        
-        # Start background processing
-        background_tasks.add_task(
-            process_tryon_background, 
-            job_id, 
-            request.dict()
+        # Start Celery task
+        task = process_tryon_async.delay(
+            request.dict(),
+            request.webhook_url if hasattr(request, 'webhook_url') else None
         )
+        
+        # Store job mapping
+        redis_client.set_cache(f"job:{job_id}", task.id, 3600)
         
         return TryOnResponse(
             job_id=job_id,
-            status="processing"
+            status="processing",
+            task_id=task.id
         )
         
     except Exception as e:
@@ -93,60 +96,72 @@ async def get_tryon_status(job_id: str):
     """
     Check processing status
     """
-    if job_id not in job_storage:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    job_data = job_storage[job_id]
-    
-    return TryOnStatus(
-        job_id=job_id,
-        status=job_data["status"],
-        progress=job_data.get("progress", 0),
-        result_url=job_data.get("result_url"),
-        error=job_data.get("error")
-    )
+    try:
+        # Get task ID from Redis
+        task_id = redis_client.get_cache(f"job:{job_id}")
+        if not task_id:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # Check Celery task status
+        task = process_tryon_async.AsyncResult(task_id)
+        
+        status_map = {
+            'PENDING': 'processing',
+            'PROCESSING': 'processing', 
+            'SUCCESS': 'completed',
+            'FAILURE': 'failed'
+        }
+        
+        progress = 0
+        if task.state == 'PROCESSING' and task.info:
+            progress = task.info.get('progress', 0)
+        elif task.state == 'SUCCESS':
+            progress = 100
+        
+        return TryOnStatus(
+            job_id=job_id,
+            status=status_map.get(task.state, 'unknown'),
+            progress=progress,
+            result_url=task.result.get('result_image_base64') if task.state == 'SUCCESS' else None,
+            error=str(task.info) if task.state == 'FAILURE' else None
+        )
+        
+    except Exception as e:
+        logger.error(f"Status check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-async def process_tryon_background(job_id: str, request_data: Dict):
+@router.get("/tryon/result/{job_id}")
+async def get_tryon_result(job_id: str):
     """
-    Background processing for async requests
+    Get completed try-on result
     """
     try:
-        logger.info(f"[BACKGROUND] Starting processing for job {job_id}")
+        # Get task ID from Redis
+        task_id = redis_client.get_cache(f"job:{job_id}")
+        if not task_id:
+            raise HTTPException(status_code=404, detail="Job not found")
         
-        # Update progress
-        job_storage[job_id]["progress"] = 10
+        # Check cached result first
+        cached_result = redis_client.get_task_result(task_id)
+        if cached_result:
+            return cached_result
         
-        # Process the try-on
-        result = await process_tryon_complete(request_data)
-        
-        # Update job with result
-        if result["success"]:
-            job_storage[job_id].update({
-                "status": "completed",
-                "progress": 100,
-                "result_url": result.get("result_image_base64"),  # In production, upload to CDN
-                "processing_time": result.get("processing_time"),
-                "service_used": result.get("service_used")
-            })
+        # Check Celery task
+        task = process_tryon_async.AsyncResult(task_id)
+        if task.state == 'SUCCESS':
+            result = task.result
+            redis_client.set_task_result(task_id, result)
+            return result
+        elif task.state == 'FAILURE':
+            raise HTTPException(status_code=400, detail=f"Processing failed: {task.info}")
         else:
-            job_storage[job_id].update({
-                "status": "failed",
-                "progress": 100,
-                "error": result.get("error")
-            })
-        
-        # Send webhook if provided
-        webhook_url = request_data.get("webhook_url")
-        if webhook_url:
-            await send_webhook(webhook_url, job_storage[job_id])
+            raise HTTPException(status_code=202, detail="Processing not completed")
             
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"[BACKGROUND] Processing failed for job {job_id}: {str(e)}")
-        job_storage[job_id].update({
-            "status": "failed",
-            "progress": 100,
-            "error": str(e)
-        })
+        logger.error(f"Result retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def process_tryon_complete(request_data: Dict) -> Dict:
     """
@@ -214,10 +229,36 @@ async def validate_api_key(api_key: str) -> bool:
     # Simplified validation - implement proper auth in production
     return len(api_key) > 10
 
-async def send_webhook(webhook_url: str, job_data: Dict):
-    """Send webhook notification"""
+@router.delete("/tryon/job/{job_id}")
+async def cancel_tryon_job(job_id: str):
+    """
+    Cancel processing job
+    """
     try:
-        async with aiohttp.ClientSession() as session:
-            await session.post(webhook_url, json=job_data, timeout=30)
+        # Get task ID
+        task_id = redis_client.get_cache(f"job:{job_id}")
+        if not task_id:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # Cancel Celery task
+        task = process_tryon_async.AsyncResult(task_id)
+        task.revoke(terminate=True)
+        
+        # Clean up Redis
+        redis_client.delete_cache(f"job:{job_id}")
+        redis_client.delete_cache(f"task:{task_id}")
+        
+        return {"message": "Job cancelled successfully"}
+        
     except Exception as e:
-        logger.error(f"[WEBHOOK] Failed to send webhook: {str(e)}")
+        logger.error(f"Job cancellation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/health")
+async def health_check():
+    """API health check"""
+    return {
+        "status": "healthy",
+        "service": "VirtualFit Integration API v2",
+        "features": ["async_processing", "webhooks", "redis_caching"]
+    }

@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  virtualfit-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=virtualfit_production
+      - CORS_ORIGINS=*
+      - ENABLE_AI_ENHANCEMENT=true
+      - ENABLE_3D_FEATURES=true
+    depends_on:
+      - redis
+      - mongo
+    volumes:
+      - ./logs:/app/logs
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    command: celery -A src.workers.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=virtualfit_production
+      - ENABLE_AI_ENHANCEMENT=true
+      - ENABLE_3D_FEATURES=true
+    depends_on:
+      - redis
+      - mongo
+    volumes:
+      - ./logs:/app/logs
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    command: celery -A src.workers.celery_app beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    volumes:
+      - ./logs:/app/logs
+
+  mongo:
+    image: mongo:5
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=virtualfit_production
+
+volumes:
+  redis_data:
+  mongo_data:
