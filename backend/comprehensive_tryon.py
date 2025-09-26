@@ -289,56 +289,93 @@ class ComprehensiveRegionTryOn:
         
         return None
     
-    def _create_top_mask(self, pose_landmarks: Dict, image_shape: Tuple[int, int]) -> Optional[np.ndarray]:
-        """Create mask for tops (shirts, t-shirts, blouses)"""
-        height, width = image_shape
+    def _create_top_mask(self, pose_landmarks: Dict, image_size: Tuple[int, int]) -> Optional[np.ndarray]:
+        """Create enhanced mask for top garments - FIXED VERSION"""
+        
+        height, width = image_size
         mask = np.zeros((height, width), dtype=np.uint8)
         
-        # Get landmarks
-        ls = pose_landmarks.get('left_shoulder', {})
-        rs = pose_landmarks.get('right_shoulder', {})
-        lh = pose_landmarks.get('left_hip', {})
-        rh = pose_landmarks.get('right_hip', {})
+        # Get required landmarks
+        required_landmarks = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip']
+        points = {}
         
-        if all(point.get('confidence', 0) > 0.7 for point in [ls, rs, lh, rh]):
-            # Convert to pixels
-            ls_x, ls_y = int(ls['x'] * width), int(ls['y'] * height)
-            rs_x, rs_y = int(rs['x'] * width), int(rs['y'] * height)
-            lh_x, lh_y = int(lh['x'] * width), int(lh['y'] * height)
-            rh_x, rh_y = int(rh['x'] * width), int(rh['y'] * height)
+        for landmark in required_landmarks:
+            if landmark in pose_landmarks:
+                lm_data = pose_landmarks[landmark]
+                if isinstance(lm_data, (list, tuple)) and len(lm_data) >= 2:
+                    # Convert normalized coordinates to pixel coordinates
+                    x = int(lm_data[0] * width)
+                    y = int(lm_data[1] * height)
+                    points[landmark] = (x, y)
+                elif isinstance(lm_data, dict) and 'x' in lm_data and 'y' in lm_data:
+                    x = int(lm_data['x'] * width)
+                    y = int(lm_data['y'] * height)
+                    points[landmark] = (x, y)
+        
+        if len(points) < 4:
+            self.logger.error(f"[MASK] Insufficient landmarks for top mask: {list(points.keys())}")
+            return None
+        
+        # Calculate torso region with expanded boundaries
+        left_shoulder = points['left_shoulder']
+        right_shoulder = points['right_shoulder']
+        left_hip = points['left_hip']
+        right_hip = points['right_hip']
+        
+        # Expand the region to ensure full coverage
+        shoulder_width = abs(left_shoulder[0] - right_shoulder[0])
+        torso_expansion = max(20, int(shoulder_width * 0.15))  # Minimum 20px expansion
+        
+        # Create expanded polygon points
+        polygon_points = [
+            # Top shoulder line (expanded outward)
+            (left_shoulder[0] - torso_expansion, left_shoulder[1] - int(torso_expansion * 0.5)),
+            (right_shoulder[0] + torso_expansion, right_shoulder[1] - int(torso_expansion * 0.5)),
             
-            # Create torso polygon excluding arms
-            shoulder_width = abs(rs_x - ls_x)
-            torso_width = int(shoulder_width * 0.75)  # 75% to exclude arms
-            center_x = (ls_x + rs_x) // 2
+            # Side expansion at mid-torso
+            (right_shoulder[0] + torso_expansion, int((right_shoulder[1] + right_hip[1]) / 2)),
             
-            # Define torso boundaries
-            top_y = min(ls_y, rs_y) - 10  # Slightly above shoulders
-            bottom_y = max(lh_y, rh_y) + 10  # Slightly below hips
-            left_x = center_x - torso_width // 2
-            right_x = center_x + torso_width // 2
+            # Bottom hip line (expanded outward)
+            (right_hip[0] + torso_expansion, right_hip[1] + int(torso_expansion * 0.3)),
+            (left_hip[0] - torso_expansion, left_hip[1] + int(torso_expansion * 0.3)),
             
-            # Create rounded rectangle for natural torso shape
-            points = np.array([
-                [left_x, top_y + 20],       # Top left (rounded)
-                [right_x, top_y + 20],      # Top right (rounded)
-                [right_x, bottom_y],        # Bottom right
-                [lh_x + 20, bottom_y],      # Right hip
-                [lh_x - 20, bottom_y],      # Left hip  
-                [left_x, bottom_y],         # Bottom left
-            ], dtype=np.int32)
-            
-            cv2.fillPoly(mask, [points], 255)
-            
-            # Smooth edges
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-            mask = cv2.GaussianBlur(mask, (11, 11), 4)
-            
-            self.logger.info(f"[TOP-MASK] Created torso mask: {np.sum(mask > 0)} pixels")
-            return mask
-            
-        return None
+            # Side expansion at mid-torso (left side)
+            (left_shoulder[0] - torso_expansion, int((left_shoulder[1] + left_hip[1]) / 2)),
+        ]
+        
+        # Convert to numpy array and ensure within image bounds
+        polygon_points = np.array(polygon_points, dtype=np.int32)
+        polygon_points[:, 0] = np.clip(polygon_points[:, 0], 0, width - 1)
+        polygon_points[:, 1] = np.clip(polygon_points[:, 1], 0, height - 1)
+        
+        # Fill the polygon
+        cv2.fillPoly(mask, [polygon_points], 255)
+        
+        # Apply smoothing to create more natural edges
+        mask = cv2.GaussianBlur(mask, (21, 21), 10)
+        
+        # Ensure minimum mask size
+        mask_area = np.sum(mask > 128)
+        min_area = (width * height) * 0.05  # At least 5% of image
+        
+        if mask_area < min_area:
+            self.logger.warning(f"[MASK] Top mask too small ({mask_area} < {min_area}), expanding...")
+            # Dilate to expand
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
+            mask = cv2.dilate(mask, kernel, iterations=2)
+        
+        # Log mask statistics for debugging
+        final_area = np.sum(mask > 128)
+        coverage_percent = (final_area / (width * height)) * 100
+        
+        self.logger.info(f"[MASK] Top mask created: {final_area} pixels ({coverage_percent:.1f}% coverage)")
+        self.logger.info(f"[MASK] Landmarks used: {list(points.keys())}")
+        self.logger.info(f"[MASK] Expansion applied: {torso_expansion} pixels")
+        
+        # Debug: Save mask for inspection (remove in production)
+        cv2.imwrite('/tmp/debug_top_mask.png', mask)
+        
+        return mask
     
     def _create_bottom_mask(self, pose_landmarks: Dict, image_shape: Tuple[int, int]) -> Optional[np.ndarray]:
         """Create mask for bottoms (pants, jeans, shorts, skirts)"""
@@ -546,43 +583,99 @@ class ComprehensiveRegionTryOn:
         dominant_colors = garment_analysis.get('dominant_colors', [(128, 128, 128)])
         texture_features = garment_analysis.get('texture_features', {})
         
-        # Determine base color
+        # Extract data
+        dominant_colors = garment_analysis.get('dominant_colors', [])
+        texture_features = garment_analysis.get('texture_features', {})
         product_name = product_info.get('name', '').lower()
-        if 'white' in product_name:
+        
+        # FIXED: Priority order - product name first, then analysis
+        base_color = None
+        
+        # 1. First check product name (highest priority)
+        if 'white' in product_name or 'blanc' in product_name:
             base_color = (255, 255, 255)
-        elif 'black' in product_name:
+            self.logger.info(f"[GARMENT] Using WHITE from product name: {product_name}")
+        elif 'black' in product_name or 'noir' in product_name:
             base_color = (0, 0, 0)
-        elif 'blue' in product_name:
+            self.logger.info(f"[GARMENT] Using BLACK from product name: {product_name}")
+        elif 'blue' in product_name or 'bleu' in product_name:
             base_color = (100, 50, 200)
-        else:
+            self.logger.info(f"[GARMENT] Using BLUE from product name: {product_name}")
+        elif 'red' in product_name or 'rouge' in product_name:
+            base_color = (200, 50, 50)
+            self.logger.info(f"[GARMENT] Using RED from product name: {product_name}")
+        
+        # 2. If no color in name, check for actual white pixels in analysis
+        if base_color is None and dominant_colors:
+            # Check if any dominant color is actually white-ish
+            for color in dominant_colors:
+                r, g, b = color
+                # Check if color is close to white (all values > 200)
+                if r > 200 and g > 200 and b > 200:
+                    base_color = (255, 255, 255)  # Force pure white
+                    self.logger.info(f"[GARMENT] Detected white-ish color {color}, using pure WHITE")
+                    break
+        
+        # 3. Fallback to dominant color analysis
+        if base_color is None:
             base_color = dominant_colors[0] if dominant_colors else (128, 128, 128)
+            self.logger.info(f"[GARMENT] Using analyzed dominant color: {base_color}")
         
         # Fill base color
         garment_region[:] = base_color
         
-        # Add garment-specific effects
+        # Add fabric texture (reduced intensity for white garments)
         roughness = texture_features.get('roughness', 0.3)
         complexity = texture_features.get('complexity', 0.1)
         
+        # Reduce texture for white/light colors to maintain clarity
+        if base_color[0] > 200 and base_color[1] > 200 and base_color[2] > 200:
+            roughness *= 0.3  # Much less texture for white garments
+            self.logger.info(f"[GARMENT] Reduced texture for light garment")
+        
         # Add fabric texture
-        if roughness > 0.2:
-            noise_strength = int(roughness * 15)
+        if roughness > 0.1:
+            noise_strength = max(1, int(roughness * 10))  # Minimum noise
             noise = np.random.normal(0, noise_strength, garment_region.shape)
             garment_region = np.clip(
                 garment_region.astype(np.float32) + noise, 0, 255
             ).astype(np.uint8)
-        
-        # Add patterns or secondary colors if detected
-        if len(dominant_colors) > 1 and complexity > 0.05:
-            self._add_garment_patterns(garment_region, dominant_colors[1:], complexity)
         
         # Add garment-specific details
         if garment_type == GarmentType.SHOES:
             garment_region = self._add_shoe_details(garment_region, mask)
         elif garment_type == GarmentType.BOTTOM:
             garment_region = self._add_pants_details(garment_region, mask)
+        elif garment_type == GarmentType.TOP:
+            garment_region = self._add_shirt_details(garment_region, mask, base_color)
         
-        self.logger.info(f"[APPEARANCE] Generated {garment_type.value} with base color {base_color}")
+        self.logger.info(f"[APPEARANCE] Generated {garment_type.value} with final color {base_color}")
+        return garment_region
+    
+    def _add_shirt_details(self, garment_region: np.ndarray, mask: np.ndarray, base_color: Tuple) -> np.ndarray:
+        """Add shirt-specific details like seams, collar hints"""
+        
+        # Add subtle seam lines for shirts
+        height, width = garment_region.shape[:2]
+        
+        # Create slightly darker color for seams
+        seam_color = tuple(max(0, int(c * 0.95)) for c in base_color)
+        
+        # Add vertical seam lines at sides
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            if cv2.contourArea(contour) > 1000:  # Minimum torso size
+                # Get bounding box
+                x, y, w, h = cv2.boundingRect(contour)
+                
+                # Add side seams
+                left_seam_x = x + int(w * 0.1)
+                right_seam_x = x + int(w * 0.9)
+                
+                # Draw subtle seam lines
+                cv2.line(garment_region, (left_seam_x, y), (left_seam_x, y + h), seam_color, 1)
+                cv2.line(garment_region, (right_seam_x, y), (right_seam_x, y + h), seam_color, 1)
+        
         return garment_region
     
     def _add_garment_patterns(self, garment_region: np.ndarray, secondary_colors: List[Tuple], 
@@ -743,23 +836,43 @@ class ComprehensiveRegionTryOn:
     
     def _blend_region_with_image(self, base_image: np.ndarray, garment_region: np.ndarray,
                                mask: np.ndarray, garment_type: GarmentType) -> np.ndarray:
-        """Seamlessly blend garment region with existing image"""
+        """Enhanced blending with better edge handling - FIXED VERSION"""
         
-        # Create smooth transition mask
-        smooth_mask = cv2.GaussianBlur(mask, (19, 19), 6).astype(np.float32) / 255.0
+        # Ensure mask is proper format
+        if len(mask.shape) == 3:
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
         
-        # Blend garment with base image
+        # Create smooth transition mask with stronger blending
+        smooth_mask = cv2.GaussianBlur(mask, (31, 31), 15).astype(np.float32) / 255.0
+        
+        # Ensure we have a significant blending region
+        blend_threshold = 0.1  # Minimum blend strength
+        smooth_mask = np.maximum(smooth_mask, blend_threshold * (mask > 128).astype(np.float32))
+        
+        # Convert images to float for blending
         result = base_image.copy().astype(np.float32)
         garment_float = garment_region.astype(np.float32)
         
+        # Perform alpha blending
         for c in range(3):
             result[:, :, c] = (
                 base_image[:, :, c].astype(np.float32) * (1 - smooth_mask) +
                 garment_float[:, :, c] * smooth_mask
             )
         
-        # Apply edge enhancement for seamless integration
-        result = self._enhance_blend_edges(result.astype(np.uint8), base_image, mask)
+        # Convert back to uint8
+        result = np.clip(result, 0, 255).astype(np.uint8)
+        
+        # Log blending statistics
+        blend_area = np.sum(smooth_mask > 0.1)
+        total_area = mask.shape[0] * mask.shape[1]
+        blend_percent = (blend_area / total_area) * 100
+        
+        self.logger.info(f"[BLEND] Blended {blend_area} pixels ({blend_percent:.1f}% of image)")
+        self.logger.info(f"[BLEND] Max blend strength: {np.max(smooth_mask):.2f}")
+        
+        # Debug: Save blend mask for inspection (remove in production)
+        cv2.imwrite('/tmp/debug_blend_mask.png', (smooth_mask * 255).astype(np.uint8))
         
         return result
     
@@ -841,27 +954,129 @@ class ComprehensiveRegionTryOn:
     
     def _calculate_quality_score(self, result: np.ndarray, original: np.ndarray,
                                modified_regions: List[str]) -> float:
-        """Calculate overall quality score for the result"""
+        """Enhanced quality score that actually measures visual transformation - FIXED VERSION"""
+        
         scores = []
         
-        # Image quality score
+        # 1. Visual Change Score (CRITICAL - was missing before)
+        # Measure actual pixel differences to ensure transformation occurred
+        diff = cv2.absdiff(result, original)
+        total_change = np.sum(diff)
+        total_pixels = result.shape[0] * result.shape[1] * result.shape[2]
+        
+        # Normalize change score (expect at least some change for good quality)
+        change_ratio = total_change / (total_pixels * 255.0)  # 0 to 1 scale
+        
+        if change_ratio < 0.01:  # Less than 1% change
+            visual_change_score = 0.0  # No meaningful change detected
+            self.logger.warning(f"[QUALITY] Very low visual change detected: {change_ratio:.4f}")
+        elif change_ratio < 0.05:  # 1-5% change
+            visual_change_score = 0.3  # Some change but minimal
+        elif change_ratio < 0.15:  # 5-15% change
+            visual_change_score = 0.7  # Good amount of change
+        else:  # >15% change
+            visual_change_score = 1.0  # Significant change
+        
+        scores.append(visual_change_score)
+        self.logger.info(f"[QUALITY] Visual change score: {visual_change_score:.2f} (change ratio: {change_ratio:.4f})")
+        
+        # 2. Image Quality Score
         result_gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
         sharpness = cv2.Laplacian(result_gray, cv2.CV_64F).var()
         sharpness_score = min(1.0, sharpness / 1000.0)
         scores.append(sharpness_score)
+        self.logger.info(f"[QUALITY] Sharpness score: {sharpness_score:.2f}")
         
-        # Color consistency score
+        # 3. Color Consistency Score
         result_std = np.std(result)
         original_std = np.std(original)
         if original_std > 0:
-            color_consistency = 1.0 - abs(result_std - original_std) / original_std
+            color_consistency = 1.0 - min(1.0, abs(result_std - original_std) / original_std)
             scores.append(max(0.5, color_consistency))
+            self.logger.info(f"[QUALITY] Color consistency score: {color_consistency:.2f}")
         
-        # Region modification score (penalize excessive modification)
-        modification_penalty = max(0.7, 1.0 - len(modified_regions) * 0.1)
-        scores.append(modification_penalty)
+        # 4. Region Modification Appropriateness
+        if len(modified_regions) == 0:
+            modification_score = 0.0  # No regions modified = failure
+        elif len(modified_regions) <= 2:
+            modification_score = 1.0  # Appropriate number of regions
+        else:
+            modification_score = max(0.5, 1.0 - (len(modified_regions) - 2) * 0.2)
         
-        return float(np.mean(scores))
+        scores.append(modification_score)
+        self.logger.info(f"[QUALITY] Modification score: {modification_score:.2f} ({len(modified_regions)} regions)")
+        
+        # 5. Blending Quality (check for artifacts)
+        # Look for harsh transitions that indicate poor blending
+        edges = cv2.Canny(result_gray, 50, 150)
+        edge_density = np.sum(edges > 0) / (result.shape[0] * result.shape[1])
+        
+        if edge_density > 0.1:  # Too many edges might indicate artifacts
+            blending_score = 0.6
+        else:
+            blending_score = 1.0
+        
+        scores.append(blending_score)
+        self.logger.info(f"[QUALITY] Blending score: {blending_score:.2f} (edge density: {edge_density:.4f})")
+        
+        # Weight the scores (visual change is most important)
+        weights = [0.4, 0.2, 0.15, 0.15, 0.1]  # Visual change gets 40% weight
+        final_score = sum(score * weight for score, weight in zip(scores, weights))
+        
+        self.logger.info(f"[QUALITY] Component scores: {[f'{s:.2f}' for s in scores]}")
+        self.logger.info(f"[QUALITY] Final weighted score: {final_score:.2f}")
+        
+        # Additional diagnostic info
+        if final_score < 0.5:
+            self.logger.warning("[QUALITY] Low quality score indicates processing issues")
+            if visual_change_score < 0.3:
+                self.logger.warning("[QUALITY] Primary issue: Insufficient visual transformation")
+            if sharpness_score < 0.3:
+                self.logger.warning("[QUALITY] Primary issue: Poor image sharpness")
+        
+        return float(final_score)
+    
+    def _debug_processing_pipeline(self, customer_analysis: Dict, garment_analysis: Dict,
+                                 product_info: Dict, original_image: np.ndarray) -> Dict:
+        """Debug function to identify pipeline issues - ADD THIS FOR DEBUGGING"""
+        
+        debug_info = {}
+        
+        # 1. Check customer analysis
+        pose_landmarks = customer_analysis.get('pose_landmarks', {})
+        debug_info['landmarks_available'] = list(pose_landmarks.keys())
+        debug_info['landmark_count'] = len(pose_landmarks)
+        
+        # 2. Check garment analysis
+        dominant_colors = garment_analysis.get('dominant_colors', [])
+        debug_info['dominant_colors'] = dominant_colors
+        debug_info['color_count'] = len(dominant_colors)
+        
+        # 3. Check product info
+        product_name = product_info.get('name', '')
+        debug_info['product_name'] = product_name
+        debug_info['name_contains_white'] = 'white' in product_name.lower()
+        
+        # 4. Check image properties
+        debug_info['image_shape'] = original_image.shape
+        debug_info['image_size'] = original_image.size
+        debug_info['image_dtype'] = str(original_image.dtype)
+        
+        # 5. Test mask creation
+        try:
+            test_mask = self._create_region_mask(GarmentType.TOP, customer_analysis, original_image.shape)
+            if test_mask is not None:
+                debug_info['mask_created'] = True
+                debug_info['mask_area'] = int(np.sum(test_mask > 128))
+                debug_info['mask_coverage_percent'] = float((np.sum(test_mask > 128) / test_mask.size) * 100)
+            else:
+                debug_info['mask_created'] = False
+        except Exception as e:
+            debug_info['mask_error'] = str(e)
+            debug_info['mask_created'] = False
+        
+        self.logger.info(f"[DEBUG] Pipeline analysis: {debug_info}")
+        return debug_info
 
 
 # Integration function for your existing system
