@@ -87,10 +87,10 @@ def test_mask_coverage():
         import sys
         import os
         sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
-        from complete_garment_replacement import CompleteGarmentReplacement
+        from complete_garment_replacement import PracticalGarmentReplacer
         
-        processor = CompleteGarmentReplacement()
-        mask = processor._create_complete_removal_mask(customer_analysis, image_shape, ['top'])
+        processor = PracticalGarmentReplacer()
+        mask = processor._create_complete_removal_mask(customer_analysis, image_shape)
     except Exception as e:
         print(f"    [ERROR] Could not test actual system: {e}")
         mask = create_test_aggressive_mask(customer_analysis, image_shape)

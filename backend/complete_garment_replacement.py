@@ -82,15 +82,25 @@ class PracticalGarmentReplacer:
             # Check if analyzed color is actually white-ish
             dominant_colors = garment_analysis.get('dominant_colors', [])
             if dominant_colors:
-                r, g, b = dominant_colors[0]
+                # Convert numpy arrays to regular tuples
+                color_data = dominant_colors[0]
+                if hasattr(color_data, 'tolist'):
+                    r, g, b = color_data.tolist()[:3]
+                else:
+                    r, g, b = color_data[:3]
+                
+                # Convert to int to avoid numpy scalar issues
+                r, g, b = int(r), int(g), int(b)
+                
                 # If any component > 180, force pure white
                 if r > 180 and g > 180 and b > 180:
                     color = (255, 255, 255)
-                    self.logger.info(f"[COLOR] ✅ Light color {dominant_colors[0]} -> FORCING WHITE")
+                    self.logger.info(f"[COLOR] ✅ Light color ({r}, {g}, {b}) -> FORCING WHITE")
                     return color
                 else:
-                    self.logger.info(f"[COLOR] Using analyzed color: {dominant_colors[0]}")
-                    return dominant_colors[0]
+                    color = (r, g, b)
+                    self.logger.info(f"[COLOR] Using analyzed color: {color}")
+                    return color
             else:
                 color = (128, 128, 128)
                 self.logger.warning(f"[COLOR] Fallback to gray: {color}")
