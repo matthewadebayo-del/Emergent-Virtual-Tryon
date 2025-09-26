@@ -37,31 +37,50 @@ class PracticalGarmentReplacer:
             
             # STEP 2: Create aggressive removal mask
             try:
+                print("🔥 DEBUG: Starting mask creation...")
                 removal_mask = self._create_complete_removal_mask(customer_analysis, original_image.shape)
+                mask_area = np.sum(removal_mask > 128) if removal_mask is not None else 0
+                print(f"🔥 DEBUG: Mask created - area: {mask_area} pixels")
+                if mask_area == 0:
+                    print("🔥 DEBUG: MASK IS EMPTY - returning original")
+                    return original_image
             except Exception as e:
+                print(f"🔥 DEBUG: Mask creation failed: {e}")
                 self.logger.error(f"[REPLACE] Mask creation failed: {e}")
                 return original_image
             
             # STEP 3: Remove original garment completely
             try:
+                print("🔥 DEBUG: Starting garment removal...")
                 body_without_garment = self._remove_original_garment_completely(original_image, removal_mask)
+                removal_diff = np.sum(cv2.absdiff(body_without_garment, original_image))
+                print(f"🔥 DEBUG: Garment removal diff: {removal_diff}")
             except Exception as e:
+                print(f"🔥 DEBUG: Garment removal failed: {e}")
                 self.logger.error(f"[REPLACE] Garment removal failed: {e}")
                 return original_image
             
             # STEP 4: Create new garment with correct color
             try:
+                print("🔥 DEBUG: Starting new garment creation...")
                 new_garment = self._create_new_garment(correct_color, removal_mask, original_image.shape)
+                garment_pixels = np.sum(new_garment > 0)
+                print(f"🔥 DEBUG: New garment created - non-zero pixels: {garment_pixels}")
             except Exception as e:
+                print(f"🔥 DEBUG: New garment creation failed: {e}")
                 self.logger.error(f"[REPLACE] New garment creation failed: {e}")
                 return original_image
             
             # STEP 5: Apply new garment with strong replacement
             try:
+                print("🔥 DEBUG: Starting garment application...")
                 result = self._apply_garment_with_strong_replacement(
                     body_without_garment, new_garment, removal_mask, original_image
                 )
+                application_diff = np.sum(cv2.absdiff(result, body_without_garment))
+                print(f"🔥 DEBUG: Garment application diff: {application_diff}")
             except Exception as e:
+                print(f"🔥 DEBUG: Garment application failed: {e}")
                 self.logger.error(f"[REPLACE] Garment application failed: {e}")
                 return original_image
             
