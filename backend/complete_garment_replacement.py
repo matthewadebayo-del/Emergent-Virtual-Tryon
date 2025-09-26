@@ -19,35 +19,67 @@ class PracticalGarmentReplacer:
         COMPLETE garment replacement - removes original and adds new garment
         """
         
-        self.logger.info("[REPLACE] Starting COMPLETE garment replacement...")
-        
-        # STEP 1: Force correct color detection
-        correct_color = self._force_correct_color(product_info, garment_analysis)
-        self.logger.info(f"[REPLACE] Using color: {correct_color}")
-        
-        # STEP 2: Create aggressive removal mask
-        removal_mask = self._create_complete_removal_mask(customer_analysis, original_image.shape)
-        
-        # STEP 3: Remove original garment completely
-        body_without_garment = self._remove_original_garment_completely(original_image, removal_mask)
-        
-        # STEP 4: Create new garment with correct color
-        new_garment = self._create_new_garment(correct_color, removal_mask, original_image.shape)
-        
-        # STEP 5: Apply new garment with strong replacement
-        result = self._apply_garment_with_strong_replacement(
-            body_without_garment, new_garment, removal_mask, original_image
-        )
-        
-        # STEP 6: Final realism adjustments
-        result = self._apply_final_realism_adjustments(result, original_image, removal_mask)
-        
-        # Calculate and log the transformation
-        total_change = np.sum(cv2.absdiff(result, original_image))
-        self.logger.info(f"[REPLACE] Total visual change: {total_change}")
-        self.logger.info(f"[REPLACE] Complete replacement finished!")
-        
-        return result
+        try:
+            self.logger.info("[REPLACE] Starting COMPLETE garment replacement...")
+            
+            # STEP 1: Force correct color detection
+            try:
+                correct_color = self._force_correct_color(product_info, garment_analysis)
+                self.logger.info(f"[REPLACE] Using color: {correct_color}")
+            except Exception as e:
+                self.logger.error(f"[REPLACE] Color detection failed: {e}")
+                return original_image
+            
+            # STEP 2: Create aggressive removal mask
+            try:
+                removal_mask = self._create_complete_removal_mask(customer_analysis, original_image.shape)
+            except Exception as e:
+                self.logger.error(f"[REPLACE] Mask creation failed: {e}")
+                return original_image
+            
+            # STEP 3: Remove original garment completely
+            try:
+                body_without_garment = self._remove_original_garment_completely(original_image, removal_mask)
+            except Exception as e:
+                self.logger.error(f"[REPLACE] Garment removal failed: {e}")
+                return original_image
+            
+            # STEP 4: Create new garment with correct color
+            try:
+                new_garment = self._create_new_garment(correct_color, removal_mask, original_image.shape)
+            except Exception as e:
+                self.logger.error(f"[REPLACE] New garment creation failed: {e}")
+                return original_image
+            
+            # STEP 5: Apply new garment with strong replacement
+            try:
+                result = self._apply_garment_with_strong_replacement(
+                    body_without_garment, new_garment, removal_mask, original_image
+                )
+            except Exception as e:
+                self.logger.error(f"[REPLACE] Garment application failed: {e}")
+                return original_image
+            
+            # STEP 6: Final realism adjustments
+            try:
+                result = self._apply_final_realism_adjustments(result, original_image, removal_mask)
+            except Exception as e:
+                self.logger.error(f"[REPLACE] Final adjustments failed: {e}")
+                return result  # Return partial result
+            
+            # Calculate and log the transformation
+            try:
+                total_change = np.sum(cv2.absdiff(result, original_image))
+                self.logger.info(f"[REPLACE] Total visual change: {total_change}")
+            except Exception as e:
+                self.logger.error(f"[REPLACE] Change calculation failed: {e}")
+            
+            self.logger.info(f"[REPLACE] Complete replacement finished!")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"[REPLACE] Complete replacement failed: {e}")
+            return original_image
     
     def _force_correct_color(self, product_info: Dict, garment_analysis: Dict) -> Tuple[int, int, int]:
         """
