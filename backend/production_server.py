@@ -1532,17 +1532,17 @@ async def get_performance_status():
 @app.on_event("startup")
 async def initialize_database():
     """Initialize database collections and sample data for production deployment"""
-    print("🚀 FastAPI application starting up...")
+    print("FastAPI application starting up...")
 
     # Initialize database immediately during startup
     if mongo_url:
-        print("🔄 MongoDB URL configured, initializing database connection...")
+        print("MongoDB URL configured, initializing database connection...")
         await init_database_background()
     else:
         print("❌ MONGO_URL not configured")
         print("⚠️ Starting without database connection")
 
-    print("✅ FastAPI startup completed - ready to serve requests")
+    print("FastAPI startup completed - ready to serve requests")
 
 
 async def init_database_background():
@@ -1555,14 +1555,14 @@ async def init_database_background():
     for attempt in range(max_retries):
         try:
             print(
-                f"🔄 Initializing MongoDB connection "
+                f"Initializing MongoDB connection "
                 f"(attempt {attempt + 1}/{max_retries})..."
             )
 
             # Initialize MongoDB client
             if mongo_url:
                 print(
-                    f"🔍 Creating AsyncIOMotorClient with URL: " f"{mongo_url[:50]}..."
+                    f"Creating AsyncIOMotorClient with URL: " f"{mongo_url[:50]}..."
                 )
 
                 client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
@@ -1570,24 +1570,24 @@ async def init_database_background():
 
                 # Test database connection with reduced timeout
                 await asyncio.wait_for(db.command("ping"), timeout=5.0)
-                print("✅ MongoDB connection successful")
+                print("MongoDB connection successful")
                 break
 
             else:
-                print("❌ MONGO_URL not configured")
+                print("MONGO_URL not configured")
                 return
 
         except Exception as e:
             print(
-                f"❌ Database initialization attempt {attempt + 1} failed: " f"{str(e)}"
+                f"Database initialization attempt {attempt + 1} failed: " f"{str(e)}"
             )
             if attempt < max_retries - 1:
-                print(f"⏳ Retrying in {retry_delay} seconds...")
+                print(f"Retrying in {retry_delay} seconds...")
                 await asyncio.sleep(retry_delay)
                 retry_delay *= 2
             else:
-                print("❌ All database initialization attempts failed")
-                print("🔄 Falling back to in-memory database simulation...")
+                print("All database initialization attempts failed")
+                print("Falling back to in-memory database simulation...")
                 await init_memory_database()
                 return
 
@@ -1649,7 +1649,7 @@ class MemoryDatabase:
         return count
     
     async def create_index(self, field, **kwargs):
-        print(f"📝 Created index on {field} (in-memory)")
+        print(f"Created index on {field} (in-memory)")
         return True
     
     async def insert_many(self, documents):
@@ -1682,12 +1682,12 @@ async def init_memory_database():
     """Initialize in-memory database as fallback"""
     global db
     
-    print("💾 Initializing in-memory database...")
+    print("Initializing in-memory database...")
     db = MemoryDatabase()
     
     # Initialize sample data
     await initialize_sample_data()
-    print("✅ In-memory database initialized successfully")
+    print("In-memory database initialized successfully")
 
 
 async def initialize_sample_data():
@@ -1696,7 +1696,7 @@ async def initialize_sample_data():
         # Initialize sample products if products collection is empty
         product_count = await db.products.count_documents({})
         if product_count == 0:
-            print("📦 Creating sample product catalog...")
+            print("Creating sample product catalog...")
             sample_products = [
                 {
                     "id": "white-tshirt-001",
@@ -1773,10 +1773,10 @@ async def initialize_sample_data():
             ]
 
             await db.products.insert_many(sample_products)
-            print(f"✅ Created {len(sample_products)} sample products")
+            print(f"Created {len(sample_products)} sample products")
         else:
             print(
-                f"📦 Products collection already exists with {product_count} items"
+                f"Products collection already exists with {product_count} items"
             )
 
         try:
@@ -1784,13 +1784,13 @@ async def initialize_sample_data():
             await db.products.create_index("category")
             await db.products.create_index("name")
         except Exception as e:
-            print(f"⚠️ Index creation skipped: {e}")
-        print("✅ Database indexes created")
+            print(f"Index creation skipped: {e}")
+        print("Database indexes created")
 
-        print("🎉 Database initialization completed successfully")
+        print("Database initialization completed successfully")
 
     except Exception as e:
-        print(f"❌ Sample data initialization failed: {str(e)}")
+        print(f"Sample data initialization failed: {str(e)}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

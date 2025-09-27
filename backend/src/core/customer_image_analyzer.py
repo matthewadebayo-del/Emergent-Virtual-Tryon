@@ -9,6 +9,7 @@ from typing import Dict, Any, Tuple, Optional
 from PIL import Image
 import io
 from .performance_optimizations import OptimizedMediaPipeProcessor, ImagePreprocessor, GPUAccelerator
+from .precise_pose_detector import PrecisePoseDetector
 
 try:
     import mediapipe as mp
@@ -31,18 +32,17 @@ class CustomerImageAnalyzer:
         self.gpu_processor = OptimizedMediaPipeProcessor()
         
         if MEDIAPIPE_AVAILABLE:
-            self.mp_pose = mp.solutions.pose.Pose(
-                static_image_mode=True,
+            self.precise_pose_detector = PrecisePoseDetector(
                 model_complexity=2,
-                enable_segmentation=True,
-                min_detection_confidence=0.7
+                min_detection_confidence=0.7,
+                min_tracking_confidence=0.5
             )
             self.mp_face = mp.solutions.face_detection.FaceDetection(
                 model_selection=1,
                 min_detection_confidence=0.7
             )
         else:
-            self.mp_pose = None
+            self.precise_pose_detector = None
             self.mp_face = None
     
     def analyze_customer_image_optimized(self, image_input, reference_height_cm: Optional[float] = None) -> Dict[str, Any]:
@@ -101,12 +101,16 @@ class CustomerImageAnalyzer:
             if image is None:
                 raise ValueError("Could not decode image")
             
-            # Run all analysis components
+            # Run all analysis components with PrecisePoseDetector
             pose_data = self._detect_pose(image)
             measurements = self._extract_measurements(pose_data, image.shape[:2], reference_height_cm)
             body_mask = self._segment_body(image, pose_data.get("segmentation_mask"))
             skin_tone = self._detect_skin_tone(image, pose_data.get("landmarks"))
             scale_info = self._calculate_scale(pose_data, measurements, image.shape[:2])
+            
+            # Add pose suitability check
+            pose_suitable = pose_data.get("pose_suitable", False)
+            pose_confidence = pose_data.get("confidence", 0.0)
             
             result = {
                 "pose_landmarks": pose_data.get("landmarks"),
@@ -117,11 +121,15 @@ class CustomerImageAnalyzer:
                 "scale_info": scale_info,
                 "image_shape": image.shape,
                 "analysis_success": True,
-                "confidence_score": measurements.get("overall_confidence", 0.8)
+                "confidence_score": max(measurements.get("overall_confidence", 0.8), pose_confidence),
+                "pose_suitable_for_tryon": pose_suitable,
+                "pose_confidence": pose_confidence
             }
             
             print(f"[CUSTOMER] Analysis result keys: {list(result.keys())}")
             print(f"[CUSTOMER] Pose keypoints: {result['pose_keypoints'] is not None}")
+            print(f"[CUSTOMER] Pose suitable for try-on: {pose_suitable}")
+            print(f"[CUSTOMER] Pose confidence: {pose_confidence:.2f}")
             print(f"[CUSTOMER] Measurements: {result['measurements']}")
             
             return result
@@ -232,25 +240,27 @@ class CustomerImageAnalyzer:
             return {"rgb": [120, 100, 80], "warmth": "neutral", "confidence": 0.3}
     
     def _detect_pose(self, image: np.ndarray) -> Dict[str, Any]:
-        """Detect 13+ body keypoints using MediaPipe"""
-        if not self.initialized:
+        """Detect pose using PrecisePoseDetector"""
+        if not self.initialized or not self.precise_pose_detector:
             return {"landmarks": None, "segmentation_mask": None}
         
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        results = self.mp_pose.process(rgb_image)
+        # Use PrecisePoseDetector for optimized pose detection
+        results = self.precise_pose_detector.detect_pose(image)
         
-        if not results.pose_landmarks:
+        if not results['pose_present']:
             return {"landmarks": None, "segmentation_mask": None}
         
         # Extract landmarks as numpy array
         landmarks = []
-        for landmark in results.pose_landmarks.landmark:
+        for landmark in results['landmarks'].landmark:
             landmarks.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
         
         return {
             "landmarks": np.array(landmarks),
-            "segmentation_mask": results.segmentation_mask,
-            "pose_detected": True
+            "segmentation_mask": results['segmentation_mask'],
+            "pose_detected": True,
+            "confidence": results['confidence'],
+            "pose_suitable": self.precise_pose_detector.is_pose_suitable_for_tryon(results['landmarks'])[0]
         }
     
     def _extract_measurements(self, pose_data: Dict[str, Any], image_shape: Tuple[int, int], reference_height_cm: Optional[float] = None) -> Dict[str, Any]:
@@ -511,7 +521,9 @@ class CustomerImageAnalyzer:
             "scale_info": {"pixels_per_cm": 1.0, "reference_used": "fallback"},
             "image_shape": (512, 512, 3),
             "analysis_success": False,
-            "confidence_score": 0.3
+            "confidence_score": 0.3,
+            "pose_suitable_for_tryon": False,
+            "pose_confidence": 0.0
         }
         
         print(f"[CUSTOMER] Using fallback analysis - pose_keypoints: {result['pose_keypoints']}")
