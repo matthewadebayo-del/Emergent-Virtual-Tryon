@@ -98,8 +98,8 @@ class FAHNTryOn:
 
 class VirtualTryOnFallbackService:
     """
-    Fallback service that tries: Vertex AI → FAHN → Error Message
-    No OpenAI dependency
+    Fallback service that tries: FAHN → Vertex AI → Error Message
+    FAHN is primary, Vertex AI is fallback
     """
     
     def __init__(self):
@@ -117,28 +117,14 @@ class VirtualTryOnFallbackService:
                                   product_info: Dict) -> Dict:
         """
         Process virtual try-on with fallback chain:
-        1. Vertex AI (primary)
-        2. FAHN (fallback)
+        1. FAHN (primary)
+        2. Vertex AI (fallback - when available)
         3. Error message (final fallback)
         """
         
-        # Try Vertex AI first
-        if self.vertex_ai and self.vertex_ai.is_available():
-            logger.info("[FALLBACK] Trying Vertex AI (primary)")
-            result = await self.vertex_ai.virtual_tryon(
-                customer_image, garment_image, customer_analysis, 
-                garment_analysis, product_info
-            )
-            
-            if result.get("success"):
-                logger.info("[FALLBACK] ✅ Vertex AI succeeded")
-                return result
-            else:
-                logger.warning(f"[FALLBACK] Vertex AI failed: {result.get('error')}")
-        
-        # Try FAHN as fallback
+        # Try FAHN first (primary)
         if self.fahn.is_available():
-            logger.info("[FALLBACK] Trying FAHN (fallback)")
+            logger.info("[FALLBACK] Trying FAHN (primary)")
             result = await self.fahn.virtual_tryon(
                 customer_image, garment_image, customer_analysis,
                 garment_analysis, product_info
@@ -149,6 +135,20 @@ class VirtualTryOnFallbackService:
                 return result
             else:
                 logger.warning(f"[FALLBACK] FAHN failed: {result.get('error')}")
+        
+        # Try Vertex AI as fallback (when available)
+        if self.vertex_ai and self.vertex_ai.is_available():
+            logger.info("[FALLBACK] Trying Vertex AI (fallback)")
+            result = await self.vertex_ai.virtual_tryon(
+                customer_image, garment_image, customer_analysis, 
+                garment_analysis, product_info
+            )
+            
+            if result.get("success"):
+                logger.info("[FALLBACK] ✅ Vertex AI succeeded")
+                return result
+            else:
+                logger.warning(f"[FALLBACK] Vertex AI failed: {result.get('error')}")
         
         # Final fallback - return original image with error message
         logger.error("[FALLBACK] All services failed - returning error")
