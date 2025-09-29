@@ -72,4 +72,4 @@ print('Startup checks complete')
 "
 
 echo "Starting application..."
-uvicorn server:app --host 0.0.0.0 --port $PORT
+uvicorn production_server:app --host 0.0.0.0 --port $PORT

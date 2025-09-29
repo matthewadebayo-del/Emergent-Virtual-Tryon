@@ -63,7 +63,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/
 
 # Copy minimal application files
-COPY server.py .
+COPY production_server.py .
 COPY src/ ./src/
 COPY .env .
 
@@ -77,4 +77,4 @@ ENV STARTUP_TIMEOUT=300
 ENV HEALTH_CHECK_TIMEOUT=60
 
 EXPOSE 8000
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "production_server:app", "--host", "0.0.0.0", "--port", "8000"]
