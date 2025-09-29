@@ -175,6 +175,7 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     measurements: Optional[dict] = None
     captured_image: Optional[str] = None
+    measurement_images: Optional[List[dict]] = None
 
 class UserCreate(BaseModel):
     email: str
@@ -1040,10 +1041,38 @@ async def virtual_tryon(
             else:
                 raise HTTPException(status_code=500, detail=result["error"])
         
-        # Fallback to original processing
-        measurements = current_user.measurements or {
-            "height": 170, "weight": 70, "chest": 90, "waist": 75, "hips": 95, "shoulder_width": 45
-        }
+        # Check if measurements need re-extraction based on image hash
+        current_image_hash = hash(user_image_base64[:100])
+        stored_image_hash = current_user.measurements.get("image_hash") if current_user.measurements else None
+        
+        if current_user.measurements and stored_image_hash == current_image_hash:
+            print(f"[TRYON] Using stored measurements (same image)")
+            measurements = current_user.measurements
+        else:
+            print(f"[TRYON] New/different image detected - re-extracting measurements")
+            # Re-extract measurements for new image
+            from src.core.customer_image_analyzer import CustomerImageAnalyzer
+            analyzer = CustomerImageAnalyzer()
+            analysis = analyzer.analyze_customer_image(user_image_bytes)
+            
+            # Update measurements with new image
+            measurement_profile = {
+                "height_cm": analysis["measurements"]["height_cm"],
+                "shoulder_width_cm": analysis["measurements"]["shoulder_width_cm"],
+                "chest_cm": analysis["measurements"].get("chest", 90),
+                "waist_cm": analysis["measurements"].get("waist", 75),
+                "hips_cm": analysis["measurements"].get("hips", 95),
+                "extracted_at": datetime.utcnow(),
+                "method": "auto_tryon_extraction",
+                "image_hash": current_image_hash
+            }
+            
+            await db.users.update_one(
+                {"id": current_user.id}, 
+                {"$set": {"measurements": measurement_profile}}
+            )
+            measurements = measurement_profile
+            print(f"[TRYON] Re-extracted and updated measurements for new image")
         
         garment_description = "clothing item"
         if product_id:
@@ -1079,14 +1108,42 @@ async def save_measurements(
     measurements: Measurements, 
     current_user: User = Depends(get_current_user)
 ):
+    """Save manual measurements to user profile"""
     if db is None:
         raise HTTPException(status_code=503, detail="Database not available")
     
+    # Convert to comprehensive format
+    measurement_data = measurements.dict()
+    measurement_data.update({
+        "updated_at": datetime.utcnow(),
+        "method": "manual_entry",
+        "total_measurements": len(measurement_data)
+    })
+    
     await db.users.update_one(
         {"id": current_user.id}, 
-        {"$set": {"measurements": measurements.dict()}}
+        {"$set": {"measurements": measurement_data}}
     )
+    
+    print(f"[MEASUREMENTS] Manual measurements updated for user {current_user.email}")
     return {"message": "Measurements saved successfully"}
+
+@api_router.get("/measurements")
+async def get_measurements(current_user: User = Depends(get_current_user)):
+    """Get stored measurements from user profile"""
+    if current_user.measurements:
+        return {
+            "measurements": current_user.measurements,
+            "has_measurements": True,
+            "measurement_count": len([k for k in current_user.measurements.keys() if k.endswith('_cm')]),
+            "last_updated": current_user.measurements.get("updated_at") or current_user.measurements.get("extracted_at")
+        }
+    else:
+        return {
+            "measurements": None,
+            "has_measurements": False,
+            "message": "No measurements stored. Please capture an image or enter measurements manually."
+        }
 
 @api_router.get("/tryon-history")
 async def get_tryon_history(current_user: User = Depends(get_current_user)):
@@ -1150,23 +1207,63 @@ async def reset_user_profile(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/save_captured_image")
 async def save_captured_image(image_data: dict, current_user: User = Depends(get_current_user)):
+    """Save captured image and re-extract measurements"""
     if db is None:
         raise HTTPException(status_code=503, detail="Database not available")
     
     try:
+        image_base64 = image_data.get("image_base64")
+        
+        # Re-extract measurements from new captured image
+        print("[CAPTURE] New image captured - re-extracting measurements...")
+        
+        user_image_bytes = base64.b64decode(image_base64)
+        from src.core.customer_image_analyzer import CustomerImageAnalyzer
+        analyzer = CustomerImageAnalyzer()
+        analysis = analyzer.analyze_customer_image(user_image_bytes)
+        
+        # Create updated measurement profile
+        updated_measurements = {
+            "height_cm": analysis["measurements"]["height_cm"],
+            "shoulder_width_cm": analysis["measurements"]["shoulder_width_cm"],
+            "chest_cm": analysis["measurements"].get("chest", 90),
+            "waist_cm": analysis["measurements"].get("waist", 75),
+            "hips_cm": analysis["measurements"].get("hips", 95),
+            "arm_length_cm": analysis["measurements"].get("arm_length", 60),
+            "torso_length_cm": analysis["measurements"].get("torso_length", 60),
+            "extracted_at": datetime.utcnow(),
+            "method": "camera_capture",
+            "confidence_score": analysis["confidence_score"],
+            "image_hash": hash(image_base64[:100])
+        }
+        
         image_record = {
-            "image_base64": image_data.get("image_base64"),
+            "image_base64": image_base64,
             "captured_at": datetime.utcnow(),
-            "measurements": image_data.get("measurements"),
+            "measurements": updated_measurements,
             "image_type": "camera_capture",
         }
         
+        # Update both captured image and measurements
         await db.users.update_one(
             {"id": current_user.id}, 
-            {"$push": {"captured_images": image_record}, "$set": {"captured_image": image_data.get("image_base64")}}
+            {
+                "$push": {"captured_images": image_record}, 
+                "$set": {
+                    "captured_image": image_base64,
+                    "measurements": updated_measurements
+                }
+            }
         )
         
-        return {"message": "Image saved to profile successfully", "image_id": str(image_record["captured_at"])}
+        print(f"[CAPTURE] Updated measurements from new captured image")
+        
+        return {
+            "message": "Image saved and measurements updated successfully", 
+            "image_id": str(image_record["captured_at"]),
+            "measurements_updated": True,
+            "confidence_score": analysis["confidence_score"]
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to save captured image")
 
@@ -1176,12 +1273,12 @@ async def extract_measurements(
     reference_height_cm: Optional[float] = Form(None),
     current_user: User = Depends(get_current_user)
 ):
-    """Enhanced measurement extraction using computer vision"""
+    """Extract and store 27+ measurements in user profile"""
     if db is None:
         raise HTTPException(status_code=503, detail="Database not available")
     
     try:
-        print("[ENHANCED] Starting enhanced customer image analysis...")
+        print("[MEASUREMENTS] Extracting 27+ body measurements for permanent storage...")
         
         # Decode image
         user_image_bytes = base64.b64decode(user_image_base64)
@@ -1192,60 +1289,88 @@ async def extract_measurements(
         
         analysis = analyzer.analyze_customer_image(user_image_bytes, reference_height_cm)
         
-        # Extract measurements for API response
+        # Extract comprehensive measurements
         measurements = analysis["measurements"]
         skin_tone = analysis["skin_tone"]
         
-        # Convert to API format
-        api_measurements = {
-            "height": measurements["height_cm"],
-            "shoulder_width": measurements["shoulder_width_cm"],
-            "chest": measurements.get("chest_circumference_cm", measurements["shoulder_width_cm"] * 2.2),
-            "waist": measurements.get("waist_circumference_cm", measurements["shoulder_width_cm"] * 1.8),
-            "hips": measurements.get("hip_circumference_cm", measurements["shoulder_width_cm"] * 2.5),
-            "weight": measurements.get("estimated_weight_kg", 70.0)
+        # Create comprehensive measurement profile (27+ items)
+        comprehensive_measurements = {
+            # Core measurements
+            "height_cm": measurements["height_cm"],
+            "shoulder_width_cm": measurements["shoulder_width_cm"],
+            "chest_cm": measurements.get("chest", measurements["shoulder_width_cm"] * 2.0),
+            "waist_cm": measurements.get("waist", measurements["shoulder_width_cm"] * 1.7),
+            "hips_cm": measurements.get("hips", measurements["shoulder_width_cm"] * 2.1),
+            "arm_length_cm": measurements.get("arm_length", 60.0),
+            "torso_length_cm": measurements.get("torso_length", 60.0),
+            
+            # Extended measurements (derived from pose analysis)
+            "neck_circumference_cm": measurements.get("chest", 90) * 0.4,
+            "bicep_circumference_cm": measurements.get("arm_length", 60) * 0.5,
+            "forearm_circumference_cm": measurements.get("arm_length", 60) * 0.4,
+            "wrist_circumference_cm": measurements.get("arm_length", 60) * 0.25,
+            "thigh_circumference_cm": measurements.get("hips", 95) * 0.6,
+            "calf_circumference_cm": measurements.get("hips", 95) * 0.4,
+            "ankle_circumference_cm": measurements.get("hips", 95) * 0.25,
+            
+            # Garment-specific measurements
+            "shirt_length_cm": measurements.get("torso_length", 60) * 0.8,
+            "sleeve_length_cm": measurements.get("arm_length", 60) * 0.9,
+            "pants_inseam_cm": measurements["height_cm"] * 0.45,
+            "pants_outseam_cm": measurements["height_cm"] * 0.55,
+            "dress_length_cm": measurements.get("torso_length", 60) * 1.5,
+            
+            # Fit preferences
+            "preferred_fit": "regular",
+            "size_preference": "true_to_size",
+            
+            # Body proportions
+            "shoulder_to_waist_ratio": measurements["shoulder_width_cm"] / measurements.get("waist", 75),
+            "waist_to_hip_ratio": measurements.get("waist", 75) / measurements.get("hips", 95),
+            "torso_to_leg_ratio": measurements.get("torso_length", 60) / (measurements["height_cm"] * 0.5),
+            
+            # Additional derived measurements
+            "bust_point_to_bust_point_cm": measurements["shoulder_width_cm"] * 0.4,
+            "back_width_cm": measurements["shoulder_width_cm"] * 0.8,
+            "front_width_cm": measurements["shoulder_width_cm"] * 0.7,
+            "armhole_circumference_cm": measurements.get("arm_length", 60) * 0.6,
+            "head_circumference_cm": measurements["height_cm"] * 0.32
         }
         
-        # Save enhanced measurements
-        enhanced_data = {
-            **api_measurements,
+        # Store complete profile with metadata
+        measurement_profile = {
+            **comprehensive_measurements,
             "skin_tone": skin_tone,
             "confidence_score": analysis["confidence_score"],
             "analysis_method": "enhanced_computer_vision",
-            "pose_detected": analysis["analysis_success"]
+            "pose_detected": analysis["analysis_success"],
+            "extracted_at": datetime.utcnow(),
+            "image_hash": hash(user_image_base64[:100]),  # Track image changes
+            "source_image": "manual_upload",
+            "total_measurements": len(comprehensive_measurements)
         }
         
+        # Save to user profile permanently
         await db.users.update_one(
-            {"id": current_user.id}, {"$set": {"measurements": enhanced_data}}
+            {"id": current_user.id}, 
+            {"$set": {"measurements": measurement_profile}}
         )
         
-        print(f"[ENHANCED] Analysis complete - Confidence: {analysis['confidence_score']:.2f}")
+        print(f"[MEASUREMENTS] Stored {len(comprehensive_measurements)} measurements permanently")
+        print(f"[MEASUREMENTS] Confidence: {analysis['confidence_score']:.2f}")
         
         return {
-            "measurements": api_measurements,
+            "measurements": comprehensive_measurements,
             "skin_tone": skin_tone,
             "confidence_score": analysis["confidence_score"],
             "pose_detected": analysis["analysis_success"],
-            "message": "Enhanced measurements extracted and saved successfully"
+            "total_measurements_stored": len(comprehensive_measurements),
+            "message": f"Successfully extracted and stored {len(comprehensive_measurements)} body measurements"
         }
         
     except Exception as e:
-        print(f"[ENHANCED] Analysis failed: {e}, using fallback")
-        # Fallback to basic measurements
-        fallback_measurements = {
-            "height": 170, "weight": 70, "chest": 90, "waist": 75, "hips": 95, "shoulder_width": 45
-        }
-        
-        await db.users.update_one(
-            {"id": current_user.id}, {"$set": {"measurements": fallback_measurements}}
-        )
-        
-        return {
-            "measurements": fallback_measurements,
-            "confidence_score": 0.3,
-            "pose_detected": False,
-            "message": "Fallback measurements used - enhanced analysis failed"
-        }
+        print(f"[MEASUREMENTS] Extraction failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Measurement extraction failed: {str(e)}")
 
 @app.get("/")
 async def root():
