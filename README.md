@@ -20,7 +20,7 @@ A full-stack virtual try-on application built with React frontend and FastAPI ba
 - **Database**: MongoDB (in-memory for development)
 - **Computer Vision**: OpenCV, MediaPipe, scikit-learn
 - **3D Processing**: Advanced mesh processing with physics simulation
-- **AI Integration**: OpenAI API with enhanced 3D-guided processing
+- **AI Integration**: FASHN API for virtual try-on with Vertex AI fallback
 - **Performance**: GPU acceleration, parallel processing, intelligent caching
 - **Authentication**: JWT tokens with bcrypt password hashing
 
@@ -29,7 +29,7 @@ A full-stack virtual try-on application built with React frontend and FastAPI ba
 - Python 3.8+ with pip and virtual environment support
 - Node.js 16+ with yarn package manager
 - MongoDB (for production) or in-memory database (for development)
-- OpenAI API key for virtual try-on functionality
+- FASHN API key for virtual try-on functionality
 
 ## 🏃♂️ Quick Start
 
@@ -54,7 +54,7 @@ Create `.env` file in backend directory:
 MONGO_URL="mongodb://localhost:27017"
 DB_NAME="test_database"
 CORS_ORIGINS="http://localhost:3000,*"
-OPENAI_API_KEY="your-openai-api-key-here"
+FASHN_API_KEY="your-fashn-api-key-here"
 ```
 
 Start backend server:
@@ -121,9 +121,10 @@ docker build -f backend/Dockerfile -t virtualfit-backend-full .
 ```
 
 ### Environment Variables
-Control feature availability with these environment variables:
-- `ENABLE_AI_ENHANCEMENT=true/false` - Controls Stable Diffusion loading
-- `ENABLE_3D_FEATURES=true/false` - Controls advanced 3D features
+Control API integration with these environment variables:
+- `FASHN_API_KEY` - Primary virtual try-on service
+- `VERTEX_AI_ENABLED=true/false` - Controls Vertex AI fallback
+- `SUPPORT_CONTACT_EMAIL` - Contact for service issues
 
 ## 📖 Testing Guide
 
@@ -160,17 +161,16 @@ For comprehensive testing instructions, see [LOCALHOST_TESTING_GUIDE.md](./LOCAL
 
 ### Measurements & Try-On
 - `POST /api/measurements` - Save body measurements (29+ items)
-- `POST /api/virtual-tryon` - **Complete garment replacement** with true clothing removal
+- `POST /api/virtual-tryon` - Virtual try-on using FASHN API with fallback system
 - `GET /api/products` - Get available clothing items
 - `GET /api/tryon-history` - Get user's try-on history
 
-### Revolutionary Features
-- **Complete Garment Replacement**: True clothing removal and replacement (not blending)
-- **Aggressive Masking**: 40% wider coverage for complete garment coverage
-- **Pure Color Application**: Forced color accuracy from product names
-- **Professional Effects**: Body shadows, lighting adaptation, garment details
-- **Massive Visual Change**: 3.9M+ pixel transformations vs previous minimal changes
-- **6-Step Pipeline**: Removal → Inpainting → Generation → Fitting → Compositing → Enhancement
+### Virtual Try-On System
+- **Primary**: FASHN API integration with job polling system
+- **Fallback**: Vertex AI processing when FASHN is unavailable
+- **Error Handling**: Returns identical before/after images with support message when all systems fail
+- **Reliability**: Multi-tier fallback ensures consistent user experience
+- **Status Messages**: Clear communication when virtual try-on services are temporarily unavailable
 
 ## 🌐 Deployment Status
 
@@ -185,33 +185,27 @@ For comprehensive testing instructions, see [LOCALHOST_TESTING_GUIDE.md](./LOCAL
 
 ## 🎆 Recent Major Enhancements
 
-### Realistic Garment Rendering System (Latest - 2024-12-26)
-- **Revolutionary Change**: Replaced geometric patches with realistic clothing simulation
-- **Advanced Pipeline**: Shape Generation → Scene Lighting → Fabric Texture → Structure → Natural Blending
-- **Key Improvements**:
-  1. **Realistic T-Shirt Shape**: Proper contours, tapered sides, body-following curves (not rectangles)
-  2. **Scene-Based Lighting**: Dynamic lighting adaptation with 2% natural variation
-  3. **Fabric Realism**: Texture patterns, weave simulation, material-specific rendering
-  4. **Garment Structure**: Seams, hems, body contours, natural draping effects
-  5. **Natural Integration**: Graduated blending (92% core, 85% edges) with color temperature matching
-- **Results**: Realistic clothing appearance instead of flat color patches
-- **Status**: Production-ready realistic garment generation
+### FASHN API Integration (Latest - 2024-12-27)
+- **Primary Service**: Integrated FASHN API (api.fashn.ai) as main virtual try-on provider
+- **Job Polling System**: Implemented asynchronous job submission and status polling
+- **Multi-Tier Fallback**: FASHN → Vertex AI → Error handling with identical images
+- **Reliable Experience**: Ensures users always receive response even when services are down
+- **Clear Communication**: Status messages inform users when virtual try-on is temporarily unavailable
+- **Status**: Production-ready with comprehensive fallback system
 
-### Complete Garment Replacement System (Previous - 2024-12-26)
-- **Foundation**: True garment replacement with 6-step pipeline
-- **Mask Creation Fix**: Corrected left/right shoulder coordinate handling (10.7% vs 0.0% coverage)
-- **Results**: 12M+ pixel transformations with complete garment removal and replacement
-- **Status**: Enhanced with realistic rendering system
+### L.L.Bean Product Catalog Integration (Previous - 2024-12-27)
+- **Comprehensive Catalog**: 12 L.L.Bean products with multiple color variations
+- **Product Categories**: Men's and women's shirts (short/long sleeve), pants, and accessories
+- **Color Options**: White, navy, red, pink, blue, khaki variations for each product
+- **Persistent Storage**: Products automatically loaded into database on server startup
+- **Status**: Production-ready product catalog system
 
-### Virtual Try-On System Fixes Applied (Previous - 2024-12-26)
-- **Issue**: Multiple critical issues in comprehensive virtual try-on system
-- **Fixes Applied**: 
-  1. **Color Detection Fix**: White garments now correctly detected as white instead of gray
-  2. **Mask Creation Fix**: Enhanced landmark handling for both dict and array formats with expanded coverage
-  3. **Blending Enhancement**: Stronger alpha blending with 31x31 Gaussian blur and minimum blend thresholds
-  4. **Quality Assessment Fix**: Added visual change detection to properly measure transformation success
-- **Status**: All fixes verified and integrated into complete replacement system
-- **Testing**: 100% pass rate on fix verification tests
+### Persistent Measurement Storage (Previous - 2024-12-27)
+- **27+ Body Measurements**: Comprehensive measurement system with permanent storage
+- **Image Hash Tracking**: Smart re-extraction only when new images are detected
+- **Auto-Update System**: Existing databases automatically updated with measurement fields
+- **Performance Optimization**: Avoids unnecessary measurement re-extraction
+- **Status**: Production-ready persistent measurement system
 
 ### Production Server Update Required (Previous)
 - **Issue**: Production server using outdated SAFE mode causing identical before/after images
@@ -246,20 +240,20 @@ For comprehensive testing instructions, see [LOCALHOST_TESTING_GUIDE.md](./LOCAL
 - **PerformanceOptimizations**: GPU acceleration and caching utilities
 
 ### Technical Architecture
-- **Realistic Garment Pipeline**: Advanced clothing simulation system
-  1. **Shape Generation**: Realistic t-shirt contours with proper proportions (85% shoulder, 75% bottom width)
-  2. **Scene Lighting**: Dynamic lighting extraction with 2% natural variation for non-flat appearance
-  3. **Fabric Simulation**: Material-specific texture patterns and weave effects
-  4. **Structure Addition**: Seams, hems, body-following contours for garment realism
-  5. **Natural Blending**: Graduated integration (92% core, 85% edges) with smooth transitions
-  6. **Color Integration**: Scene color temperature matching for natural appearance
-- **Complete Replacement Foundation**: True garment removal with skin tone estimation and inpainting
-- **Coordinate Correction**: Fixed left/right shoulder handling for proper mask creation (10.7% coverage)
-- **Forced Color Accuracy**: Product name overrides image analysis for pure colors
-- **Professional Effects**: Body shadows, lighting adaptation, natural draping simulation
-- **Validation System**: Multi-stage validation including pose landmarks, image format, and confidence thresholds
-- **Error Recovery**: Robust exception handling with fallback mechanisms and detailed error logging
-- **Performance Tracking**: Real-time processing with realistic clothing generation (12M+ pixel changes)
+- **FASHN API Integration**: Primary virtual try-on service with job polling system
+  1. **Job Submission**: Asynchronous job creation with customer and garment images
+  2. **Status Polling**: Real-time job status monitoring with timeout handling
+  3. **Result Processing**: Automatic result retrieval and image processing
+  4. **Error Handling**: Comprehensive exception handling with fallback triggers
+- **Multi-Tier Fallback System**: Ensures reliable user experience
+  1. **Primary**: FASHN API processing with job polling
+  2. **Secondary**: Vertex AI processing when FASHN unavailable
+  3. **Tertiary**: Identical before/after images with support message
+- **Persistent Measurement Storage**: 27+ body measurements with image hash tracking
+- **Smart Re-extraction**: Measurements updated only when new images detected
+- **L.L.Bean Product Catalog**: Comprehensive product database with color variations
+- **Authentication System**: JWT token management with protected endpoints
+- **Performance Optimization**: Caching and smart processing to minimize API calls
 
 ## 🔍 Development Notes
 
@@ -281,11 +275,11 @@ The application is configured for localhost development with proper CORS setting
 - Input validation and sanitization
 
 ### Performance Improvements
-- **Realistic Clothing Simulation**: Generates actual fabric appearance instead of geometric patches
-- **Natural Garment Integration**: Scene-based lighting and color temperature matching
-- **Advanced Shape Generation**: Body-following contours with proper t-shirt proportions
-- **Massive Visual Transformation**: 12M+ pixel changes with realistic clothing rendering
-- **True Clothing Replacement**: Complete garment removal with realistic fabric simulation
+- **FASHN API Integration**: Professional-grade virtual try-on processing
+- **Asynchronous Processing**: Job polling system prevents blocking operations
+- **Smart Measurement Caching**: Image hash tracking avoids unnecessary re-extraction
+- **Multi-Tier Fallback**: Ensures consistent response times even during service outages
+- **Persistent Storage**: Measurements and products cached for optimal performance
 
 ## 📚 Additional Documentation
 
@@ -320,6 +314,6 @@ For issues, questions, or contributions:
 
 ---
 
-**VirtualFit** - Revolutionizing virtual try-on experiences with **realistic garment simulation technology**.
+**VirtualFit** - Revolutionizing virtual try-on experiences with **FASHN API integration and reliable fallback systems**.
 
-**Latest Achievement**: Realistic clothing rendering with fabric texture, natural lighting, and body-following contours - no more geometric patches!
+**Latest Achievement**: FASHN API integration with multi-tier fallback system ensuring consistent user experience even during service outages!
