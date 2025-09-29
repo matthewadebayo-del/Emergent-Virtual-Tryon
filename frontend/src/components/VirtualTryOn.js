@@ -1654,26 +1654,15 @@ const VirtualTryOn = ({ user, onLogout }) => {
               
               {/* AI Processing Info */}
               <div className="mt-8 p-6 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-lg border border-green-500/30">
-                <h3 className="text-xl font-semibold text-white mb-4 text-center">🚀 Advanced AI Processing</h3>
+                <h3 className="text-xl font-semibold text-white mb-4 text-center">Ready for Virtual Try-On</h3>
                 <div className="text-center">
                   <div className="text-green-400 mb-2">⚡</div>
-                  <h4 className="text-lg font-semibold text-white mb-2">Google Vertex AI + FAHN</h4>
-                  <p className="text-white/70 text-sm mb-2">Advanced virtual try-on with precise pose detection</p>
-                  <div className="text-green-400 font-medium">FREE</div>
+                  <h4 className="text-lg font-semibold text-white mb-2">Virtual Try-On System</h4>
+                  <p className="text-white/70 text-sm mb-2">Ready to process your virtual try-on</p>
+                  <div className="text-green-400 font-medium"></div>
                 </div>
                 
-                <div className="mt-4 p-3 bg-green-600/20 rounded-lg border border-green-500/50">
-                  <div className="text-green-200 text-sm">
-                    <strong>Features:</strong>
-                    <ul className="mt-2 space-y-1 text-xs">
-                      <li>• Google Vertex AI primary processing</li>
-                      <li>• FAHN fallback for reliability</li>
-                      <li>• Precise pose detection with MediaPipe</li>
-                      <li>• Realistic garment rendering</li>
-                      <li>• High-quality output resolution</li>
-                    </ul>
-                  </div>
-                </div>
+
               </div>
               
               <button
@@ -1855,14 +1844,14 @@ const VirtualTryOn = ({ user, onLogout }) => {
                     <div className="flex items-start space-x-3">
                       <div className="text-blue-400 mt-1">🚀</div>
                       <div>
-                        <h4 className="text-blue-200 font-semibold mb-2">Advanced Virtual Try-On Technology</h4>
+                        <h4 className="text-blue-200 font-semibold mb-2"></h4>
                         <p className="text-blue-200/90 text-sm mb-3">
                           ✨ {tryonResult.personalization_note}
                         </p>
                         
                         {tryonResult.technical_details && (
                           <div className="bg-blue-600/20 rounded p-3 mt-3">
-                            <h5 className="text-blue-200 font-medium mb-2">Processing Pipeline:</h5>
+                            <h5 className="text-blue-200 font-medium mb-2"></h5>
                             <div className="grid grid-cols-2 gap-2 text-xs text-blue-200/80">
                               <div>Photo Analysis &amp; Segmentation</div>
                               <div>Pose Estimation &amp; Mapping</div>
@@ -1875,7 +1864,7 @@ const VirtualTryOn = ({ user, onLogout }) => {
                         )}
                         
                         <div className="mt-3 text-blue-200/70 text-xs">
-                          <strong>Technology:</strong> Multi-stage AI pipeline with {tryonResult.technical_details?.pipeline_stages || 5} processing stages for maximum realism and identity preservation.
+                          <strong>Technology:</strong>  {tryonResult.technical_details?.pipeline_stages || 5} processing stages for maximum realism and identity preservation.
                         </div>
                       </div>
                     </div>

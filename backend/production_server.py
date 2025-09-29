@@ -1898,11 +1898,59 @@ async def initialize_sample_data():
             ]
 
             await db.products.insert_many(sample_products)
-            print(f"Created {len(sample_products)} sample products")
+            print(f"Created {len(sample_products)} L.L.Bean sample products")
+            print("Product categories: Men's & Women's shirts (short/long sleeve), pants, multiple colors")
         else:
             print(
                 f"Products collection already exists with {product_count} items"
             )
+            # Check if we need to update to L.L.Bean products
+            sample_product = await db.products.find_one()
+            if sample_product and not sample_product.get('name', '').startswith('L.L.Bean'):
+                print("Updating to L.L.Bean product catalog...")
+                await db.products.delete_many({})
+                # Re-run product creation with new catalog
+                sample_products = [
+                    # L.L.Bean Men's Collection
+                    {
+                        "id": "llbean-mens-white-tee-001",
+                        "name": "L.L.Bean Men's Classic White T-Shirt",
+                        "category": "mens_shirts",
+                        "gender": "men",
+                        "sleeve_type": "short",
+                        "sizes": ["S", "M", "L", "XL", "XXL"],
+                        "image_url": "https://global.llbean.com/dw/image/v2/BBDS_PRD/on/demandware.static/-/Sites-llbean-master-catalog/default/dw8c8b8c8c/images/p/1/0/4/1/6/1041600_611_41.jpg",
+                        "description": "Premium cotton classic fit white t-shirt",
+                        "price": 24.95,
+                        "color": "white"
+                    },
+                    {
+                        "id": "llbean-mens-navy-tee-002",
+                        "name": "L.L.Bean Men's Navy T-Shirt",
+                        "category": "mens_shirts",
+                        "gender": "men",
+                        "sleeve_type": "short",
+                        "sizes": ["S", "M", "L", "XL", "XXL"],
+                        "image_url": "https://global.llbean.com/dw/image/v2/BBDS_PRD/on/demandware.static/-/Sites-llbean-master-catalog/default/dw8c8b8c8c/images/p/1/0/4/1/6/1041600_543_41.jpg",
+                        "description": "Premium cotton classic fit navy t-shirt",
+                        "price": 24.95,
+                        "color": "navy"
+                    },
+                    {
+                        "id": "llbean-womens-white-tee-006",
+                        "name": "L.L.Bean Women's Classic White T-Shirt",
+                        "category": "womens_shirts",
+                        "gender": "women",
+                        "sleeve_type": "short",
+                        "sizes": ["XS", "S", "M", "L", "XL"],
+                        "image_url": "https://global.llbean.com/dw/image/v2/BBDS_PRD/on/demandware.static/-/Sites-llbean-master-catalog/default/dw8c8b8c8c/images/p/2/8/0/2/9/280290_611_41.jpg",
+                        "description": "Premium cotton relaxed fit white t-shirt",
+                        "price": 22.95,
+                        "color": "white"
+                    }
+                ]
+                await db.products.insert_many(sample_products)
+                print(f"Updated to {len(sample_products)} L.L.Bean products")
 
         try:
             await db.users.create_index("email", unique=True)
