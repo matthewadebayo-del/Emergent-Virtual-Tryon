@@ -580,52 +580,52 @@ class ComprehensiveRegionTryOn:
         # FORCE CORRECT COLORS based on product name
         if any(word in product_name for word in ['white', 'blanc', 'blanco', 'wit']):
             color = (255, 255, 255)  # PURE WHITE
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING WHITE: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING WHITE: {color}")
             return color
             
         elif any(word in product_name for word in ['black', 'noir', 'negro', 'schwarz']):
             color = (15, 15, 15)     # PURE BLACK
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING BLACK: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING BLACK: {color}")
             return color
             
         elif any(word in product_name for word in ['red', 'rouge', 'rojo', 'rot']):
             color = (220, 20, 20)    # BRIGHT RED
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING RED: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING RED: {color}")
             return color
             
         elif any(word in product_name for word in ['blue', 'bleu', 'azul', 'blau']):
             color = (20, 20, 220)    # BRIGHT BLUE
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING BLUE: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING BLUE: {color}")
             return color
             
         elif any(word in product_name for word in ['green', 'vert', 'verde', 'grün']):
             color = (20, 180, 20)    # GREEN
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING GREEN: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING GREEN: {color}")
             return color
             
         elif any(word in product_name for word in ['yellow', 'jaune', 'amarillo', 'gelb']):
             color = (255, 255, 20)   # YELLOW
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING YELLOW: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING YELLOW: {color}")
             return color
             
         elif any(word in product_name for word in ['gray', 'grey', 'gris', 'grau']):
             color = (128, 128, 128)  # GRAY
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING GRAY: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING GRAY: {color}")
             return color
             
         elif any(word in product_name for word in ['pink', 'rose', 'rosa']):
             color = (255, 150, 200)  # PINK
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING PINK: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING PINK: {color}")
             return color
             
         elif any(word in product_name for word in ['purple', 'violet', 'morado']):
             color = (150, 20, 200)   # PURPLE
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING PURPLE: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING PURPLE: {color}")
             return color
             
         elif any(word in product_name for word in ['orange', 'naranja']):
             color = (255, 140, 20)   # ORANGE
-            self.logger.info(f"[COLOR_FIX] ✅ FORCING ORANGE: {color}")
+            self.logger.info(f"[COLOR_FIX] FORCING ORANGE: {color}")
             return color
             
         else:
@@ -638,14 +638,14 @@ class ComprehensiveRegionTryOn:
                 # If detected color is light (could be white), force pure white
                 if r > 180 and g > 180 and b > 180:
                     color = (255, 255, 255)
-                    self.logger.info(f"[COLOR_FIX] ✅ Detected light color {detected_color}, FORCING WHITE: {color}")
+                    self.logger.info(f"[COLOR_FIX] Detected light color {detected_color}, FORCING WHITE: {color}")
                     return color
                 else:
                     self.logger.info(f"[COLOR_FIX] Using analyzed color: {detected_color}")
                     return detected_color
             else:
                 color = (128, 128, 128)  # Gray fallback
-                self.logger.info(f"[COLOR_FIX] ⚠️ Using fallback gray: {color}")
+                self.logger.info(f"[COLOR_FIX] Using fallback gray: {color}")
                 return color
     
     def _generate_garment_appearance(self, garment_type: GarmentType, garment_analysis: Dict,

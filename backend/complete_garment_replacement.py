@@ -41,22 +41,22 @@ class PracticalGarmentReplacer:
         # ABSOLUTE priority to product name
         if any(word in product_name for word in ['white', 'blanc', 'blanco', 'wit']):
             color = (255, 255, 255)  # PURE WHITE
-            self.logger.info(f"[COLOR] ✅ FORCING WHITE: {color}")
+            self.logger.info(f"[COLOR] FORCING WHITE: {color}")
             return color
             
         elif any(word in product_name for word in ['black', 'noir', 'negro']):
             color = (10, 10, 10)     # PURE BLACK
-            self.logger.info(f"[COLOR] ✅ FORCING BLACK: {color}")
+            self.logger.info(f"[COLOR] FORCING BLACK: {color}")
             return color
             
         elif any(word in product_name for word in ['red', 'rouge', 'rojo']):
             color = (220, 20, 20)    # BRIGHT RED
-            self.logger.info(f"[COLOR] ✅ FORCING RED: {color}")
+            self.logger.info(f"[COLOR] FORCING RED: {color}")
             return color
             
         elif any(word in product_name for word in ['blue', 'bleu', 'azul']):
             color = (20, 20, 220)    # BRIGHT BLUE
-            self.logger.info(f"[COLOR] ✅ FORCING BLUE: {color}")
+            self.logger.info(f"[COLOR] FORCING BLUE: {color}")
             return color
             
         else:
@@ -76,7 +76,7 @@ class PracticalGarmentReplacer:
                 # If any component > 180, force pure white
                 if r > 180 and g > 180 and b > 180:
                     color = (255, 255, 255)
-                    self.logger.info(f"[COLOR] ✅ Light color ({r}, {g}, {b}) -> FORCING WHITE")
+                    self.logger.info(f"[COLOR] Light color ({r}, {g}, {b}) -> FORCING WHITE")
                     return color
                 else:
                     color = (r, g, b)

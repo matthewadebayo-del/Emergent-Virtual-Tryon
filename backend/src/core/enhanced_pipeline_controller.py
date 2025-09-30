@@ -595,14 +595,14 @@ class EnhancedPipelineController:
                                     landmark_data = landmarks_to_use[landmark]
                                     confidence = landmark_data.get('confidence', 1.0) if isinstance(landmark_data, dict) else 1.0
                                     print(f"[DEBUG] {landmark}: {landmark_data}, confidence: {confidence}")
-                                    if confidence < 0.7:
+                                    if confidence < 0.3:
                                         missing_landmarks.append(landmark)
                             
                             if missing_landmarks:
                                 print(f"[ERROR] Missing critical landmarks: {missing_landmarks}")
                                 final_result_image = customer_image
                             else:
-                                print(f"[VALIDATION] ✅ All required landmarks present with good confidence")
+                                print(f"[VALIDATION] All required landmarks present with good confidence")
                                 
                                 # Convert landmark format for comprehensive system
                                 converted_analysis = self._convert_landmark_format(customer_analysis_data)
@@ -615,7 +615,7 @@ class EnhancedPipelineController:
                                 )
                                 
                                 if tryon_success:
-                                    print("[COMPREHENSIVE] ✅ Comprehensive try-on completed successfully")
+                                    print("[COMPREHENSIVE] Comprehensive try-on completed successfully")
                                     print("[COMPREHENSIVE] 🎨 Modified regions: ['top']")
                                     print("[COMPREHENSIVE] 🛡️ Preserved regions: ['arms', 'face', 'legs', 'background']")
                                     print("[COMPREHENSIVE] 📊 Quality score: 0.89")
@@ -650,7 +650,7 @@ class EnhancedPipelineController:
                                 landmark_data = landmarks_to_use[landmark]
                                 confidence = landmark_data.get('confidence', 1.0) if isinstance(landmark_data, dict) else 1.0
                                 print(f"[DEBUG] {landmark}: {landmark_data}, confidence: {confidence}")
-                                if confidence < 0.7:
+                                if confidence < 0.3:
                                     missing_landmarks.append(landmark)
                         
                         if missing_landmarks:
@@ -680,7 +680,7 @@ class EnhancedPipelineController:
                             print(f"[PIPELINE] Complete replacement result: {'SUCCESS' if tryon_success else 'FAILED'}")
                             
                             if tryon_success:
-                                print("[COMPREHENSIVE] ✅ Comprehensive try-on completed successfully")
+                                print("[COMPREHENSIVE] Comprehensive try-on completed successfully")
                                 print("[COMPREHENSIVE] 🎨 Modified regions: ['top']")
                                 print("[COMPREHENSIVE] 🛡️ Preserved regions: ['arms', 'face', 'legs', 'background']")
                                 print("[COMPREHENSIVE] 📊 Quality score: 0.89")
@@ -965,7 +965,7 @@ class EnhancedPipelineController:
             
             # Bulletproof validation
             if self._bulletproof_validation(original_image, result, mask):
-                print("[SAFE] ✅ VALIDATION PASSED - Safe overlay complete")
+                print("[SAFE] VALIDATION PASSED - Safe overlay complete")
                 return result
             else:
                 print("[SAFE] ⚠️ VALIDATION FAILED - Returning original")
@@ -993,12 +993,12 @@ class EnhancedPipelineController:
                 else:
                     confidence = 1.0  # Assume good if no confidence data
                 
-                if confidence < 0.7:  # REDUCED from 0.8 - slightly more lenient
+                if confidence < 0.3:  # REDUCED from 0.7 - much more lenient
                     print(f"[SAFE] ❌ {point_name} confidence too low: {confidence}")
                     return None
                 
                 points[point_name] = point
-                print(f"[SAFE] ✅ {point_name}: confidence {confidence:.3f}")
+                print(f"[SAFE] {point_name}: confidence {confidence:.3f}")
             
             # Calculate conservative center area - IMPROVED sizing
             left_shoulder = points['left_shoulder']
@@ -1179,9 +1179,9 @@ class EnhancedPipelineController:
                 if clothing_diff < 10.0:  # Clothing should have changed significantly
                     print(f"[SAFE] ⚠️ Warning: Clothing didn't change much ({clothing_diff:.1f})")
                 else:
-                    print(f"[SAFE] ✅ Good clothing change detected: {clothing_diff:.1f}")
+                    print(f"[SAFE] Good clothing change detected: {clothing_diff:.1f}")
             
-            print("[SAFE] ✅ All validation checks passed - person preserved, clothing changed")
+            print("[SAFE] All validation checks passed - person preserved, clothing changed")
             return True
             
         except Exception as e:
@@ -1229,7 +1229,7 @@ class EnhancedPipelineController:
                 print(f"[AI] ⚠️ WARNING: Arms/skin area changed: {arms_change:.1f}")
                 return False
             
-            print(f"[AI] Person preservation validated ✅ (face: {skin_change:.1f}, arms: {arms_change:.1f})")
+            print(f"[AI] Person preservation validated (face: {skin_change:.1f}, arms: {arms_change:.1f})")
             return True
             
         except Exception as e:

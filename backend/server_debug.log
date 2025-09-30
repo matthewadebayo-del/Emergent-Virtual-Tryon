@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "c:\Virtual Try-On - AWS\Emergent-Virtual-Tryon\backend\production_server.py", line 34, in <module>
+    from ultimate_pose_detection import UltimateEnhancedPipelineController, UserType
+  File "c:\Virtual Try-On - AWS\Emergent-Virtual-Tryon\backend\ultimate_pose_detection.py", line 17, in <module>
+    import mediapipe as mp
+ModuleNotFoundError: No module named 'mediapipe'

@@ -8,7 +8,7 @@ try:
 
     MEDIAPIPE_AVAILABLE = True
 except ImportError:
-    print("⚠️ MediaPipe not available, using basic measurement extraction")
+    print("WARNING: MediaPipe not available, using basic measurement extraction")
     MEDIAPIPE_AVAILABLE = False
     mp = None
 
@@ -17,7 +17,7 @@ try:
 
     TRIMESH_AVAILABLE = True
 except ImportError:
-    print("⚠️ Trimesh not available, using basic mesh generation")
+    print("WARNING: Trimesh not available, using basic mesh generation")
     TRIMESH_AVAILABLE = False
     trimesh = None
 
@@ -29,9 +29,9 @@ class BodyReconstructor:
         try:
             from src.core.advanced_measurement_extractor import AdvancedMeasurementExtractor
             self.measurement_extractor = AdvancedMeasurementExtractor()
-            print("✅ Enhanced measurement extractor initialized")
+            print("Enhanced measurement extractor initialized")
         except ImportError as e:
-            print(f"⚠️ Enhanced measurement extractor not available: {e}")
+            print(f"WARNING: Enhanced measurement extractor not available: {e}")
             self.measurement_extractor = None
         
         if MEDIAPIPE_AVAILABLE:
@@ -56,10 +56,10 @@ class BodyReconstructor:
             from .parametric_body_model import create_license_free_body, ParametricHumanModel, EllipsoidBodyModel
             self.parametric_model = ParametricHumanModel()
             self.ellipsoid_model = EllipsoidBodyModel()
-            print("✅ License-free parametric body model loaded successfully")
+            print("License-free parametric body model loaded successfully")
             return True
         except Exception as e:
-            print(f"⚠️ Parametric body model failed to load: {e}")
+            print(f"WARNING: Parametric body model failed to load: {e}")
             self.parametric_model = None
             self.ellipsoid_model = None
             return None
@@ -70,7 +70,7 @@ class BodyReconstructor:
         results = self.mp_pose.process(rgb_image)
 
         if not results.pose_landmarks:
-            print("⚠️ No pose detected in image, using fallback measurements")
+            print("WARNING: No pose detected in image, using fallback measurements")
             return {
                 "landmarks": np.zeros(
                     (33, 4)
@@ -95,7 +95,7 @@ class BodyReconstructor:
         
         if self.measurement_extractor is not None and image is not None:
             try:
-                print("🎯 Using enhanced measurement extraction")
+                print("Using enhanced measurement extraction")
                 
                 reference_measurement = None
                 if reference_height_cm:
@@ -123,11 +123,11 @@ class BodyReconstructor:
                     "enhanced_measurements": self._measurements_to_dict(enhanced_measurements),  # Store full measurements
                 }
                 
-                print(f"✅ Enhanced measurements extracted with {len(enhanced_measurements.confidence_scores)} confidence scores")
+                print(f"Enhanced measurements extracted with {len(enhanced_measurements.confidence_scores)} confidence scores")
                 return measurements
                 
             except Exception as e:
-                print(f"⚠️ Enhanced measurement extraction failed: {e}, falling back to legacy method")
+                print(f"WARNING: Enhanced measurement extraction failed: {e}, falling back to legacy method")
         
         return self._legacy_estimate_body_measurements(landmarks, image_shape)
     
@@ -162,7 +162,7 @@ class BodyReconstructor:
         pixel_landmarks = landmarks.copy()
 
         if np.all(landmarks == 0):
-            print("⚠️ Using fallback measurements - no pose landmarks available")
+            print("WARNING: Using fallback measurements - no pose landmarks available")
             return {
                 "height_cm": 170.0,
                 "weight_kg": 70.0,
@@ -426,10 +426,10 @@ class BodyReconstructor:
             # Use license-free parametric body model
             try:
                 body_mesh = self.ellipsoid_model.create_simple_body(measurements)
-                print("✅ Created body mesh using license-free parametric model")
+                print("Created body mesh using license-free parametric model")
                 return body_mesh
             except Exception as e:
-                print(f"⚠️ Parametric model failed: {e}, using basic mesh")
+                print(f"WARNING: Parametric model failed: {e}, using basic mesh")
                 return self._create_enhanced_basic_mesh(measurements)
         else:
             return self._create_enhanced_basic_mesh(measurements)

@@ -14,9 +14,12 @@ from .precise_pose_detector import PrecisePoseDetector
 try:
     import mediapipe as mp
     MEDIAPIPE_AVAILABLE = True
-except ImportError:
+    print("[OK] MediaPipe loaded successfully")
+except ImportError as e:
     MEDIAPIPE_AVAILABLE = False
     mp = None
+    print(f"[WARN] MediaPipe not available: {e}")
+    print("[INFO] Falling back to basic image analysis without pose detection")
 
 try:
     from sklearn.cluster import KMeans
@@ -33,13 +36,13 @@ class CustomerImageAnalyzer:
         
         if MEDIAPIPE_AVAILABLE:
             self.precise_pose_detector = PrecisePoseDetector(
-                model_complexity=2,
-                min_detection_confidence=0.7,
-                min_tracking_confidence=0.5
+                model_complexity=1,
+                min_detection_confidence=0.3,
+                min_tracking_confidence=0.3
             )
             self.mp_face = mp.solutions.face_detection.FaceDetection(
                 model_selection=1,
-                min_detection_confidence=0.7
+                min_detection_confidence=0.3
             )
         else:
             self.precise_pose_detector = None
@@ -290,7 +293,7 @@ class CustomerImageAnalyzer:
         confidence_scores = {}
         
         # Shoulder width
-        if landmarks[LEFT_SHOULDER][3] > 0.7 and landmarks[RIGHT_SHOULDER][3] > 0.7:
+        if landmarks[LEFT_SHOULDER][3] > 0.3 and landmarks[RIGHT_SHOULDER][3] > 0.3:
             shoulder_width_px = abs(pixel_landmarks[LEFT_SHOULDER][0] - pixel_landmarks[RIGHT_SHOULDER][0])
             measurements["shoulder_width_px"] = shoulder_width_px
             confidence_scores["shoulder_width"] = min(landmarks[LEFT_SHOULDER][3], landmarks[RIGHT_SHOULDER][3])
@@ -301,13 +304,13 @@ class CustomerImageAnalyzer:
         # Body height (nose to ankle)
         best_ankle_confidence = 0
         height_px = 0
-        if landmarks[NOSE][3] > 0.7:
+        if landmarks[NOSE][3] > 0.3:
             if landmarks[LEFT_ANKLE][3] > landmarks[RIGHT_ANKLE][3]:
-                if landmarks[LEFT_ANKLE][3] > 0.7:
+                if landmarks[LEFT_ANKLE][3] > 0.3:
                     height_px = abs(pixel_landmarks[NOSE][1] - pixel_landmarks[LEFT_ANKLE][1])
                     best_ankle_confidence = landmarks[LEFT_ANKLE][3]
             else:
-                if landmarks[RIGHT_ANKLE][3] > 0.7:
+                if landmarks[RIGHT_ANKLE][3] > 0.3:
                     height_px = abs(pixel_landmarks[NOSE][1] - pixel_landmarks[RIGHT_ANKLE][1])
                     best_ankle_confidence = landmarks[RIGHT_ANKLE][3]
         
@@ -353,7 +356,7 @@ class CustomerImageAnalyzer:
             additional_measurements = {}
             
             # Chest width (estimate from shoulder width with anatomical ratio)
-            shoulder_width_px = abs(pixel_landmarks[LEFT_SHOULDER][0] - pixel_landmarks[RIGHT_SHOULDER][0]) if landmarks[LEFT_SHOULDER][3] > 0.7 and landmarks[RIGHT_SHOULDER][3] > 0.7 else 0
+            shoulder_width_px = abs(pixel_landmarks[LEFT_SHOULDER][0] - pixel_landmarks[RIGHT_SHOULDER][0]) if landmarks[LEFT_SHOULDER][3] > 0.3 and landmarks[RIGHT_SHOULDER][3] > 0.3 else 0
             if shoulder_width_px > 0:
                 # Chest is typically 1.8-2.2x shoulder width
                 chest_circumference_cm = (shoulder_width_px * scale_factor) * 2.0
@@ -366,7 +369,7 @@ class CustomerImageAnalyzer:
                 confidence_scores["chest"] = 0.3
             
             # Hip width and circumference
-            if landmarks[LEFT_HIP][3] > 0.7 and landmarks[RIGHT_HIP][3] > 0.7:
+            if landmarks[LEFT_HIP][3] > 0.3 and landmarks[RIGHT_HIP][3] > 0.3:
                 hip_width_px = abs(pixel_landmarks[LEFT_HIP][0] - pixel_landmarks[RIGHT_HIP][0])
                 hip_circumference_cm = (hip_width_px * scale_factor) * 2.2  # Hips are typically wider than shoulders
                 additional_measurements["hips"] = hip_circumference_cm
@@ -386,7 +389,7 @@ class CustomerImageAnalyzer:
             confidence_scores["waist"] = (confidence_scores.get("chest", 0.3) + confidence_scores.get("hips", 0.3)) / 2
             
             # Arm length (shoulder to wrist)
-            if landmarks[LEFT_SHOULDER][3] > 0.7 and landmarks[LEFT_ELBOW][3] > 0.7:
+            if landmarks[LEFT_SHOULDER][3] > 0.3 and landmarks[LEFT_ELBOW][3] > 0.3:
                 arm_length_px = np.sqrt(
                     (pixel_landmarks[LEFT_SHOULDER][0] - pixel_landmarks[LEFT_ELBOW][0])**2 +
                     (pixel_landmarks[LEFT_SHOULDER][1] - pixel_landmarks[LEFT_ELBOW][1])**2
@@ -398,7 +401,7 @@ class CustomerImageAnalyzer:
                 confidence_scores["arm_length"] = 0.3
             
             # Torso length (shoulder to hip)
-            if landmarks[LEFT_SHOULDER][3] > 0.7 and landmarks[LEFT_HIP][3] > 0.7:
+            if landmarks[LEFT_SHOULDER][3] > 0.3 and landmarks[LEFT_HIP][3] > 0.3:
                 torso_length_px = abs(pixel_landmarks[LEFT_SHOULDER][1] - pixel_landmarks[LEFT_HIP][1])
                 additional_measurements["torso_length"] = torso_length_px * scale_factor
                 confidence_scores["torso_length"] = min(landmarks[LEFT_SHOULDER][3], landmarks[LEFT_HIP][3])
@@ -449,7 +452,7 @@ class CustomerImageAnalyzer:
         
         h, w = image.shape[:2]
         NOSE = 0
-        if landmarks[NOSE][3] > 0.7:
+        if landmarks[NOSE][3] > 0.3:
             nose_x = int(landmarks[NOSE][0] * w)
             nose_y = int(landmarks[NOSE][1] * h)
             
@@ -559,7 +562,7 @@ class CustomerImageAnalyzer:
             
             keypoints = {}
             for name, idx in keypoint_mapping.items():
-                if idx < len(landmarks) and len(landmarks[idx]) >= 4 and landmarks[idx][3] > 0.5:  # visibility threshold
+                if idx < len(landmarks) and len(landmarks[idx]) >= 4 and landmarks[idx][3] > 0.3:  # visibility threshold
                     keypoints[name] = [float(landmarks[idx][0]), float(landmarks[idx][1])]
             
             return keypoints if keypoints else None

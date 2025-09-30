@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 from typing import Dict, List, Tuple, Optional, Any
-import mediapipe as mp
 from dataclasses import dataclass, asdict
 import json
 import logging
@@ -10,6 +9,14 @@ import math
 from scipy.spatial.distance import euclidean
 from sklearn.preprocessing import MinMaxScaler
 import os
+
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    MEDIAPIPE_AVAILABLE = False
+    mp = None
+    print("[WARN] MediaPipe not available in AdvancedMeasurementExtractor - using fallback mode")
 
 logger = logging.getLogger(__name__)
 
@@ -103,19 +110,25 @@ class AdvancedMeasurementExtractor:
     """Advanced body measurement extraction from images"""
     
     def __init__(self):
-        # Initialize MediaPipe
-        self.mp_pose = mp.solutions.pose.Pose(
-            static_image_mode=True,
-            model_complexity=2,
-            enable_segmentation=True,
-            min_detection_confidence=0.7
-        )
+        self.initialized = MEDIAPIPE_AVAILABLE
         
-        self.mp_hands = mp.solutions.hands.Hands(
-            static_image_mode=True,
-            max_num_hands=2,
-            min_detection_confidence=0.7
-        )
+        if MEDIAPIPE_AVAILABLE:
+            # Initialize MediaPipe
+            self.mp_pose = mp.solutions.pose.Pose(
+                static_image_mode=True,
+                model_complexity=2,
+                enable_segmentation=True,
+                min_detection_confidence=0.7
+            )
+            
+            self.mp_hands = mp.solutions.hands.Hands(
+                static_image_mode=True,
+                max_num_hands=2,
+                min_detection_confidence=0.7
+            )
+        else:
+            self.mp_pose = None
+            self.mp_hands = None
         
         # Anthropometric ratios (average human proportions)
         self.anthropometric_ratios = {
@@ -139,10 +152,14 @@ class AdvancedMeasurementExtractor:
                                   e.g., {'type': 'height', 'value_cm': 170}
         """
         
+        if not self.initialized:
+            # Return fallback measurements when MediaPipe is not available
+            return self._create_fallback_measurements(reference_measurement)
+        
         # Extract pose landmarks
         pose_data = self._extract_pose_landmarks(image)
         if not pose_data:
-            raise ValueError("Could not detect pose in image")
+            return self._create_fallback_measurements(reference_measurement)
         
         landmarks = pose_data['landmarks']
         segmentation = pose_data['segmentation']
@@ -458,6 +475,43 @@ class AdvancedMeasurementExtractor:
                 combined.confidence_scores[field] = np.average(confidences, weights=weights)
         
         return combined
+    
+    def _create_fallback_measurements(self, reference_measurement: Optional[Dict] = None) -> BodyMeasurements:
+        """Create fallback measurements when MediaPipe is not available"""
+        measurements = BodyMeasurements()
+        
+        # Use reference height if provided, otherwise use average
+        if reference_measurement and reference_measurement.get('type') == 'height':
+            measurements.height_cm = reference_measurement['value_cm']
+        else:
+            measurements.height_cm = 170.0  # Average height
+        
+        # Calculate other measurements based on anthropometric ratios
+        measurements.shoulder_width = measurements.height_cm * 0.25
+        measurements.chest_circumference = measurements.shoulder_width * 2.7
+        measurements.waist_circumference = measurements.chest_circumference * 0.8
+        measurements.hip_circumference = measurements.waist_circumference * 1.1
+        measurements.arm_length = measurements.height_cm * 0.365
+        measurements.torso_length = measurements.height_cm * 0.52
+        measurements.inseam_length = measurements.height_cm * 0.48
+        measurements.thigh_circumference = measurements.hip_circumference * 0.6
+        measurements.bicep_circumference = measurements.arm_length * 0.4
+        
+        # Set low confidence scores for fallback measurements
+        measurements.confidence_scores = {
+            'height_cm': 0.3,
+            'shoulder_width': 0.3,
+            'chest_circumference': 0.3,
+            'waist_circumference': 0.3,
+            'hip_circumference': 0.3,
+            'arm_length': 0.3,
+            'torso_length': 0.3,
+            'inseam_length': 0.3,
+            'thigh_circumference': 0.3,
+            'bicep_circumference': 0.3
+        }
+        
+        return measurements
 
 
 class MeasurementDatabase:

@@ -1,8 +1,15 @@
 import cv2
-import mediapipe as mp
 import numpy as np
 from typing import Tuple, Optional, List, Dict
 import logging
+
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    MEDIAPIPE_AVAILABLE = False
+    mp = None
+    print("[WARN] MediaPipe not available in PrecisePoseDetector - using fallback mode")
 
 class PrecisePoseDetector:
     """
@@ -24,20 +31,28 @@ class PrecisePoseDetector:
             min_tracking_confidence: Minimum confidence for landmark tracking
             smooth_landmarks: Enable landmark smoothing for video
         """
-        self.mp_pose = mp.solutions.pose
-        self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_drawing_styles = mp.solutions.drawing_styles
+        self.initialized = MEDIAPIPE_AVAILABLE
         
-        # Initialize pose detection with optimal settings for try-on
-        self.pose = self.mp_pose.Pose(
-            static_image_mode=False,  # Set to True for single images
-            model_complexity=model_complexity,
-            smooth_landmarks=smooth_landmarks,
-            enable_segmentation=True,  # Useful for background removal
-            smooth_segmentation=True,
-            min_detection_confidence=min_detection_confidence,
-            min_tracking_confidence=min_tracking_confidence
-        )
+        if MEDIAPIPE_AVAILABLE:
+            self.mp_pose = mp.solutions.pose
+            self.mp_drawing = mp.solutions.drawing_utils
+            self.mp_drawing_styles = mp.solutions.drawing_styles
+            
+            # Initialize pose detection with optimal settings for try-on
+            self.pose = self.mp_pose.Pose(
+                static_image_mode=False,  # Set to True for single images
+                model_complexity=model_complexity,
+                smooth_landmarks=smooth_landmarks,
+                enable_segmentation=True,  # Useful for background removal
+                smooth_segmentation=True,
+                min_detection_confidence=min_detection_confidence,
+                min_tracking_confidence=min_tracking_confidence
+            )
+        else:
+            self.mp_pose = None
+            self.mp_drawing = None
+            self.mp_drawing_styles = None
+            self.pose = None
         
         # Key landmarks for virtual try-on
         self.key_landmarks = {
@@ -64,6 +79,15 @@ class PrecisePoseDetector:
         Returns:
             Dictionary containing landmarks, confidence scores, and segmentation mask
         """
+        if not self.initialized:
+            return {
+                'landmarks': None,
+                'world_landmarks': None,
+                'segmentation_mask': None,
+                'confidence': 0.0,
+                'pose_present': False
+            }
+        
         # Convert BGR to RGB
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
@@ -207,7 +231,7 @@ class PrecisePoseDetector:
         
         return total_confidence / count if count > 0 else 0.0
     
-    def is_pose_suitable_for_tryon(self, landmarks, min_confidence: float = 0.7) -> Tuple[bool, str]:
+    def is_pose_suitable_for_tryon(self, landmarks, min_confidence: float = 0.3) -> Tuple[bool, str]:
         """
         Check if the detected pose is suitable for virtual try-on.
         
@@ -229,7 +253,7 @@ class PrecisePoseDetector:
         key_landmarks = [11, 12, 23, 24]  # Shoulders and hips
         for idx in key_landmarks:
             if idx < len(landmarks.landmark):
-                if landmarks.landmark[idx].visibility < 0.5:
+                if landmarks.landmark[idx].visibility < 0.3:
                     return False, f"Key landmark {idx} not visible"
             else:
                 return False, f"Missing landmark {idx}"
