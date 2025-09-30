@@ -776,12 +776,14 @@ const VirtualTryOn = ({ user, onLogout }) => {
       const formData = new FormData();
       formData.append('user_image_base64', userImageBase64);
       
-      // Ensure we're sending the correct product_id
-      const productId = selectedProduct?.id || '';
-      console.log('📦 Final product_id being sent:', productId);
-      formData.append('product_id', productId);
-      
-      formData.append('clothing_image_base64', clothingImageBase64 || '');
+      // Send either product_id OR garment_image_base64
+      if (selectedProduct?.id) {
+        console.log('📦 Using selected product:', selectedProduct.id);
+        formData.append('product_id', selectedProduct.id);
+      } else if (clothingImageBase64) {
+        console.log('📦 Using uploaded garment image');
+        formData.append('garment_image_base64', clothingImageBase64);
+      }
       formData.append('use_stored_measurements', String(useStoredMeasurements && (user.measurements || measurements)));
       
       if (userHeight && !isNaN(userHeight)) {

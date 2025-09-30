@@ -25,7 +25,7 @@ from fastapi import (APIRouter, Depends, FastAPI, File, Form, Header,
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from motor.motor_asyncio import AsyncIOMotorClient
-from openai import OpenAI
+
 from PIL import Image
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
