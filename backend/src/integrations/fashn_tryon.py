@@ -34,18 +34,15 @@ class FASHNTryOn:
             customer_b64 = self._image_to_base64(customer_image)
             garment_b64 = self._image_to_base64(garment_image)
             
-            # Prepare request payload
+            # Prepare request payload using current v1.5 format
             payload = {
-                "model_image": customer_b64,
-                "garment_image": garment_b64,
-                "category": product_info.get("category", "tops"),
-                "nsfw_filter": True,
-                "cover_feet": False,
-                "adjust_hands": True,
-                "restore_background": True,
-                "restore_clothes": False,
-                "guidance_scale": 2.0,
-                "timesteps": 50
+                "model_name": "fashn-inpaint-1.5",
+                "inputs": {
+                    "model_image": customer_b64,
+                    "garment_image": garment_b64,
+                    "category": self._map_category(product_info.get("category", "tops")),
+                    "moderation_level": "strict"
+                }
             }
             
             headers = {
@@ -65,9 +62,16 @@ class FASHNTryOn:
                     if response.status == 200:
                         result = await response.json()
                         
+                        # Handle new response format
+                        output_image = None
+                        if "outputs" in result and result["outputs"]:
+                            output_image = result["outputs"][0].get("image")
+                        elif "output" in result:
+                            output_image = result["output"].get("image")
+                        
                         return {
                             "success": True,
-                            "result_image_base64": result.get("output", {}).get("image"),
+                            "result_image_base64": output_image,
                             "service_used": "fashn",
                             "processing_time": result.get("processing_time", 0)
                         }
@@ -82,6 +86,20 @@ class FASHNTryOn:
                 "error": f"FASHN processing failed: {str(e)}",
                 "service_used": "fashn"
             }
+    
+    def _map_category(self, category: str) -> str:
+        """Map product category to FASHN API category"""
+        category_mapping = {
+            "shirts": "tops",
+            "mens_shirts": "tops",
+            "womens_shirts": "tops",
+            "pants": "bottoms",
+            "jeans": "bottoms",
+            "dresses": "dresses",
+            "jackets": "outerwear",
+            "blazers": "outerwear"
+        }
+        return category_mapping.get(category.lower(), "tops")
     
     def _image_to_base64(self, image: np.ndarray) -> str:
         """Convert numpy image to base64 string"""
