@@ -33,49 +33,12 @@ from starlette.middleware.cors import CORSMiddleware
 # Import Ultimate Pose Detection System
 from ultimate_pose_detection import UltimateEnhancedPipelineController, UserType
 
-# Import production components
+# Essential imports only
 try:
     import cv2
     CV2_AVAILABLE = True
 except ImportError:
     CV2_AVAILABLE = False
-    print("[WARN] OpenCV not available - some features disabled")
-
-try:
-    import fal_client
-    FAL_AVAILABLE = True
-except ImportError:
-    FAL_AVAILABLE = False
-    print("[WARN] fal_client not available - fallback to local processing")
-
-try:
-    import torch
-    import torchvision
-    from transformers import pipeline
-    from diffusers import StableDiffusionImg2ImgPipeline
-    AI_AVAILABLE = True
-    print("[OK] AI/ML libraries loaded successfully")
-except ImportError as e:
-    AI_AVAILABLE = False
-    print(f"[WARN] AI libraries not available: {e}")
-
-try:
-    import trimesh
-    import scipy
-    from skimage import measure
-    MESH_PROCESSING_AVAILABLE = True
-    print("[OK] 3D mesh processing libraries loaded")
-except ImportError as e:
-    MESH_PROCESSING_AVAILABLE = False
-    print(f"[WARN] 3D mesh processing not available: {e}")
-
-try:
-    import pybullet as p
-    PHYSICS_AVAILABLE = True
-    print("[OK] Physics simulation available")
-except ImportError:
-    PHYSICS_AVAILABLE = False
-    print("[WARN] Physics simulation not available")
 
 # Load environment variables
 ROOT_DIR = Path(__file__).parent
@@ -150,24 +113,6 @@ security = HTTPBearer()
 # Global variables
 client = None
 db = None
-ai_pipeline = None
-mesh_processor = None
-physics_engine = None
-
-# Initialize AI pipeline
-if AI_AVAILABLE:
-    try:
-        # Initialize Stable Diffusion pipeline for image enhancement
-        ai_pipeline = StableDiffusionImg2ImgPipeline.from_pretrained(
-            "runwayml/stable-diffusion-v1-5",
-            torch_dtype=torch.float32,
-            safety_checker=None,
-            requires_safety_checker=False
-        )
-        print("[OK] Stable Diffusion pipeline initialized")
-    except Exception as e:
-        print(f"[WARN] Could not initialize AI pipeline: {e}")
-        ai_pipeline = None
 
 # Data Models
 class User(BaseModel):
@@ -932,13 +877,12 @@ async def debug():
 # Include API routers
 app.include_router(api_router)
 
-# Add integration API for e-commerce sites
+# Integration API (optional)
 try:
     from src.api.integration_api import router as integration_router
     app.include_router(integration_router)
-    print("[OK] Integration API loaded successfully")
-except ImportError as e:
-    print(f"[WARN] Integration API not available: {e}")
+except ImportError:
+    pass
 
 # All test endpoints removed - FASHN API only
 

@@ -41,7 +41,7 @@ class FASHNTryOn:
                     "model_image": customer_b64,
                     "garment_image": garment_b64,
                     "category": self._map_category(product_info.get("category", "tops")),
-                    "moderation_level": "strict"
+                    "moderation_level": "conservative"
                 }
             }
             
