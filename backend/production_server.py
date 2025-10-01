@@ -213,652 +213,7 @@ class VirtualTryOnRequest(BaseModel):
     product_id: Optional[str] = None
     processing_mode: str = "full_3d"  # "full_3d", "ai_only", "hybrid"
 
-# Production Virtual Try-On Engine
-class ProductionVirtualTryOn:
-    def __init__(self):
-        self.mesh_processor = MeshProcessor() if MESH_PROCESSING_AVAILABLE else None
-        self.physics_engine = PhysicsEngine() if PHYSICS_AVAILABLE else None
-        self.ai_enhancer = AIEnhancer() if AI_AVAILABLE else None
-        
-    def _detect_garment_type(self, description: str) -> str:
-        """Detect garment type from description"""
-        desc_lower = description.lower()
-        if "polo" in desc_lower:
-            return "polo_shirt"
-        elif "t-shirt" in desc_lower or "tshirt" in desc_lower:
-            return "t-shirt"
-        elif "jean" in desc_lower:
-            return "jeans"
-        elif "chino" in desc_lower:
-            return "chinos"
-        elif "blazer" in desc_lower:
-            return "blazer"
-        elif "dress" in desc_lower:
-            return "dress"
-        else:
-            return "t-shirt"
-    
-    def _rgb_to_color_name(self, rgb_tuple):
-        """Convert RGB values to color names"""
-        r, g, b = rgb_tuple
-        if r > 200 and g > 200 and b > 200:
-            return "white"
-        elif r < 50 and g < 50 and b < 50:
-            return "black"
-        elif r > g and r > b:
-            return "red"
-        elif g > r and g > b:
-            return "green"
-        elif b > r and b > g:
-            return "blue"
-        elif r > 100 and g > 100 and b < 100:
-            return "yellow"
-        else:
-            return "colored"
-        
-    async def process_virtual_tryon(
-        self, 
-        user_image: bytes, 
-        garment_image: bytes, 
-        measurements: dict,
-        mode: str = "full_3d",
-        garment_description: str = "clothing item"
-    ) -> dict:
-        """
-        Production virtual try-on processing with multiple modes
-        """
-        try:
-            print(f"[PROCESS] Starting virtual try-on in {mode} mode")
-            
-            if mode == "full_3d" and self.mesh_processor and self.physics_engine:
-                return await self._process_full_3d(user_image, garment_image, measurements, garment_description)
-            elif mode == "ai_only" and self.ai_enhancer:
-                return await self._process_ai_only(user_image, garment_image)
-            elif mode == "hybrid":
-                return await self._process_hybrid(user_image, garment_image, measurements)
-            else:
-                return await self._process_fallback(user_image, garment_image)
-                
-        except Exception as e:
-            print(f"[ERROR] Virtual try-on processing failed: {e}")
-            return await self._process_fallback(user_image, garment_image)
-    
-    async def _process_full_3d(self, user_image: bytes, garment_image: bytes, measurements: dict, garment_description: str = "clothing item") -> dict:
-        """Full 3D pipeline with mesh processing and physics simulation"""
-        print("[3D] Processing full 3D virtual try-on")
-        
-        # Step 1: Extract body mesh from user image
-        body_mesh = self.mesh_processor.extract_body_mesh(user_image, measurements)
-        
-        # Step 2: Process garment mesh with type detection
-        garment_type = self._detect_garment_type(garment_description)
-        garment_mesh = self.mesh_processor.process_garment(garment_image, garment_type)
-        
-        # Step 3: Physics-based fitting
-        fitted_result = self.physics_engine.fit_garment_to_body(body_mesh, garment_mesh)
-        
-        # Step 4: Render final image with actual garment analysis
-        garment_analysis = garment_mesh.get("analysis", {})
-        rendered_image = self.mesh_processor.render_scene(fitted_result, garment_description, garment_analysis)
-        
-        print(f"[3D] Rendered with garment colors: {garment_analysis.get('colors', {}).get('primary', 'unknown')}")
-        
-        # Step 5: AI enhancement with garment-specific prompts
-        if self.ai_enhancer:
-            # Create enhanced prompt using actual garment analysis
-            if garment_analysis.get("analysis_success"):
-                color_name = self._rgb_to_color_name(garment_analysis["colors"]["primary"])
-                fabric_type = garment_analysis["fabric_type"]
-                enhanced_description = f"{color_name} {fabric_type} {garment_description}"
-            else:
-                enhanced_description = garment_description
-            enhanced_image = self.ai_enhancer.enhance_realism(rendered_image, user_image, enhanced_description)
-        else:
-            enhanced_image = rendered_image
-        
-        return {
-            "result_image": enhanced_image,
-            "processing_method": "Full 3D Pipeline",
-            "confidence": 0.95,
-            "features_used": ["3D_mesh", "physics_simulation", "ai_enhancement"]
-        }
-    
-    async def _process_ai_only(self, user_image: bytes, garment_image: bytes) -> dict:
-        """AI-only processing using Stable Diffusion"""
-        print("[AI] Processing AI-only virtual try-on")
-        
-        if not self.ai_enhancer:
-            return await self._process_fallback(user_image, garment_image)
-        
-        result_image = self.ai_enhancer.generate_tryon(user_image, garment_image)
-        
-        return {
-            "result_image": result_image,
-            "processing_method": "AI-Only Pipeline",
-            "confidence": 0.85,
-            "features_used": ["stable_diffusion", "image_generation"]
-        }
-    
-    async def _process_hybrid(self, user_image: bytes, garment_image: bytes, measurements: dict) -> dict:
-        """Hybrid processing combining 3D and AI"""
-        print("[HYBRID] Processing hybrid virtual try-on")
-        
-        # Use 3D for structure, AI for enhancement
-        if self.mesh_processor:
-            body_mesh = self.mesh_processor.extract_body_mesh(user_image, measurements)
-            base_result = self.mesh_processor.create_base_tryon(body_mesh, garment_image)
-        else:
-            base_result = user_image
-        
-        if self.ai_enhancer:
-            final_result = self.ai_enhancer.enhance_realism(base_result, user_image)
-        else:
-            final_result = base_result
-        
-        return {
-            "result_image": final_result,
-            "processing_method": "Hybrid 3D+AI Pipeline",
-            "confidence": 0.90,
-            "features_used": ["3d_structure", "ai_enhancement"]
-        }
-    
-    async def _process_fallback(self, user_image: bytes, garment_image: bytes) -> dict:
-        """Fallback processing when advanced features are unavailable"""
-        print("[FALLBACK] Using fallback processing")
-        
-        # Simple overlay processing
-        user_img = Image.open(io.BytesIO(user_image))
-        garment_img = Image.open(io.BytesIO(garment_image))
-        
-        # Resize garment to fit user image
-        garment_resized = garment_img.resize((user_img.width // 2, user_img.height // 2))
-        
-        # Create overlay
-        result_img = user_img.copy()
-        overlay_pos = (user_img.width // 4, user_img.height // 4)
-        result_img.paste(garment_resized, overlay_pos, garment_resized if garment_resized.mode == 'RGBA' else None)
-        
-        # Convert to bytes
-        with io.BytesIO() as output:
-            result_img.save(output, format='JPEG', quality=85)
-            result_bytes = output.getvalue()
-        
-        return {
-            "result_image": result_bytes,
-            "processing_method": "Fallback Overlay",
-            "confidence": 0.60,
-            "features_used": ["basic_overlay"]
-        }
-
-class MeshProcessor:
-    """3D mesh processing for body and garment reconstruction"""
-    
-    def __init__(self):
-        self.initialized = MESH_PROCESSING_AVAILABLE
-        
-    def extract_body_mesh(self, image_bytes: bytes, measurements: dict) -> dict:
-        """Extract 3D body mesh from 2D image"""
-        if not self.initialized:
-            raise Exception("Mesh processing not available")
-        
-        print("[MESH] Extracting body mesh from image")
-        
-        # Create parametric body model based on measurements
-        height = measurements.get('height', 170)
-        chest = measurements.get('chest', 90)
-        waist = measurements.get('waist', 75)
-        hips = measurements.get('hips', 95)
-        
-        # Generate basic body mesh using trimesh
-        body_mesh = trimesh.creation.cylinder(
-            radius=waist/200,  # Convert cm to meters and scale
-            height=height/100,
-            sections=16
-        )
-        
-        return {
-            "mesh": body_mesh,
-            "measurements": measurements,
-            "vertices": len(body_mesh.vertices),
-            "faces": len(body_mesh.faces)
-        }
-    
-    def process_garment(self, garment_image: bytes, garment_type: str = "t-shirt") -> dict:
-        """Process garment image into enhanced 3D mesh with actual visual analysis"""
-        print("[MESH] Processing garment into enhanced 3D mesh")
-        
-        # Analyze actual garment image
-        from src.core.garment_analyzer import GarmentImageAnalyzer
-        analyzer = GarmentImageAnalyzer()
-        analysis = analyzer.analyze_garment_image(garment_image)
-        
-        print(f"[MESH] Garment analysis: {analysis['colors']['primary']} {analysis['fabric_type']} {analysis['patterns']['type']}")
-        
-        # Use enhanced 3D garment processor
-        from src.core.enhanced_3d_garment_processor import Enhanced3DGarmentProcessor
-        from src.core.enhanced_pipeline_controller import EnhancedPipelineController
-        enhanced_processor = Enhanced3DGarmentProcessor()
-        
-        # Create enhanced mesh using actual visual analysis
-        enhanced_mesh_data = enhanced_processor.create_enhanced_garment_mesh(analysis, garment_type)
-        
-        # Apply physics properties for realistic simulation
-        enhanced_mesh_data = enhanced_processor.apply_physics_properties(enhanced_mesh_data)
-        
-        print(f"[MESH] Enhanced mesh created with {enhanced_mesh_data.get('vertices', 0)} vertices")
-        print(f"[MESH] Material properties: {enhanced_mesh_data['material_properties']['fabric_type']} with roughness {enhanced_mesh_data['material_properties']['roughness']:.2f}")
-        
-        return {
-            "mesh": enhanced_mesh_data.get("mesh"),
-            "analysis": analysis,
-            "enhanced_data": enhanced_mesh_data,
-            "material_properties": enhanced_mesh_data["material_properties"],
-            "texture_data": enhanced_mesh_data["texture_data"],
-            "physics_properties": enhanced_mesh_data.get("physics_properties", {}),
-            "type": garment_type,
-            "vertices": enhanced_mesh_data.get("vertices", 0),
-            "faces": enhanced_mesh_data.get("faces", 0)
-        }
-    
-    def render_scene(self, fitted_result: dict, garment_description: str = "white t-shirt", garment_analysis: dict = None) -> bytes:
-        """Render the final 3D scene to 2D image"""
-        print("[MESH] Rendering 3D scene")
-        
-        # Get the fitted garment mesh
-        fitted_garment = fitted_result.get("fitted_mesh")
-        
-        # Create 3D scene with body and garment
-        img = Image.new('RGB', (512, 512), color=(240, 240, 240))  # Light background
-        
-        from PIL import ImageDraw
-        draw = ImageDraw.Draw(img)
-        
-        # Draw body silhouette (simplified)
-        body_center = (256, 300)
-        body_width = 120
-        body_height = 200
-        
-        # Draw body outline
-        draw.ellipse([
-            body_center[0] - body_width//2, body_center[1] - body_height//2,
-            body_center[0] + body_width//2, body_center[1] + body_height//2
-        ], fill=(220, 200, 180), outline=(200, 180, 160))
-        
-        # Use enhanced material properties and actual garment analysis
-        if garment_analysis and garment_analysis.get("analysis_success"):
-            # Get enhanced material properties
-            enhanced_data = garment_analysis.get("enhanced_data", {})
-            material_props = enhanced_data.get("material_properties", {})
-            texture_data = enhanced_data.get("texture_data", {})
-            
-            # Use actual analyzed colors and properties
-            base_color = material_props.get("base_color", [0.5, 0.5, 0.5])
-            color = tuple(int(c * 255) for c in base_color[:3])
-            fabric_type = material_props.get("fabric_type", "cotton")
-            pattern_type = texture_data.get("pattern_type", "solid")
-            roughness = material_props.get("roughness", 0.4)
-            
-            print(f"[MESH] Using enhanced material properties: {fabric_type} with roughness {roughness:.2f}")
-            print(f"[MESH] Pattern: {pattern_type}, Color: {color}")
-        else:
-            # Fallback to text parsing
-            desc_lower = garment_description.lower()
-            if "white" in desc_lower:
-                color = (255, 255, 255)
-            elif "navy" in desc_lower or "dark blue" in desc_lower:
-                color = (25, 25, 112)
-            elif "black" in desc_lower:
-                color = (40, 40, 40)
-            elif "blue" in desc_lower:
-                color = (70, 130, 180)
-            elif "khaki" in desc_lower:
-                color = (195, 176, 145)
-            else:
-                color = (255, 255, 255)
-            fabric_type = "cotton"
-            pattern_type = "solid"
-            print(f"[MESH] Using text-based fallback: {color}")
-        
-        # Draw garment based on type
-        if "shirt" in desc_lower or "polo" in desc_lower:
-            # Draw shirt/polo
-            garment_top = body_center[1] - 80
-            garment_bottom = body_center[1] + 40
-            garment_left = body_center[0] - 60
-            garment_right = body_center[0] + 60
-            
-            draw.rectangle([
-                garment_left, garment_top, garment_right, garment_bottom
-            ], fill=color, outline=tuple(max(0, c-20) for c in color))
-            
-            # Add sleeves for shirts
-            sleeve_width = 25
-            sleeve_height = 50
-            draw.rectangle([
-                garment_left - sleeve_width, garment_top,
-                garment_left, garment_top + sleeve_height
-            ], fill=color, outline=tuple(max(0, c-20) for c in color))
-            draw.rectangle([
-                garment_right, garment_top,
-                garment_right + sleeve_width, garment_top + sleeve_height
-            ], fill=color, outline=tuple(max(0, c-20) for c in color))
-            
-        elif "jean" in desc_lower or "pant" in desc_lower or "chino" in desc_lower:
-            # Draw pants
-            pants_top = body_center[1] - 20
-            pants_bottom = body_center[1] + 120
-            pants_left = body_center[0] - 40
-            pants_right = body_center[0] + 40
-            
-            draw.rectangle([
-                pants_left, pants_top, pants_right, pants_bottom
-            ], fill=color, outline=tuple(max(0, c-20) for c in color))
-            
-        print(f"[MESH] Enhanced 3D scene rendered with {garment_description}")
-        print(f"[MESH] Material: {fabric_type}, Pattern: {pattern_type}, Color: {color}")
-        if material_props:
-            print(f"[MESH] Properties: roughness={material_props.get('roughness', 0.4):.2f}, sheen={material_props.get('sheen', 0.2):.2f}")
-        
-        # Apply post-processing effects based on material properties
-        if material_props and material_props.get("sheen", 0) > 0.5:
-            # Add subtle shine effect for shiny materials
-            from PIL import ImageEnhance
-            enhancer = ImageEnhance.Brightness(img)
-            img = enhancer.enhance(1.05)
-        
-        with io.BytesIO() as output:
-            img.save(output, format='JPEG')
-            return output.getvalue()
-    
-    def _render_shirt(self, draw, body_center, color, texture_data, desc_lower):
-        """Enhanced shirt rendering with material properties"""
-        garment_top = body_center[1] - 80
-        garment_bottom = body_center[1] + 40
-        garment_left = body_center[0] - 60
-        garment_right = body_center[0] + 60
-        
-        # Apply pattern-based rendering
-        pattern_type = texture_data.get("pattern_type", "solid")
-        if pattern_type == "vertical_stripes":
-            stripe_width = 8
-            for x in range(garment_left, garment_right, stripe_width * 2):
-                draw.rectangle([x, garment_top, x + stripe_width, garment_bottom], fill=color)
-        else:
-            draw.rectangle([garment_left, garment_top, garment_right, garment_bottom], fill=color, outline=tuple(max(0, c-20) for c in color))
-        
-        # Add sleeves
-        sleeve_width = 25
-        sleeve_height = 50
-        draw.rectangle([garment_left - sleeve_width, garment_top, garment_left, garment_top + sleeve_height], fill=color)
-        draw.rectangle([garment_right, garment_top, garment_right + sleeve_width, garment_top + sleeve_height], fill=color)
-    
-    def _render_pants(self, draw, body_center, color, texture_data):
-        """Enhanced pants rendering"""
-        pants_top = body_center[1] - 20
-        pants_bottom = body_center[1] + 120
-        pants_left = body_center[0] - 40
-        pants_right = body_center[0] + 40
-        
-        draw.rectangle([pants_left, pants_top, pants_right, pants_bottom], fill=color, outline=tuple(max(0, c-20) for c in color))
-    
-    def _render_dress(self, draw, body_center, color, texture_data):
-        """Enhanced dress rendering"""
-        dress_top = body_center[1] - 80
-        dress_bottom = body_center[1] + 100
-        dress_left = body_center[0] - 50
-        dress_right = body_center[0] + 50
-        
-        # Flared bottom
-        draw.polygon([(dress_left, dress_top), (dress_right, dress_top), (dress_right + 20, dress_bottom), (dress_left - 20, dress_bottom)], fill=color)
-    
-    def _render_blazer(self, draw, body_center, color, texture_data):
-        """Enhanced blazer rendering"""
-        blazer_top = body_center[1] - 90
-        blazer_bottom = body_center[1] + 30
-        blazer_left = body_center[0] - 65
-        blazer_right = body_center[0] + 65
-        
-        draw.rectangle([blazer_left, blazer_top, blazer_right, blazer_bottom], fill=color, outline=tuple(max(0, c-30) for c in color))
-        # Add lapels
-        draw.polygon([(blazer_left + 10, blazer_top), (blazer_left + 30, blazer_top + 20), (blazer_left + 10, blazer_top + 40)], fill=tuple(max(0, c-10) for c in color))
-    
-    def create_base_tryon(self, body_mesh: dict, garment_image: bytes) -> bytes:
-        """Create base try-on result"""
-        print("[MESH] Creating base try-on result")
-        
-        # Simplified base result
-        img = Image.new('RGB', (512, 512), color='lightgray')
-        
-        with io.BytesIO() as output:
-            img.save(output, format='JPEG')
-            return output.getvalue()
-
-class PhysicsEngine:
-    """Physics simulation for realistic garment fitting"""
-    
-    def __init__(self):
-        self.initialized = PHYSICS_AVAILABLE
-        if self.initialized:
-            # Initialize PyBullet in DIRECT mode (no GUI)
-            self.physics_client = p.connect(p.DIRECT)
-            p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
-    
-    def fit_garment_to_body(self, body_mesh: dict, garment_mesh: dict) -> dict:
-        """Simulate physics-based garment fitting"""
-        if not self.initialized:
-            raise Exception("Physics engine not available")
-        
-        print("[PHYSICS] Simulating garment fitting")
-        
-        # Simplified physics simulation
-        # In production, this would involve cloth simulation, collision detection, etc.
-        
-        return {
-            "fitted_mesh": garment_mesh["mesh"],
-            "simulation_steps": 100,
-            "collision_points": 0,
-            "fitting_quality": 0.92
-        }
-    
-    def __del__(self):
-        if hasattr(self, 'physics_client') and self.physics_client is not None:
-            try:
-                p.disconnect(physicsClientId=self.physics_client)
-            except:
-                pass  # Ignore errors during cleanup
-
-class AIEnhancer:
-    """AI-based enhancement and generation"""
-    
-    def __init__(self):
-        self.initialized = AI_AVAILABLE
-        self.pipeline = ai_pipeline
-    
-    def enhance_realism(self, rendered_image: bytes, reference_image: bytes, garment_description: str = "clothing item") -> bytes:
-        """Enhance rendered image with AI for photorealism"""
-        if not self.initialized or not self.pipeline:
-            print("[AI] Pipeline not available, creating basic overlay")
-            return self._create_basic_garment_overlay(reference_image, garment_description)
-        
-        print(f"[AI] Enhancing image realism with {garment_description}")
-        print(f"[AI] Using 3D-guided enhancement with strength: 0.3")
-        print(f"[AI] Using strength: 0.3, guidance: 7.5, steps: 20 (pose-preserving)")
-        
-        try:
-            # Use the user's original image as base instead of rendered 3D scene
-            reference_pil = Image.open(io.BytesIO(reference_image))
-            
-            # Resize to standard size
-            reference_pil = reference_pil.resize((512, 512))
-            
-            # Create specific prompt for the garment
-            garment_type, color = self._parse_garment_description(garment_description)
-            prompt = f"person clearly wearing a {color} {garment_type}, visible clothing, detailed {color} {garment_type} on torso, photorealistic, high quality, professional photography, well-fitted {garment_type}"
-            negative_prompt = "naked, nude, shirtless, bare chest, no clothing, invisible clothing"
-            
-            print(f"[AI] Using prompt: {prompt}")
-            
-            enhanced = self.pipeline(
-                prompt=prompt,
-                image=reference_pil,
-                strength=0.7,  # Increased strength to force garment application
-                guidance_scale=12.0,  # Higher guidance for better prompt following
-                num_inference_steps=30  # More steps for better quality
-            ).images[0]
-            
-            print("[AI] 3D-guided enhancement completed")
-            
-            # Convert back to bytes
-            with io.BytesIO() as output:
-                enhanced.save(output, format='JPEG', quality=90)
-                return output.getvalue()
-                
-        except Exception as e:
-            print(f"[AI] Enhancement failed: {e}")
-            print(f"[AI] Using fallback garment overlay")
-            return self._create_basic_garment_overlay(reference_image, garment_description)
-    
-    def _parse_garment_description(self, description: str) -> tuple:
-        """Parse garment description to extract type and color"""
-        description_lower = description.lower()
-        
-        # Extract garment type
-        if "polo" in description_lower:
-            garment_type = "polo shirt"
-        elif "t-shirt" in description_lower or "tshirt" in description_lower:
-            garment_type = "t-shirt"
-        elif "shirt" in description_lower:
-            garment_type = "shirt"
-        elif "jean" in description_lower:
-            garment_type = "jeans"
-        elif "chino" in description_lower:
-            garment_type = "chino pants"
-        elif "blazer" in description_lower:
-            garment_type = "blazer"
-        elif "dress" in description_lower:
-            garment_type = "dress"
-        else:
-            garment_type = "t-shirt"
-        
-        # Extract color
-        if "white" in description_lower:
-            color = "white"
-        elif "navy" in description_lower:
-            color = "navy blue"
-        elif "black" in description_lower:
-            color = "black"
-        elif "blue" in description_lower:
-            color = "blue"
-        elif "khaki" in description_lower:
-            color = "khaki"
-        else:
-            color = "white"
-        
-        return garment_type, color
-    
-    def _create_basic_garment_overlay(self, reference_image: bytes, garment_description: str) -> bytes:
-        """Create basic garment overlay when AI is not available"""
-        try:
-            print(f"[AI] Creating basic garment overlay for {garment_description}")
-            
-            from PIL import ImageDraw, ImageEnhance
-            
-            # Load reference image
-            reference_pil = Image.open(io.BytesIO(reference_image))
-            if reference_pil.mode != 'RGB':
-                reference_pil = reference_pil.convert('RGB')
-            
-            # Create overlay
-            width, height = reference_pil.size
-            overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(overlay)
-            
-            # Parse garment for color
-            _, color = self._parse_garment_description(garment_description)
-            
-            # Define color RGB values
-            color_map = {
-                "white": (255, 255, 255),
-                "navy blue": (25, 25, 112),
-                "black": (40, 40, 40),
-                "blue": (70, 130, 180),
-                "khaki": (195, 176, 145)
-            }
-            color_rgb = color_map.get(color, (255, 255, 255))
-            
-            # Define garment area
-            torso_top = int(height * 0.25)
-            torso_bottom = int(height * 0.65)
-            torso_left = int(width * 0.3)
-            torso_right = int(width * 0.7)
-            
-            # Draw garment
-            draw.rectangle(
-                [torso_left, torso_top, torso_right, torso_bottom],
-                fill=color_rgb + (180,)
-            )
-            
-            # Add sleeves for shirts
-            if "shirt" in garment_description.lower():
-                sleeve_width = int(width * 0.12)
-                sleeve_height = int((torso_bottom - torso_top) * 0.6)
-                draw.rectangle(
-                    [torso_left - sleeve_width, torso_top, torso_left, torso_top + sleeve_height],
-                    fill=color_rgb + (160,)
-                )
-                draw.rectangle(
-                    [torso_right, torso_top, torso_right + sleeve_width, torso_top + sleeve_height],
-                    fill=color_rgb + (160,)
-                )
-            
-            # Blend overlay with original
-            result = Image.alpha_composite(reference_pil.convert('RGBA'), overlay).convert('RGB')
-            
-            # Enhance contrast slightly
-            enhancer = ImageEnhance.Contrast(result)
-            result = enhancer.enhance(1.05)
-            
-            print(f"[AI] Basic garment overlay completed for {color} {garment_description}")
-            
-            # Convert to bytes
-            with io.BytesIO() as output:
-                result.save(output, format='JPEG', quality=90)
-                return output.getvalue()
-                
-        except Exception as e:
-            print(f"[AI] Basic overlay failed: {e}")
-            return reference_image
-    
-    def generate_tryon(self, user_image: bytes, garment_image: bytes, garment_description: str = "white t-shirt") -> bytes:
-        """Generate virtual try-on using AI"""
-        if not self.initialized or not self.pipeline:
-            raise Exception("AI pipeline not available")
-        
-        print("[AI] Generating AI-based virtual try-on")
-        
-        try:
-            user_pil = Image.open(io.BytesIO(user_image)).resize((512, 512))
-            
-            prompt = f"person wearing {garment_description}, photorealistic, high quality, detailed clothing, natural lighting"
-            
-            result = self.pipeline(
-                prompt=prompt,
-                image=user_pil,
-                strength=0.7,
-                guidance_scale=8.0,
-                num_inference_steps=40
-            ).images[0]
-            
-            with io.BytesIO() as output:
-                result.save(output, format='JPEG', quality=90)
-                return output.getvalue()
-                
-        except Exception as e:
-            print(f"[AI] Generation failed: {e}")
-            raise
-
-# Initialize production engine
-production_engine = ProductionVirtualTryOn()
+# FASHN API Integration Only - No Local 3D/AI Pipeline
 
 # User Type Detection Functions
 def get_user_type_from_context(request: Request, current_user: User) -> UserType:
@@ -1085,104 +440,35 @@ async def virtual_tryon(
                 elif "chino" in name:
                     garment_type = "chinos"
         
-        # Use Ultimate Quality System for virtual try-on
-        if processing_mode == "enhanced_pipeline" or processing_mode == "fashn":
-            try:
-                # Initialize Ultimate Pipeline with detected user type
-                controller = UltimateEnhancedPipelineController(user_type=user_type)
+        # FASHN API Only - Quality Gates + Direct API Call
+        try:
+            # Initialize Ultimate Pipeline with detected user type for quality assessment
+            controller = UltimateEnhancedPipelineController(user_type=user_type)
+            
+            # Save user image to temp file for processing
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+                user_image_bytes = base64.b64decode(user_image_base64)
+                tmp_file.write(user_image_bytes)
+                tmp_file_path = tmp_file.name
+            
+            # Quality assessment first
+            quality_result = controller.process_customer_image(tmp_file_path)
+            
+            print(f"[API] Quality result: {quality_result['quality_level']} (confidence: {quality_result['confidence']:.1%})")
+            print(f"[API] Can proceed: {quality_result['can_proceed']}")
+            
+            if quality_result['can_proceed']:
+                # Only call FASHN API if quality approved
+                try:
+                    from src.integrations.fashn_tryon import FASHNTryOn
+                    fashn_service = FASHNTryOn()
+                    print(f"[API] FASHN service initialized successfully")
+                except ImportError as e:
+                    print(f"[ERROR] Failed to import FASHN: {e}")
+                    raise Exception(f"FASHN integration not available: {e}")
                 
-                # Save user image to temp file for processing
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
-                    user_image_bytes = base64.b64decode(user_image_base64)
-                    tmp_file.write(user_image_bytes)
-                    tmp_file_path = tmp_file.name
-                
-                # Quality assessment first
-                quality_result = controller.process_customer_image(tmp_file_path)
-                
-                print(f"[API] Quality result: {quality_result['quality_level']} (confidence: {quality_result['confidence']:.1%})")
-                print(f"[API] Can proceed: {quality_result['can_proceed']}")
-                
-                if quality_result['can_proceed']:
-                    # Only call FASHN API if quality approved
-                    try:
-                        from src.integrations.fashn_tryon import FASHNTryOn
-                        fashn_service = FASHNTryOn()
-                        print(f"[API] FASHN service initialized successfully")
-                    except ImportError as e:
-                        print(f"[ERROR] Failed to import FASHN: {e}")
-                        raise Exception(f"FASHN integration not available: {e}")
-                    
-                    # Prepare product info
-                    product_info = {}
-                    if product_id:
-                        product = await db.products.find_one({"id": product_id})
-                        if product:
-                            product_info = {
-                                "name": product.get('name', ''),
-                                "description": product.get('description', ''),
-                                "category": product.get('category', ''),
-                                "product_id": product_id
-                            }
-                            print(f"[API] Using FASHN API for product: {product_info['name']}")
-                    
-                    # Convert PIL images to numpy arrays
-                    user_image_array = np.array(user_image)
-                    garment_image_array = np.array(garment_image)
-                    
-                    # Use FASHN API directly
-                    result = await fashn_service.virtual_tryon(
-                        customer_image=user_image_array,
-                        garment_image=garment_image_array,
-                        customer_analysis={},
-                        garment_analysis={},
-                        product_info=product_info
-                    )
-                    
-                    if result["success"]:
-                        result_base64 = result["result_image_base64"]
-                        
-                        # Update user's successful try-on history
-                        await update_user_tryon_history(current_user, quality_result, True)
-                        
-                        return {
-                            "result_image_base64": result_base64,
-                            "processing_method": "Ultimate Quality System + FASHN API",
-                            "user_type": user_type.value,
-                            "quality_level": quality_result['quality_level'],
-                            "confidence": quality_result['confidence'],
-                            "features_used": ["ultimate_quality_gates", "fashn_api"],
-                            "processing_mode": "fashn",
-                            "service_used": result.get("service_used", "fashn"),
-                            "processing_time": result.get("processing_time", 0),
-                            "timestamp": datetime.utcnow().isoformat()
-                        }
-                    else:
-                        print(f"[API] FASHN API failed: {result.get('error')}")
-                        raise Exception(f"FASHN API failed: {result.get('error')}")
-                else:
-                    # Quality check failed - provide feedback
-                    await update_user_tryon_history(current_user, quality_result, False)
-                    
-                    return {
-                        "error": quality_result['message'],
-                        "user_type": user_type.value,
-                        "quality_level": quality_result['quality_level'],
-                        "confidence": quality_result['confidence'],
-                        "recommendations": quality_result['recommendations'],
-                        "offer_retake": quality_result['offer_retake'],
-                        "processing_method": "Ultimate Quality System",
-                        "api_called": False,
-                        "reason": "Quality check failed",
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                    
-            except Exception as e:
-                print(f"[API] FASHN processing failed: {str(e)}, falling back to local")
-                # Use Ultimate Pose Detection system for fallback too
-                controller = UltimateEnhancedPipelineController(user_type=user_type)
-                
+                # Prepare product info
                 product_info = {}
                 if product_id:
                     product = await db.products.find_one({"id": product_id})
@@ -1193,159 +479,62 @@ async def virtual_tryon(
                             "category": product.get('category', ''),
                             "product_id": product_id
                         }
+                        print(f"[API] Using FASHN API for product: {product_info['name']}")
                 
-                # Save user image to temp file for Ultimate system processing
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
-                    user_image_bytes = base64.b64decode(user_image_base64)
-                    tmp_file.write(user_image_bytes)
-                    tmp_file_path = tmp_file.name
+                # Convert PIL images to numpy arrays
+                user_image_array = np.array(user_image)
+                garment_image_array = np.array(garment_image)
                 
-                # Use Ultimate system for quality assessment
-                quality_result = controller.process_customer_image(tmp_file_path)
+                # Use FASHN API directly
+                result = await fashn_service.virtual_tryon(
+                    customer_image=user_image_array,
+                    garment_image=garment_image_array,
+                    customer_analysis={},
+                    garment_analysis={},
+                    product_info=product_info
+                )
                 
-                if quality_result['can_proceed']:
-                    # If quality approved, use enhanced pipeline controller for actual try-on
-                    from src.core.enhanced_pipeline_controller import EnhancedPipelineController
-                    enhanced_controller = EnhancedPipelineController()
+                if result["success"]:
+                    result_base64 = result["result_image_base64"]
                     
-                    result = await enhanced_controller.process_virtual_tryon(
-                        customer_image=user_image,
-                        garment_image=garment_image,
-                        garment_type=garment_type,
-                        product_info=product_info
-                    )
-                else:
-                    # Quality check failed
-                    await update_user_tryon_history(current_user, quality_result, False)
+                    # Update user's successful try-on history
+                    await update_user_tryon_history(current_user, quality_result, True)
                     
                     return {
-                        "error": quality_result['message'],
+                        "result_image_base64": result_base64,
+                        "processing_method": "Ultimate Quality System + FASHN API",
                         "user_type": user_type.value,
                         "quality_level": quality_result['quality_level'],
                         "confidence": quality_result['confidence'],
-                        "recommendations": quality_result['recommendations'],
-                        "offer_retake": quality_result['offer_retake'],
-                        "processing_method": "Ultimate Quality System (Fallback)",
-                        "api_called": False,
-                        "reason": "Quality check failed in fallback",
+                        "features_used": ["ultimate_quality_gates", "fashn_api"],
+                        "processing_mode": "fashn",
+                        "service_used": result.get("service_used", "fashn"),
+                        "processing_time": result.get("processing_time", 0),
                         "timestamp": datetime.utcnow().isoformat()
                     }
-            
-            if result["success"]:
-                # Convert PIL image to base64
-                with io.BytesIO() as output:
-                    result["result_image"].save(output, format='JPEG', quality=90)
-                    result_base64 = base64.b64encode(output.getvalue()).decode("utf-8")
-                
-                # Clean data for JSON serialization
-                def clean_for_json(obj):
-                    if isinstance(obj, dict):
-                        return {k: clean_for_json(v) for k, v in obj.items()}
-                    elif isinstance(obj, (list, tuple)):
-                        return [clean_for_json(item) for item in obj]
-                    elif isinstance(obj, np.ndarray):
-                        return obj.tolist()
-                    elif isinstance(obj, (np.integer, np.int64, np.int32)):
-                        return int(obj)
-                    elif isinstance(obj, (np.floating, np.float64, np.float32)):
-                        return float(obj)
-                    elif hasattr(obj, '__dict__'):
-                        return str(obj)
-                    else:
-                        return obj
+                else:
+                    print(f"[API] FASHN API failed: {result.get('error')}")
+                    raise Exception(f"FASHN API failed: {result.get('error')}")
+            else:
+                # Quality check failed - provide feedback
+                await update_user_tryon_history(current_user, quality_result, False)
                 
                 return {
-                    "result_image_base64": result_base64,
-                    "processing_method": "Enhanced Pipeline with Dual Analysis",
-                    "confidence": 0.95,
-                    "features_used": ["customer_analysis", "garment_analysis", "fitting_algorithm", "3d_rendering"],
-                    "processing_mode": processing_mode,
-                    "customer_analysis": clean_for_json(result["customer_analysis"]),
-                    "garment_analysis": clean_for_json(result["garment_analysis"]),
-                    "fitting_data": clean_for_json(result["fitting_data"]),
+                    "error": quality_result['message'],
+                    "user_type": user_type.value,
+                    "quality_level": quality_result['quality_level'],
+                    "confidence": quality_result['confidence'],
+                    "recommendations": quality_result['recommendations'],
+                    "offer_retake": quality_result['offer_retake'],
+                    "processing_method": "Ultimate Quality System",
+                    "api_called": False,
+                    "reason": "Quality check failed",
                     "timestamp": datetime.utcnow().isoformat()
                 }
-            else:
-                raise HTTPException(status_code=500, detail=result["error"])
-        
-        # Check if measurements need re-extraction based on image hash
-        current_image_hash = hash(user_image_base64[:100])
-        stored_image_hash = current_user.measurements.get("image_hash") if current_user.measurements else None
-        
-        if current_user.measurements and stored_image_hash == current_image_hash:
-            print(f"[TRYON] Using stored measurements (same image)")
-            measurements = current_user.measurements
-        else:
-            print(f"[TRYON] New/different image detected - re-extracting measurements")
-            # Re-extract measurements using Ultimate Pose Detection system
-            controller = UltimateEnhancedPipelineController(user_type=user_type)
-            
-            # Save user image to temp file for processing
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
-                tmp_file.write(user_image_bytes)
-                tmp_file_path = tmp_file.name
-            
-            # Use Ultimate system for quality assessment and measurement extraction
-            analysis = controller.process_customer_image(tmp_file_path)
-            
-            # Update measurements with new image
-            # Handle Ultimate system response format
-            if analysis.get('can_proceed', False):
-                measurement_profile = {
-                    "height_cm": 170.0,
-                    "shoulder_width_cm": 45.0,
-                    "chest_cm": 90.0,
-                    "waist_cm": 75.0,
-                    "hips_cm": 95.0,
-                    "extracted_at": datetime.utcnow(),
-                    "method": "ultimate_quality_system",
-                    "confidence_score": analysis.get("confidence", 0.8),
-                    "quality_level": analysis.get("quality_level", "acceptable"),
-                    "image_hash": current_image_hash
-                }
-            else:
-                measurement_profile = {
-                    "height_cm": 170.0,
-                    "shoulder_width_cm": 45.0,
-                    "chest_cm": 90.0,
-                    "waist_cm": 75.0,
-                    "hips_cm": 95.0,
-                    "extracted_at": datetime.utcnow(),
-                    "method": "fallback_measurements",
-                    "confidence_score": 0.3,
-                    "quality_level": "failed",
-                    "image_hash": current_image_hash
-                }
-            
-            await db.users.update_one(
-                {"id": current_user.id}, 
-                {"$set": {"measurements": measurement_profile}}
-            )
-            measurements = measurement_profile
-            print(f"[TRYON] Re-extracted and updated measurements for new image")
-        
-        garment_description = "clothing item"
-        if product_id:
-            product = await db.products.find_one({"id": product_id})
-            if product:
-                garment_description = product.get('name', 'clothing item').lower()
-        
-        result = await production_engine.process_virtual_tryon(
-            user_image_bytes, garment_image_bytes, measurements, processing_mode, garment_description
-        )
-        
-        result_base64 = base64.b64encode(result["result_image"]).decode("utf-8")
-        
-        return {
-            "result_image_base64": result_base64,
-            "processing_method": result["processing_method"],
-            "confidence": result["confidence"],
-            "features_used": result["features_used"],
-            "processing_mode": processing_mode,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+                
+        except Exception as e:
+            print(f"[API] FASHN processing failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Virtual try-on failed: {str(e)}")
         
     except Exception as e:
         print(f"[ERROR] Virtual try-on failed: {e}")
@@ -1683,24 +872,23 @@ async def extract_measurements(
 async def root():
     return {
         "service": "VirtualFit Production API",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "status": "operational",
+        "architecture": "FASHN API Integration Only",
         "features": {
-            "3d_processing": MESH_PROCESSING_AVAILABLE,
-            "physics_simulation": PHYSICS_AVAILABLE,
-            "ai_enhancement": AI_AVAILABLE,
-            "computer_vision": CV2_AVAILABLE,
-            "fal_integration": FAL_AVAILABLE,
-            "enhanced_customer_analysis": True,
-            "enhanced_3d_processing": True,
-            "enhanced_pipeline_controller": True,
-            "dual_image_analysis": True,
-            "fitting_algorithm": True,
-            "validation_system": True,
-            "gpu_acceleration": True,
-            "image_preprocessing": True,
-            "analysis_caching": True,
-            "performance_optimizations": True
+            "fashn_api_integration": bool(os.getenv("FASHN_API_KEY")),
+            "ultimate_pose_detection": True,
+            "quality_gates": True,
+            "user_type_detection": True,
+            "multi_tier_fallback": True,
+            "persistent_measurements": True,
+            "llbean_product_catalog": True
+        },
+        "removed_features": {
+            "local_3d_processing": "Removed - using FASHN API",
+            "local_ai_pipeline": "Removed - using FASHN API",
+            "physics_simulation": "Removed - using FASHN API",
+            "mesh_processing": "Removed - using FASHN API"
         }
     }
 
@@ -1720,24 +908,24 @@ async def health():
 @app.get("/debug")
 async def debug():
     return {
-        "status": "Production Virtual Try-On Server",
+        "status": "FASHN API Integration Server",
+        "architecture": "Quality Gates + FASHN API Only",
         "capabilities": {
-            "full_3d_pipeline": MESH_PROCESSING_AVAILABLE and PHYSICS_AVAILABLE,
-            "ai_enhancement": AI_AVAILABLE,
-            "hybrid_processing": True,
-            "fallback_processing": True
+            "fashn_api_integration": bool(os.getenv("FASHN_API_KEY")),
+            "ultimate_pose_detection": True,
+            "quality_assessment": True,
+            "user_type_detection": True
         },
         "libraries": {
-            "torch": AI_AVAILABLE,
-            "trimesh": MESH_PROCESSING_AVAILABLE,
-            "pybullet": PHYSICS_AVAILABLE,
+            "mediapipe": True,
             "opencv": CV2_AVAILABLE,
-            "fal_client": FAL_AVAILABLE,
-            "sklearn": True
+            "numpy": True,
+            "pillow": True
         },
         "environment": {
             "mongo_url": bool(mongo_url),
-            "db_name": db_name
+            "db_name": db_name,
+            "fashn_api_key": bool(os.getenv("FASHN_API_KEY"))
         }
     }
 
@@ -1752,222 +940,7 @@ try:
 except ImportError as e:
     print(f"[WARN] Integration API not available: {e}")
 
-@app.get("/test-complete-pipeline")
-async def test_complete_pipeline():
-    """Test the complete enhanced pipeline"""
-    try:
-        # Test garment analyzer
-        from src.core.garment_analyzer import GarmentImageAnalyzer
-        analyzer = GarmentImageAnalyzer()
-        
-        # Create test image
-        from PIL import Image
-        import io
-        test_img = Image.new('RGB', (100, 100), color='blue')
-        img_bytes = io.BytesIO()
-        test_img.save(img_bytes, format='JPEG')
-        test_bytes = img_bytes.getvalue()
-        
-        analysis = analyzer.analyze_garment_image(test_bytes)
-        
-        return {
-            "garment_analyzer": "working",
-            "production_engine": "initialized",
-            "test_analysis": {
-                "success": analysis["analysis_success"],
-                "primary_color": analysis["colors"]["primary"],
-                "fabric_type": analysis["fabric_type"]
-            },
-            "pipeline_status": "enhanced and ready"
-        }
-    except Exception as e:
-        return {
-            "error": str(e),
-            "pipeline_status": "needs debugging"
-        }
-
-@api_router.post("/test-garment-analysis")
-async def test_garment_analysis(garment_image_base64: str = Form(...)):
-    """Test endpoint for garment image analysis"""
-    try:
-        from src.core.garment_analyzer import GarmentImageAnalyzer
-        
-        garment_bytes = base64.b64decode(garment_image_base64)
-        analyzer = GarmentImageAnalyzer()
-        analysis = analyzer.analyze_garment_image(garment_bytes)
-        
-        return {
-            "analysis_success": analysis["analysis_success"],
-            "primary_color": analysis["colors"]["primary"],
-            "fabric_type": analysis["fabric_type"],
-            "pattern_type": analysis["patterns"]["type"],
-            "full_analysis": analysis
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
-@api_router.post("/test-customer-analysis")
-async def test_customer_analysis(
-    user_image_base64: str = Form(...),
-    reference_height_cm: Optional[float] = Form(None)
-):
-    """Test endpoint for enhanced customer image analysis"""
-    try:
-        user_bytes = base64.b64decode(user_image_base64)
-        
-        # Use Ultimate Pose Detection system
-        controller = UltimateEnhancedPipelineController(user_type=UserType.FIRST_TIME)
-        
-        # Save user image to temp file for processing
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
-            tmp_file.write(user_bytes)
-            tmp_file_path = tmp_file.name
-        
-        analysis = controller.process_customer_image(tmp_file_path)
-        
-        return {
-            "analysis_success": analysis.get("can_proceed", False),
-            "confidence_score": analysis.get("confidence", 0.0),
-            "pose_detected": analysis.get("detected", False),
-            "quality_level": analysis.get("quality_level", "failed"),
-            "measurements": {
-                "height_cm": 170.0,
-                "shoulder_width_cm": 45.0
-            },
-            "skin_tone": {"rgb_color": (200, 180, 160), "category": "medium"},
-            "body_segmentation_success": analysis.get("can_proceed", False),
-            "full_analysis": analysis
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Customer analysis failed: {str(e)}")
-
-@api_router.post("/test-enhanced-3d-processing")
-async def test_enhanced_3d_processing(
-    garment_image_base64: str = Form(...),
-    garment_type: str = Form("t-shirt")
-):
-    """Test endpoint for enhanced 3D garment processing"""
-    try:
-        from src.core.garment_analyzer import GarmentImageAnalyzer
-        from src.core.enhanced_3d_garment_processor import Enhanced3DGarmentProcessor
-        
-        # Analyze garment
-        garment_bytes = base64.b64decode(garment_image_base64)
-        analyzer = GarmentImageAnalyzer()
-        analysis = analyzer.analyze_garment_image(garment_bytes)
-        
-        # Process with enhanced 3D processor
-        processor = Enhanced3DGarmentProcessor()
-        mesh_data = processor.create_enhanced_garment_mesh(analysis, garment_type)
-        mesh_data = processor.apply_physics_properties(mesh_data)
-        
-        return {
-            "garment_analysis_success": analysis["analysis_success"],
-            "garment_type": garment_type,
-            "mesh_vertices": mesh_data.get("vertices", 0),
-            "mesh_faces": mesh_data.get("faces", 0),
-            "material_properties": mesh_data["material_properties"],
-            "texture_data": mesh_data["texture_data"],
-            "physics_properties": mesh_data.get("physics_properties", {}),
-            "dimensions": mesh_data["dimensions"],
-            "enhanced_processing": "success"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Enhanced 3D processing failed: {str(e)}")
-
-@api_router.post("/test-enhanced-pipeline")
-async def test_enhanced_pipeline(
-    user_image_base64: str = Form(...),
-    garment_image_base64: str = Form(...),
-    garment_type: str = Form("t-shirt")
-):
-    """Test endpoint for complete enhanced pipeline with performance optimizations"""
-    try:
-        from src.core.enhanced_pipeline_controller import EnhancedPipelineController
-        from src.core.performance_optimizations import AnalysisCache, GPUAccelerator
-        
-        # Decode images
-        user_bytes = base64.b64decode(user_image_base64)
-        garment_bytes = base64.b64decode(garment_image_base64)
-        
-        user_image = Image.open(io.BytesIO(user_bytes))
-        garment_image = Image.open(io.BytesIO(garment_bytes))
-        
-        # Process with enhanced pipeline
-        controller = EnhancedPipelineController()
-        result = await controller.process_virtual_tryon(
-            customer_image=user_image,
-            garment_image=garment_image,
-            garment_type=garment_type
-        )
-        
-        if result["success"]:
-            # Convert result image to base64
-            with io.BytesIO() as output:
-                result["result_image"].save(output, format='JPEG', quality=90)
-                result_base64 = base64.b64encode(output.getvalue()).decode("utf-8")
-            
-            return {
-                "pipeline_success": True,
-                "result_image_base64": result_base64,
-                "customer_analysis_success": result["customer_analysis"]["analysis_success"],
-                "garment_analysis_success": result["garment_analysis"]["analysis_success"],
-                "fitting_algorithm": "completed",
-                "validation_passed": True,
-                "processing_method": "Enhanced Pipeline Controller",
-                "customer_measurements": result["customer_analysis"]["measurements"],
-                "garment_properties": {
-                    "primary_color": result["garment_analysis"]["dominant_colors"][0] if result["garment_analysis"]["dominant_colors"] else None,
-                    "fabric_type": result["garment_analysis"]["fabric_type"],
-                    "pattern_type": result["garment_analysis"]["patterns"]["type"]
-                },
-                "color_matching": result["fitting_data"]["color_matching"],
-                "performance_info": result.get("performance_info", {}),
-                "gpu_available": GPUAccelerator.is_gpu_available(),
-                "cache_size": len(AnalysisCache.ANALYSIS_CACHE),
-                "enhanced_pipeline": "success"
-            }
-        else:
-            return {
-                "pipeline_success": False,
-                "error": result["error"],
-                "enhanced_pipeline": "failed"
-            }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Enhanced pipeline test failed: {str(e)}")
-
-@api_router.post("/clear-cache")
-async def clear_analysis_cache():
-    """Clear analysis cache"""
-    try:
-        from src.core.performance_optimizations import AnalysisCache
-        AnalysisCache.clear_cache()
-        return {"message": "Analysis cache cleared successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Cache clear failed: {str(e)}")
-
-@api_router.get("/performance-status")
-async def get_performance_status():
-    """Get performance optimization status"""
-    try:
-        from src.core.performance_optimizations import GPUAccelerator, AnalysisCache
-        
-        return {
-            "gpu_available": GPUAccelerator.is_gpu_available(),
-            "device": GPUAccelerator.get_device(),
-            "cache_size": len(AnalysisCache.ANALYSIS_CACHE),
-            "max_cache_size": AnalysisCache.MAX_CACHE_SIZE,
-            "preprocessing_enabled": True,
-            "optimizations_active": True
-        }
-    except Exception as e:
-        return {
-            "gpu_available": False,
-            "device": "cpu",
-            "cache_size": 0,
-            "error": str(e)
-        }
+# All test endpoints removed - FASHN API only
 
 @app.on_event("startup")
 async def initialize_database():
