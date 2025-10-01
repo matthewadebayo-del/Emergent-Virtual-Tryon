@@ -34,9 +34,9 @@ class FASHNTryOn:
             customer_b64 = self._image_to_base64(customer_image)
             garment_b64 = self._image_to_base64(garment_image)
             
-            # Prepare request payload using current v1.5 format
+            # Prepare request payload using correct FASHN API format
             payload = {
-                "model_name": "fashn-inpaint-1.5",
+                "model_name": "tryon-v1.5",
                 "inputs": {
                     "model_image": customer_b64,
                     "garment_image": garment_b64,
